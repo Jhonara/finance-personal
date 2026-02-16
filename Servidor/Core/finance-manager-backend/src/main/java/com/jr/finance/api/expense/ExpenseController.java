@@ -5,6 +5,7 @@ import com.jr.finance.api.expense.dto.CreateExpenseRequest;
 import com.jr.finance.api.expense.dto.MonthComparisonResponse;
 import com.jr.finance.api.expense.dto.MonthlySummaryResponse;
 import com.jr.finance.api.expense.dto.PeriodComparisonResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class ExpenseController {
     private final ExpenseService expenseService;
 
     @PostMapping
-    public Expense create(@RequestBody CreateExpenseRequest req, Authentication auth) {
+    public Expense create(@Valid @RequestBody CreateExpenseRequest req, Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
         return expenseService.create(userId, req);
@@ -64,5 +65,10 @@ public class ExpenseController {
         return expenseService.comparePeriods(userId, year1, month1, year2, month2);
     }
 
-
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id, Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        Long userId = principal.getUser().getId();
+        expenseService.delete(userId, id);
+    }
 }

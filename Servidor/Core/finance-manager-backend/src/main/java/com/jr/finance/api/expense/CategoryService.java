@@ -1,5 +1,6 @@
 package com.jr.finance.api.expense;
 
+import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,10 +32,10 @@ public class CategoryService {
 
     public void delete(Long userId, Long categoryId) {
         Category c = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new NotFoundException("La categoría no existe"));
 
         if (!c.getUser().getId().equals(userId)) {
-            throw new RuntimeException("You cannot delete this category");
+            throw new NotFoundException("La categoría no existe");
         }
 
         categoryRepository.delete(c);

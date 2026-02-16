@@ -1,5 +1,6 @@
 package com.jr.finance.api.expense;
 
+import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.expense.dto.CreateExpenseRequest;
 import com.jr.finance.api.expense.dto.MonthComparisonResponse;
 import com.jr.finance.api.expense.dto.MonthlySummaryResponse;
@@ -39,7 +40,7 @@ public class ExpenseService {
 
         if (req.getCategoryId() != null) {
             e.setCategory(categoryRepository.findById(req.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found")));
+                    .orElseThrow(() -> new NotFoundException("Category not found")));
         }
 
         return expenseRepository.save(e);
@@ -160,5 +161,16 @@ public class ExpenseService {
                 year2, month2, total2,
                 difference, percentageChange, insight
         );
+    }
+
+    public void delete(Long userId, Long expenseId) {
+        Expense e = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new NotFoundException("El gasto no existe"));
+
+        if (!e.getUser().getId().equals(userId)) {
+            throw new NotFoundException("El gasto no existe");
+        }
+
+        expenseRepository.delete(e);
     }
 }

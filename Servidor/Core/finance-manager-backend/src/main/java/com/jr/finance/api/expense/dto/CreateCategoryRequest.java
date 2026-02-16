@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 public class CreateCategoryRequest {
-    @NotBlank
+
+    @NotBlank(message = "El nombre de la categoría es obligatorio")
     private String name;
 }

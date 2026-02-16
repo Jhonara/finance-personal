@@ -2,6 +2,7 @@ package com.jr.finance.api.auth;
 
 import com.jr.finance.api.auth.dto.LoginRequest;
 import com.jr.finance.api.auth.dto.RegisterRequest;
+import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.user.Role;
 import com.jr.finance.api.user.RoleRepository;
 import com.jr.finance.api.user.User;
@@ -21,7 +22,7 @@ public class AuthService {
 
     public String register(RegisterRequest request) {
         Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> new RuntimeException("Role USER not found"));
+                .orElseThrow(() -> new NotFoundException("Role USER not found"));
 
         User user = new User();
         user.setName(request.getName());
