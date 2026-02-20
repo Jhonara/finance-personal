@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public class CreditSimulationController {
 
     private final CreditSimulationService creditSimulationService;
-    private final CreditService creditService; // tu service real de créditos
+    private final CreditService creditService;
+    private final CreditScenarioCompareService creditScenarioCompareService;
 
     // Simulador libre
     @PostMapping("/simulate/free")
@@ -47,5 +48,12 @@ public class CreditSimulationController {
         }
 
         return creditSimulationService.simulateInternal(req);
+    }
+
+    //Comparador de escenarios de abonos
+    @PostMapping("/simulate/compare")
+    public java.util.List<com.jr.finance.api.credit.dto.CreditScenarioCompareResponse> compare(
+            @Valid @RequestBody com.jr.finance.api.credit.dto.CreditScenarioCompareRequest req) {
+        return creditScenarioCompareService.compareScenarios(req);
     }
 }

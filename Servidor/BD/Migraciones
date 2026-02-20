@@ -80,3 +80,49 @@ CREATE TABLE saving_movements (
 
 INSERT INTO roles (name) VALUES ('USER'), ('ADMIN');
 
+
+CREATE TABLE credit_schedule (
+    id BIGSERIAL PRIMARY KEY,
+    credit_id BIGINT NOT NULL,
+    installment_number INT NOT NULL,
+    due_date DATE NOT NULL,
+    opening_balance NUMERIC(14,2) NOT NULL,
+    days INT NOT NULL,
+    interest NUMERIC(14,2) NOT NULL,
+    principal_payment NUMERIC(14,2) NOT NULL,
+    ending_balance NUMERIC(14,2) NOT NULL,
+    extra_payment NUMERIC(14,2),
+    CONSTRAINT fk_schedule_credit FOREIGN KEY (credit_id) REFERENCES credits(id)
+);
+
+CREATE TABLE credit_payments (
+    id BIGSERIAL PRIMARY KEY,
+    credit_id BIGINT NOT NULL,
+    payment_date DATE NOT NULL,
+    amount NUMERIC(14,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT now(),
+    CONSTRAINT fk_payment_credit FOREIGN KEY (credit_id) REFERENCES credits(id)
+);
+
+
+ALTER TABLE credits
+ADD COLUMN name VARCHAR(100),
+ADD COLUMN payment_day INT,
+ADD COLUMN created_at TIMESTAMP DEFAULT now();
+
+-- Opcional: si interest_rate hoy es mensual, acláralo con un comentario
+COMMENT ON COLUMN credits.interest_rate IS 'Tasa efectiva anual (EA)';
+
+
+ALTER TABLE credit_payments
+ADD COLUMN extra_payment NUMERIC(12,2);
+
+CREATE TABLE user_alerts_seen (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    alert_code VARCHAR(50) NOT NULL,
+    related_id BIGINT,
+    seen_at TIMESTAMP DEFAULT now(),
+    UNIQUE (user_id, alert_code, related_id)
+);
+
