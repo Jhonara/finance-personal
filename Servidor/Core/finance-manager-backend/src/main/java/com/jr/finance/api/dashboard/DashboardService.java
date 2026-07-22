@@ -54,22 +54,7 @@ public class DashboardService {
                 ))
                 .toList();
 
-        // Alertas básicas
-        List<String> alerts = new java.util.ArrayList<>();
-
-        if (balance.compareTo(BigDecimal.ZERO) < 0) {
-            alerts.add("Estás en déficit este mes. Revisa tus gastos.");
-        }
-
-        if (comparison.getPercentageChange() != null
-                && comparison.getPercentageChange().compareTo(BigDecimal.valueOf(15)) > 0) {
-            alerts.add("Tus gastos aumentaron más del 15% frente al mes anterior.");
-        }
-
-
-        savings.stream()
-                .filter(s -> !s.isCompleted() && s.getProgressPercent().compareTo(BigDecimal.valueOf(50)) < 0)
-                .forEach(s -> alerts.add("Vas lento en la meta: " + s.getName()));
+        var alerts = alertService.buildAlerts(userId);
 
         return new DashboardMonthResponse(
                 totalIncome,
@@ -79,7 +64,9 @@ public class DashboardService {
                 comparison,
                 savings,
                 topCategories,
-                alerts
+                alerts,
+                List.of(),
+                null
         );
     }
 }
