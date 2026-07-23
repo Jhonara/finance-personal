@@ -16,14 +16,19 @@ public class CategoryService {
     private final UserRepository userRepository;
 
     public Category create(Long userId, String name) {
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("El usuario no existe"));
 
-        Category c = new Category();
-        c.setName(name);
-        c.setUser(user);
+        if (categoryRepository.existsByUserIdAndNameIgnoreCase(userId, name)) {
+            throw new IllegalArgumentException("Ya existe una categoría con ese nombre");
+        }
 
-        return categoryRepository.save(c);
+        Category category = new Category();
+        category.setName(name);
+        category.setUser(user);
+
+        return categoryRepository.save(category);
     }
 
     public List<Category> listByUser(Long userId) {
@@ -31,13 +36,14 @@ public class CategoryService {
     }
 
     public void delete(Long userId, Long categoryId) {
-        Category c = categoryRepository.findById(categoryId)
+
+        Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new NotFoundException("La categoría no existe"));
 
-        if (!c.getUser().getId().equals(userId)) {
+        if (!category.getUser().getId().equals(userId)) {
             throw new NotFoundException("La categoría no existe");
         }
 
-        categoryRepository.delete(c);
+        categoryRepository.delete(category);
     }
 }

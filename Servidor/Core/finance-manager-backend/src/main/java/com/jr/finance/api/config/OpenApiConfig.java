@@ -39,6 +39,8 @@ public class OpenApiConfig {
                                 • Metas de ahorro
                                 • Reportes
                                 • Inteligencia Artificial
+                                • Inteligencia Artificial
+                                • Inteligencia Artificial
                                 """)
 
                         .version("1.0.0")

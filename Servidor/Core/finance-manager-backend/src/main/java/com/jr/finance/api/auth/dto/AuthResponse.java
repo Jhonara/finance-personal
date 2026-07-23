@@ -1,10 +1,20 @@
 package com.jr.finance.api.auth.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-@Data
-@AllArgsConstructor
-public class AuthResponse {
-    private String token;
+@Schema(
+        name = "AuthResponse",
+        description = "Respuesta devuelta después de una autenticación exitosa."
+)
+public record AuthResponse(
+
+        @Schema(
+                description = "Token JWT para acceder a los endpoints protegidos.",
+                example = "eyJhbGciOiJIUzI1NiJ9..."
+        )
+        String token
+
+) {
 }
