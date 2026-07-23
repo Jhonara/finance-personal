@@ -14,6 +14,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.jr.finance.api.expense.dto.ExpenseResponse;
+import com.jr.finance.api.expense.mapper.ExpenseMapper;
 
 import java.util.List;
 
@@ -27,6 +29,7 @@ import java.util.List;
 public class ExpenseController {
 
     private final ExpenseService expenseService;
+    private final ExpenseMapper expenseMapper;
 
     @Operation(
             summary = "Registrar un gasto",
@@ -41,14 +44,16 @@ public class ExpenseController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public Expense create(
+    public ExpenseResponse create(
             @Valid @RequestBody CreateExpenseRequest req,
             Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return expenseService.create(userId, req);
+        return expenseMapper.toResponse(
+                expenseService.create(userId, req)
+        );
     }
 
     @Operation(
@@ -63,7 +68,7 @@ public class ExpenseController {
             value = "/month",
             produces = "application/json"
     )
-    public List<Expense> listByMonth(
+    public List<ExpenseResponse> listByMonth(
 
             @Parameter(
                     description = "Año a consultar.",
@@ -82,7 +87,9 @@ public class ExpenseController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return expenseService.listByMonth(userId, year, month);
+        return expenseMapper.toResponseList(
+                expenseService.listByMonth(userId, year, month)
+        );
     }
 
     @Operation(

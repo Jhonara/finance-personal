@@ -13,6 +13,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.jr.finance.api.saving.dto.SavingGoalResponse;
+import com.jr.finance.api.saving.mapper.SavingGoalMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.List;
 public class SavingController {
 
     private final SavingService savingService;
+    private final SavingGoalMapper savingGoalMapper;
 
     @Operation(
             summary = "Crear una meta de ahorro",
@@ -42,14 +45,16 @@ public class SavingController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public SavingGoal createGoal(
+    public SavingGoalResponse createGoal(
             @Valid @RequestBody CreateSavingGoalRequest req,
             Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return savingService.createGoal(userId, req);
+        return savingGoalMapper.toResponse(
+                savingService.createGoal(userId, req)
+        );
     }
 
     @Operation(
@@ -64,12 +69,14 @@ public class SavingController {
             value = "/goals",
             produces = "application/json"
     )
-    public List<SavingGoal> listGoals(Authentication auth) {
+    public List<SavingGoalResponse> listGoals(Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return savingService.listGoals(userId);
+        return savingGoalMapper.toResponseList(
+                savingService.listGoals(userId)
+        );
     }
 
     @Operation(
@@ -87,7 +94,7 @@ public class SavingController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public SavingGoal addMovement(
+    public SavingGoalResponse addMovement(
 
             @Parameter(
                     description = "Identificador de la meta de ahorro.",
@@ -102,7 +109,9 @@ public class SavingController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return savingService.addMovement(userId, id, req);
+        return savingGoalMapper.toResponse(
+                savingService.addMovement(userId, id, req)
+        );
     }
 
     @Operation(

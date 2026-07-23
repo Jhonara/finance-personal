@@ -14,7 +14,7 @@ public class LoginRequest {
 
     @Schema(
             description = "Correo electrónico del usuario.",
-            example = "prueba@correo.com"
+            example = "jr@test.com"
     )
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email no es válido")
@@ -22,7 +22,7 @@ public class LoginRequest {
 
     @Schema(
             description = "Contraseña registrada por el usuario.",
-            example = "MiPassword123*"
+            example = "123456"
     )
     @NotBlank(message = "La contraseña es obligatoria")
     private String password;
