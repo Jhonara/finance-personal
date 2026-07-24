@@ -13,6 +13,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.jr.finance.api.credit.dto.CreditResponse;
+import com.jr.finance.api.credit.mapper.CreditMapper;
 
 import java.util.List;
 
@@ -26,13 +28,20 @@ import java.util.List;
 public class CreditController {
 
     private final CreditService creditService;
+    private final CreditMapper creditMapper;
 
     @Operation(
             summary = "Registrar crédito",
             description = "Crea un nuevo crédito asociado al usuario autenticado."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Crédito registrado correctamente"),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Crédito registrado correctamente",
+                    content = @Content(
+                            schema = @Schema(implementation = CreditResponse.class)
+                    )
+            ),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
     })
@@ -40,10 +49,12 @@ public class CreditController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public Credit create(@Valid @RequestBody CreateCreditRequest req, Authentication auth) {
+    public CreditResponse create(@Valid @RequestBody CreateCreditRequest request, Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
-        return creditService.create(userId, req);
+        return creditMapper.toResponse(
+                creditService.create(userId, request)
+        );
     }
 
     @Operation(
@@ -61,10 +72,14 @@ public class CreditController {
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
     })
     @GetMapping(produces = "application/json")
-    public List<Credit> list(Authentication auth) {
+    public List<CreditResponse> list(Authentication auth) {
+
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
-        return creditService.list(userId);
+
+        return creditMapper.toResponseList(
+                creditService.list(userId)
+        );
     }
 
     @Operation(
@@ -72,7 +87,13 @@ public class CreditController {
             description = "Obtiene la información de un crédito específico del usuario autenticado."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Crédito encontrado"),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Crédito encontrado",
+                    content = @Content(
+                            schema = @Schema(implementation = CreditResponse.class)
+                    )
+            ),
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
             @ApiResponse(responseCode = "404", description = "Crédito no encontrado")
     })
@@ -80,9 +101,11 @@ public class CreditController {
             value = "/{id}",
             produces = "application/json"
     )
-    public Credit getById(@PathVariable Long id, Authentication auth) {
+    public CreditResponse findById(@PathVariable Long id, Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
-        return creditService.findByIdForUser(userId, id);
+        return creditMapper.toResponse(
+                creditService.findByIdForUser(userId, id)
+        );
     }
 }
