@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Schema(
@@ -35,5 +36,5 @@ public class CreditResponse {
     private Integer paymentDay;
 
     @Schema(description = "Fecha de creación.", example = "2026-07-22T08:30:00")
-    private LocalDate createdAt;
+    private LocalDateTime createdAt;
 }

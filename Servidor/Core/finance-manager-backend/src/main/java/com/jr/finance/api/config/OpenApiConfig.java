@@ -39,8 +39,6 @@ public class OpenApiConfig {
                                 • Metas de ahorro
                                 • Reportes
                                 • Inteligencia Artificial
-                                • Inteligencia Artificial
-                                • Inteligencia Artificial
                                 """)
 
                         .version("1.0.0")
@@ -50,7 +48,7 @@ public class OpenApiConfig {
                                 .email("jhonatan@example.com"))
 
                         .license(new License()
-                                .name("MIT")))
+                                .name("")))
 
                 .addSecurityItem(
                         new SecurityRequirement()
