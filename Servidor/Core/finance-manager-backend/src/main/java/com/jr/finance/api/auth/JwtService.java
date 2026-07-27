@@ -2,12 +2,14 @@ package com.jr.finance.api.auth;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+@Slf4j
 @Service
 public class JwtService {
 
@@ -22,6 +24,9 @@ public class JwtService {
     }
 
     public String generateToken(String subject) {
+
+        log.info("Generando token JWT para el usuario {}.", subject);
+
         return Jwts.builder()
                 .subject(subject)
                 .issuedAt(new Date())
@@ -31,6 +36,9 @@ public class JwtService {
     }
 
     public String extractSubject(String token) {
+
+        log.info("Extrayendo información del token JWT.");
+
         return Jwts.parser()
                 .verifyWith(getSignKey())
                 .build()

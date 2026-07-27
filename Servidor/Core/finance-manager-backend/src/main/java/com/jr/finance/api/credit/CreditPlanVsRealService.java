@@ -3,13 +3,16 @@ package com.jr.finance.api.credit;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.credit.dto.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CreditPlanVsRealService {
@@ -20,91 +23,134 @@ public class CreditPlanVsRealService {
 
     public CreditPlanVsRealResponse calculate(Long userId, Long creditId) {
 
+        log.info("Calculando comparación plan vs. real para el crédito {} del usuario {}.",
+                creditId,
+                userId);
+
         Credit credit = creditRepository.findById(creditId)
-                .orElseThrow(() -> new NotFoundException("El crédito no existe"));
+                .orElseThrow(() -> {
+                    log.warn("Crédito {} no encontrado.", creditId);
+                    return new NotFoundException("El crédito no existe");
+                });
 
         if (!credit.getUser().getId().equals(userId)) {
+            log.warn("El usuario {} intentó acceder al crédito {} sin permisos.",
+                    userId,
+                    creditId);
+
             throw new NotFoundException("El crédito no existe");
         }
 
-        List<CreditPayment> payments = paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId);
+        List<CreditPayment> payments =
+                paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId);
 
-        // 1️⃣ Plan teórico completo
-        CreditSimulationRequest planReq = new CreditSimulationRequest();
-        planReq.setPrincipal(credit.getPrincipal());
-        planReq.setAnnualRate(credit.getAnnualRate());
-        planReq.setTermMonths(credit.getTermMonths());
-        planReq.setDisbursementDate(credit.getDisbursementDate());
-        planReq.setPaymentDay(credit.getPaymentDay());
+        // Plan teórico
+        CreditSimulationRequest simulationRequest = new CreditSimulationRequest();
+        simulationRequest.setPrincipal(credit.getPrincipal());
+        simulationRequest.setAnnualRate(credit.getAnnualRate());
+        simulationRequest.setTermMonths(credit.getTermMonths());
+        simulationRequest.setDisbursementDate(credit.getDisbursementDate());
+        simulationRequest.setPaymentDay(credit.getPaymentDay());
 
-        var plan = simulationService.simulateInternal(planReq);
+        CreditSimulationResponse simulation =
+                simulationService.simulateInternal(simulationRequest);
 
         LocalDate today = LocalDate.now();
 
-        BigDecimal plannedTotalToDate = BigDecimal.ZERO;
+        BigDecimal plannedTotalPaid = BigDecimal.ZERO;
         BigDecimal plannedCapitalPaid = BigDecimal.ZERO;
         BigDecimal plannedInterestPaid = BigDecimal.ZERO;
         int plannedInstallments = 0;
 
-        for (AmortizationRow row : plan.getSchedule()) {
+        for (AmortizationRow row : simulation.getSchedule()) {
+
             if (!row.getDate().isAfter(today)) {
-                plannedTotalToDate = plannedTotalToDate.add(row.getInterest()).add(row.getPrincipalPayment());
-                plannedCapitalPaid = plannedCapitalPaid.add(row.getPrincipalPayment());
-                plannedInterestPaid = plannedInterestPaid.add(row.getInterest());
+
+                plannedTotalPaid = plannedTotalPaid
+                        .add(row.getInterest())
+                        .add(row.getPrincipalPayment());
+
+                plannedCapitalPaid = plannedCapitalPaid
+                        .add(row.getPrincipalPayment());
+
+                plannedInterestPaid = plannedInterestPaid
+                        .add(row.getInterest());
+
                 plannedInstallments++;
             }
         }
 
-        // 2️⃣ Real (pagos reales)
+        // Pagos reales
         BigDecimal realTotalPaid = BigDecimal.ZERO;
         BigDecimal realCapitalPaid = BigDecimal.ZERO;
         BigDecimal realInterestPaid = BigDecimal.ZERO;
 
-        // Para calcular interés real por días
-        BigDecimal dailyRate = plan.getDailyRate().divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
+        BigDecimal dailyRate = simulation.getDailyRate()
+                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
 
-        BigDecimal balance = credit.getPrincipal();
-        LocalDate lastDate = credit.getDisbursementDate();
+        BigDecimal currentBalance = credit.getPrincipal();
+        LocalDate lastPaymentDate = credit.getDisbursementDate();
 
-        for (CreditPayment p : payments) {
-            long days = java.time.temporal.ChronoUnit.DAYS.between(lastDate, p.getPaymentDate());
+        for (CreditPayment payment : payments) {
 
-            BigDecimal interest = balance
+            long days = ChronoUnit.DAYS.between(
+                    lastPaymentDate,
+                    payment.getPaymentDate()
+            );
+
+            BigDecimal interest = currentBalance
                     .multiply(dailyRate)
                     .multiply(BigDecimal.valueOf(days))
                     .setScale(2, RoundingMode.HALF_UP);
 
-            BigDecimal capital = p.getAmount().subtract(interest).max(BigDecimal.ZERO);
+            BigDecimal capital = payment.getAmount()
+                    .subtract(interest)
+                    .max(BigDecimal.ZERO);
 
-            if (p.getExtraPayment() != null) {
-                capital = capital.add(p.getExtraPayment());
+            if (payment.getExtraPayment() != null) {
+                capital = capital.add(payment.getExtraPayment());
             }
 
-            balance = balance.subtract(capital).max(BigDecimal.ZERO);
+            currentBalance = currentBalance
+                    .subtract(capital)
+                    .max(BigDecimal.ZERO);
 
             realInterestPaid = realInterestPaid.add(interest);
             realCapitalPaid = realCapitalPaid.add(capital);
-            realTotalPaid = realTotalPaid.add(p.getAmount()).add(p.getExtraPayment() != null ? p.getExtraPayment() : BigDecimal.ZERO);
 
-            lastDate = p.getPaymentDate();
+            realTotalPaid = realTotalPaid
+                    .add(payment.getAmount())
+                    .add(payment.getExtraPayment() != null
+                            ? payment.getExtraPayment()
+                            : BigDecimal.ZERO);
+
+            lastPaymentDate = payment.getPaymentDate();
         }
 
         int realInstallments = payments.size();
 
         String status;
-        if (realInstallments > plannedInstallments) status = "ADELANTADO";
-        else if (realInstallments < plannedInstallments) status = "ATRASADO";
-        else status = "AL_DIA";
+
+        if (realInstallments > plannedInstallments) {
+            status = "ADELANTADO";
+        } else if (realInstallments < plannedInstallments) {
+            status = "ATRASADO";
+        } else {
+            status = "AL_DIA";
+        }
+
+        log.info("Comparación plan vs. real calculada correctamente para el crédito {}.",
+                creditId);
 
         return new CreditPlanVsRealResponse(
                 creditId,
-                plannedTotalToDate.setScale(2, RoundingMode.HALF_UP),
+                plannedTotalPaid.setScale(2, RoundingMode.HALF_UP),
                 realTotalPaid.setScale(2, RoundingMode.HALF_UP),
                 plannedCapitalPaid.setScale(2, RoundingMode.HALF_UP),
                 realCapitalPaid.setScale(2, RoundingMode.HALF_UP),
                 plannedInterestPaid.setScale(2, RoundingMode.HALF_UP),
                 realInterestPaid.setScale(2, RoundingMode.HALF_UP),
-                balance.setScale(2, RoundingMode.HALF_UP),
+                currentBalance.setScale(2, RoundingMode.HALF_UP),
                 plannedInstallments,
                 realInstallments,
                 status

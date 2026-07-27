@@ -28,7 +28,7 @@ public class ExpenseService {
 
     public Expense create(Long userId, CreateExpenseRequest req) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         Expense e = new Expense();
         e.setUser(user);

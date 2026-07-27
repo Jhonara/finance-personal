@@ -5,11 +5,12 @@ import com.jr.finance.api.credit.dto.CreateCreditRequest;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CreditService {
@@ -18,8 +19,14 @@ public class CreditService {
     private final UserRepository userRepository;
 
     public Credit create(Long userId, CreateCreditRequest req) {
+
+        log.info("Creando crédito para el usuario con id: {}", userId);
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
+                .orElseThrow(() -> {
+                    log.warn("Usuario con id {} no encontrado al crear un crédito.", userId);
+                    return new NotFoundException("Usuario no encontrado");
+                });
 
         Credit credit = new Credit();
         credit.setUser(user);
@@ -29,20 +36,38 @@ public class CreditService {
         credit.setTermMonths(req.getTermMonths());
         credit.setDisbursementDate(req.getDisbursementDate());
         credit.setPaymentDay(req.getPaymentDay());
-        credit.setCreatedAt(LocalDateTime.now());
 
-        return creditRepository.save(credit);
+        Credit savedCredit = creditRepository.save(credit);
+
+        log.info("Crédito con id {} creado correctamente para el usuario {}.",
+                savedCredit.getId(),
+                userId);
+
+        return savedCredit;
     }
 
     public List<Credit> list(Long userId) {
+
+        log.info("Consultando créditos del usuario con id: {}", userId);
+
         return creditRepository.findByUserId(userId);
     }
 
     public Credit findByIdForUser(Long userId, Long creditId) {
+
+        log.info("Consultando crédito {} para el usuario {}.", creditId, userId);
+
         Credit credit = creditRepository.findById(creditId)
-                .orElseThrow(() -> new NotFoundException("El crédito no existe"));
+                .orElseThrow(() -> {
+                    log.warn("Crédito con id {} no encontrado.", creditId);
+                    return new NotFoundException("El crédito no existe");
+                });
 
         if (!credit.getUser().getId().equals(userId)) {
+            log.warn("El usuario {} intentó acceder al crédito {} sin permisos.",
+                    userId,
+                    creditId);
+
             throw new NotFoundException("El crédito no existe");
         }
 

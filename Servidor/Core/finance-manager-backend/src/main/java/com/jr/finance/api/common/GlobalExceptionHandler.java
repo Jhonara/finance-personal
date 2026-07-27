@@ -1,75 +1,163 @@
 package com.jr.finance.api.common;
 
 import com.jr.finance.api.common.dto.ErrorResponse;
+import com.jr.finance.api.common.exception.BadRequestException;
+import com.jr.finance.api.common.exception.ConflictException;
+import com.jr.finance.api.common.exception.ForbiddenException;
 import com.jr.finance.api.common.exception.NotFoundException;
+import com.jr.finance.api.common.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse handleNotFound(NotFoundException ex, HttpServletRequest request) {
-        return new ErrorResponse(
-                ex.getMessage(),
-                HttpStatus.NOT_FOUND.value(),
-                LocalDateTime.now(),
-                request.getRequestURI()
-        );
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            NotFoundException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(error(
+                        ex.getMessage(),
+                        HttpStatus.NOT_FOUND,
+                        request
+                ));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(
+            BadRequestException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.badRequest()
+                .body(error(
+                        ex.getMessage(),
+                        HttpStatus.BAD_REQUEST,
+                        request
+                ));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(
+            ConflictException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(error(
+                        ex.getMessage(),
+                        HttpStatus.CONFLICT,
+                        request
+                ));
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(
+            UnauthorizedException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(error(
+                        ex.getMessage(),
+                        HttpStatus.UNAUTHORIZED,
+                        request
+                ));
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbidden(
+            ForbiddenException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(error(
+                        ex.getMessage(),
+                        HttpStatus.FORBIDDEN,
+                        request
+                ));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        String msg = ex.getBindingResult().getFieldErrors().stream()
-                .map(e -> e.getField() + ": " + e.getDefaultMessage())
+    public ResponseEntity<ErrorResponse> handleValidation(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
+
+        String message = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
 
-        return new ErrorResponse(
-                msg,
-                HttpStatus.BAD_REQUEST.value(),
-                LocalDateTime.now(),
-                request.getRequestURI()
-        );
+        return ResponseEntity.badRequest()
+                .body(error(
+                        message,
+                        HttpStatus.BAD_REQUEST,
+                        request
+                ));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleConstraint(ConstraintViolationException ex, HttpServletRequest request) {
-        return new ErrorResponse(
-                ex.getMessage(),
-                HttpStatus.BAD_REQUEST.value(),
-                LocalDateTime.now(),
-                request.getRequestURI()
-        );
-    }
+    public ResponseEntity<ErrorResponse> handleConstraint(
+            ConstraintViolationException ex,
+            HttpServletRequest request) {
 
-    @ExceptionHandler(RuntimeException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleRuntime(RuntimeException ex, HttpServletRequest request) {
-        return new ErrorResponse(
-                ex.getMessage(),
-                HttpStatus.BAD_REQUEST.value(),
-                LocalDateTime.now(),
-                request.getRequestURI()
-        );
+        return ResponseEntity.badRequest()
+                .body(error(
+                        ex.getMessage(),
+                        HttpStatus.BAD_REQUEST,
+                        request
+                ));
+    }
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleJsonParse(
+            org.springframework.http.converter.HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.badRequest()
+                .body(error(
+                        "El cuerpo de la solicitud contiene un JSON inválido.",
+                        HttpStatus.BAD_REQUEST,
+                        request
+                ));
     }
 
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleGeneric(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleException(
+            Exception ex,
+            HttpServletRequest request) {
+
+        ex.printStackTrace();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(error(
+                        ex.getClass().getSimpleName() + ": " + ex.getMessage(),
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        request
+                ));
+    }
+
+    private ErrorResponse error(
+            String message,
+            HttpStatus status,
+            HttpServletRequest request) {
+
         return new ErrorResponse(
-                "Error interno del servidor",
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                message,
+                status.value(),
                 LocalDateTime.now(),
                 request.getRequestURI()
         );
     }
+
 }

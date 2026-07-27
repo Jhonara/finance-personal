@@ -1,4 +1,4 @@
-package com.jr.finance.api.exception;
+package com.jr.finance.api.common.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

@@ -4,11 +4,13 @@ import com.jr.finance.api.common.dto.MonthlyBalanceResponse;
 import com.jr.finance.api.expense.ExpenseRepository;
 import com.jr.finance.api.income.IncomeRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BalanceService {
@@ -17,15 +19,27 @@ public class BalanceService {
     private final ExpenseRepository expenseRepository;
 
     public MonthlyBalanceResponse monthlyBalance(Long userId, int year, int month) {
-        YearMonth ym = YearMonth.of(year, month);
-        var start = ym.atDay(1);
-        var end = ym.atEndOfMonth();
 
-        BigDecimal totalIncome = incomeRepository.totalByPeriod(userId, start, end);
-        BigDecimal totalExpense = expenseRepository.totalByPeriod(userId, start, end);
+        log.info("Calculando balance mensual del usuario {} para {}/{}.",
+                userId,
+                month,
+                year);
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+
+        var startDate = yearMonth.atDay(1);
+        var endDate = yearMonth.atEndOfMonth();
+
+        BigDecimal totalIncome = incomeRepository.totalByPeriod(userId, startDate, endDate);
+        BigDecimal totalExpense = expenseRepository.totalByPeriod(userId, startDate, endDate);
+
+        totalIncome = totalIncome != null ? totalIncome : BigDecimal.ZERO;
+        totalExpense = totalExpense != null ? totalExpense : BigDecimal.ZERO;
+
         BigDecimal balance = totalIncome.subtract(totalExpense);
 
         String insight;
+
         if (balance.compareTo(BigDecimal.ZERO) > 0) {
             insight = "Vas bien: estás en superávit este mes. Considera ahorrar una parte.";
         } else if (balance.compareTo(BigDecimal.ZERO) < 0) {
@@ -34,6 +48,15 @@ public class BalanceService {
             insight = "Estás justo en equilibrio este mes.";
         }
 
-        return new MonthlyBalanceResponse(year, month, totalIncome, totalExpense, balance, insight);
+        log.info("Balance mensual calculado correctamente para el usuario {}.", userId);
+
+        return new MonthlyBalanceResponse(
+                year,
+                month,
+                totalIncome,
+                totalExpense,
+                balance,
+                insight
+        );
     }
 }
