@@ -1,6 +1,7 @@
 package com.jr.finance.api.expense;
 
 import com.jr.finance.api.common.exception.NotFoundException;
+import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.expense.dto.CreateExpenseRequest;
 import com.jr.finance.api.expense.dto.MonthComparisonResponse;
 import com.jr.finance.api.expense.dto.MonthlySummaryResponse;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +47,7 @@ public class ExpenseService {
     }
 
     public List<Expense> listByMonth(Long userId, int year, int month) {
-        YearMonth ym = YearMonth.of(year, month);
+        var ym = FinancialPeriod.of(year, month);
         return expenseRepository.findByUserIdAndExpenseDateBetween(
                 userId,
                 ym.atDay(1),
@@ -56,7 +56,7 @@ public class ExpenseService {
     }
 
     public MonthlySummaryResponse monthlySummary(Long userId, int year, int month) {
-        YearMonth ym = YearMonth.of(year, month);
+        var ym = FinancialPeriod.of(year, month);
         var start = ym.atDay(1);
         var end = ym.atEndOfMonth();
 
@@ -76,8 +76,8 @@ public class ExpenseService {
 
 //Comparacion mes a mes
     public MonthComparisonResponse compareMonth(Long userId, int year, int month) {
-        YearMonth current = YearMonth.of(year, month);
-        YearMonth previous = current.minusMonths(1);
+        var current = FinancialPeriod.of(year, month);
+        var previous = current.minusMonths(1);
 
         var startCurrent = current.atDay(1);
         var endCurrent = current.atEndOfMonth();
@@ -124,8 +124,8 @@ public class ExpenseService {
                                                    int year1, int month1,
                                                    int year2, int month2) {
 
-        YearMonth p1 = YearMonth.of(year1, month1);
-        YearMonth p2 = YearMonth.of(year2, month2);
+        var p1 = FinancialPeriod.of(year1, month1);
+        var p2 = FinancialPeriod.of(year2, month2);
 
         var start1 = p1.atDay(1);
         var end1 = p1.atEndOfMonth();

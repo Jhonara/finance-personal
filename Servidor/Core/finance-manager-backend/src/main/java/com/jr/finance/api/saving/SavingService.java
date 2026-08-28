@@ -9,6 +9,7 @@ import com.jr.finance.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -61,6 +62,7 @@ public class SavingService {
         return savingGoalRepository.findByUserId(userId);
     }
 
+    @Transactional
     public SavingGoal addMovement(Long userId, Long goalId, AddSavingMovementRequest req) {
 
         log.info("Registrando movimiento para la meta {} del usuario {}.",
@@ -94,13 +96,6 @@ public class SavingService {
 
         BigDecimal newAmount = goal.getCurrentAmount().add(req.getAmount());
 
-        SavingMovement movement = new SavingMovement();
-        movement.setSavingGoal(goal);
-        movement.setAmount(req.getAmount());
-        movement.setMovementDate(req.getMovementDate());
-
-        savingMovementRepository.save(movement);
-
         goal.setCurrentAmount(newAmount);
 
         if (newAmount.compareTo(goal.getTargetAmount()) >= 0) {
@@ -111,7 +106,15 @@ public class SavingService {
                     userId);
         }
 
-        SavingGoal savedGoal = savingGoalRepository.save(goal);
+        // Flush the versioned aggregate first. A concurrent writer fails before
+        // creating a movement that could not be reflected in currentAmount.
+        SavingGoal savedGoal = savingGoalRepository.saveAndFlush(goal);
+
+        SavingMovement movement = new SavingMovement();
+        movement.setSavingGoal(savedGoal);
+        movement.setAmount(req.getAmount());
+        movement.setMovementDate(req.getMovementDate());
+        savingMovementRepository.saveAndFlush(movement);
 
         log.info("Movimiento registrado correctamente en la meta {}.",
                 savedGoal.getId());

@@ -31,6 +31,14 @@ public class SavingGoal {
     )
     private Long id;
 
+    @Version
+    @Column(nullable = false)
+    @Schema(
+            description = "Versión técnica para controlar actualizaciones concurrentes.",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    private Long version;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @Schema(

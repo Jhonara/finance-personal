@@ -1,6 +1,7 @@
 package com.jr.finance.api.income;
 
 import com.jr.finance.api.common.exception.NotFoundException;
+import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.income.dto.CreateIncomeRequest;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
@@ -8,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.YearMonth;
 import java.util.List;
 
 @Slf4j
@@ -52,7 +52,7 @@ public class IncomeService {
                 month,
                 year);
 
-        YearMonth ym = YearMonth.of(year, month);
+        var ym = FinancialPeriod.of(year, month);
 
         return incomeRepository.findByUserIdAndIncomeDateBetween(
                 userId,

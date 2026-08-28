@@ -166,6 +166,31 @@ class SecurityIntegrationTests {
         org.junit.jupiter.api.Assertions.assertEquals(0, expenseRepository.count());
     }
 
+    @Test
+    void periodEndpointsRejectInvalidMonthsAndYearsWithBadRequest() throws Exception {
+        User user = createUser("period@example.com", "password123", "USER");
+        String authorization = bearer(user);
+
+        mockMvc.perform(get("/api/incomes/month?year=2026&month=0")
+                        .header("Authorization", authorization))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/expenses/summary?year=2026&month=13")
+                        .header("Authorization", authorization))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/expenses/compare?year=1999&month=1")
+                        .header("Authorization", authorization))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/expenses/compare-periods?year1=2026&month1=1&year2=2101&month2=1")
+                        .header("Authorization", authorization))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/balance/month?year=2026&month=0")
+                        .header("Authorization", authorization))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/dashboard/month?year=2101&month=1")
+                        .header("Authorization", authorization))
+                .andExpect(status().isBadRequest());
+    }
+
     private User createUser(String email, String password, String roleName) {
         Role role = roleRepository.findByName(roleName).orElseGet(() -> {
             Role newRole = new Role();

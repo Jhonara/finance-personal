@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.YearMonth;
 
 @Slf4j
 @Service
@@ -25,7 +24,7 @@ public class BalanceService {
                 month,
                 year);
 
-        YearMonth yearMonth = YearMonth.of(year, month);
+        var yearMonth = FinancialPeriod.of(year, month);
 
         var startDate = yearMonth.atDay(1);
         var endDate = yearMonth.atEndOfMonth();
