@@ -38,7 +38,7 @@ public class Category {
     )
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Nombre de la categoría.",
             example = "Alimentación"
@@ -46,7 +46,7 @@ public class Category {
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     @Schema(
             description = "Usuario propietario de la categoría.",
             accessMode = Schema.AccessMode.READ_ONLY

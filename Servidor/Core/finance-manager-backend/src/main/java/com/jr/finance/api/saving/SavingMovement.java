@@ -39,7 +39,7 @@ public class SavingMovement {
     )
     private SavingGoal savingGoal;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Valor del aporte realizado.",
             example = "250000.00"

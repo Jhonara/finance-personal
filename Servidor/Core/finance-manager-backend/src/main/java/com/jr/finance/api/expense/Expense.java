@@ -47,20 +47,21 @@ public class Expense {
     )
     private Category category;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Valor del gasto.",
             example = "85000.00"
     )
     private BigDecimal amount;
 
+    @Column(length = 255)
     @Schema(
             description = "Descripción opcional del gasto.",
             example = "Compra de mercado semanal"
     )
     private String description;
 
-    @Column(name = "payment_type")
+    @Column(name = "payment_type", length = 50)
     @Schema(
             description = "Método de pago utilizado.",
             example = "CARD",
@@ -72,7 +73,7 @@ public class Expense {
     )
     private String paymentType;
 
-    @Column(name = "expense_type")
+    @Column(name = "expense_type", length = 20)
     @Schema(
             description = "Clasificación del gasto.",
             example = "VARIABLE",

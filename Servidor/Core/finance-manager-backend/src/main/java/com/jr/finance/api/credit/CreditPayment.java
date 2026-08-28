@@ -26,13 +26,13 @@ public class CreditPayment {
     private Long id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "credit_id")
+    @JoinColumn(name = "credit_id", nullable = false)
     @Schema(
             description = "Crédito al que pertenece el pago."
     )
     private Credit credit;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Valor del pago realizado.",
             example = "850000.00"
@@ -46,7 +46,7 @@ public class CreditPayment {
     )
     private LocalDate paymentDate;
 
-    @Column(precision = 12, scale = 2)
+    @Column(precision = 19, scale = 4)
     @Schema(
             description = "Abono extraordinario aplicado al capital del crédito. Si no existe, el valor será nulo.",
             example = "500000.00",

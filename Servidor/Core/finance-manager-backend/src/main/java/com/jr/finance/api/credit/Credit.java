@@ -37,27 +37,27 @@ public class Credit {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     @Schema(
             description = "Usuario propietario del crédito."
     )
     private User user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Nombre o descripción del crédito.",
             example = "Crédito de vehículo"
     )
     private String name;
 
-    @Column(name = "amount", nullable = false)
+    @Column(name = "amount", nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Monto desembolsado del crédito.",
             example = "30000000.00"
     )
     private BigDecimal principal;
 
-    @Column(name = "interest_rate", nullable = false)
+    @Column(name = "interest_rate", nullable = false, precision = 9, scale = 6)
     @Schema(
             description = "Tasa de interés efectiva anual (EA) del crédito, expresada en porcentaje.",
             example = "18.50"
@@ -94,6 +94,6 @@ public class Credit {
     private LocalDateTime createdAt;
 
     @LastModifiedDate
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 }

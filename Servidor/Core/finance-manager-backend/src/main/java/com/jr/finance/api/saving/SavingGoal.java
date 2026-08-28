@@ -39,21 +39,21 @@ public class SavingGoal {
     )
     private User user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Nombre de la meta de ahorro.",
             example = "Comprar moto"
     )
     private String name;
 
-    @Column(name = "target_amount", nullable = false)
+    @Column(name = "target_amount", nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Monto objetivo que se desea alcanzar.",
             example = "15000000.00"
     )
     private BigDecimal targetAmount;
 
-    @Column(name = "current_amount", nullable = false)
+    @Column(name = "current_amount", nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Monto acumulado hasta el momento.",
             example = "3200000.00"

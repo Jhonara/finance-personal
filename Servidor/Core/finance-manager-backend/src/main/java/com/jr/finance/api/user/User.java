@@ -33,29 +33,29 @@ public class User {
     )
     private Long id;
 
-    @Column(nullable = false)
-    @JsonIgnore
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Nombre completo del usuario.",
             example = "Jhonatan Ramírez"
     )
     private String name;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 150)
     @Schema(
             description = "Correo electrónico del usuario.",
             example = "jhonatan@email.com"
     )
     private String email;
 
-    @Column(nullable = false)
+    @JsonIgnore
+    @Column(nullable = false, length = 255)
     @Schema(
             description = "Contraseña cifrada del usuario.",
             accessMode = Schema.AccessMode.WRITE_ONLY
     )
     private String password;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     @Schema(
             description = "Fecha y hora de creación del usuario.",
             example = "2026-07-22T10:30:00",

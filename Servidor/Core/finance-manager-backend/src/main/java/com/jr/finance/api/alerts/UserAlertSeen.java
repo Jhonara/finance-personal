@@ -28,6 +28,6 @@ public class UserAlertSeen {
     @Column(name = "related_id")
     private Long relatedId;
 
-    @Column(name = "seen_at")
+    @Column(name = "seen_at", nullable = false)
     private LocalDateTime seenAt;
 }

@@ -40,20 +40,21 @@ public class Income {
     )
     private User user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Valor del ingreso.",
             example = "3500000.00"
     )
     private BigDecimal amount;
 
+    @Column(length = 255)
     @Schema(
             description = "Descripción opcional del ingreso.",
             example = "Salario correspondiente al mes de julio."
     )
     private String description;
 
-    @Column(name = "income_type")
+    @Column(name = "income_type", length = 50)
     @Schema(
             description = "Tipo de ingreso.",
             example = "SALARY",

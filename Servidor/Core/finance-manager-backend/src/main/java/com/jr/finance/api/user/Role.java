@@ -28,7 +28,7 @@ public class Role {
     )
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 50)
     @Schema(
             description = "Nombre único del rol.",
             example = "USER",
