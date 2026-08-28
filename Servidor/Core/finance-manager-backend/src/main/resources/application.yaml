@@ -4,10 +4,12 @@ server:
 spring:
   application:
     name: finance-manager-backend
+  profiles:
+    default: local
   datasource:
-    url: jdbc:postgresql://localhost:5432/personal_finance
-    username: postgres
-    password: postgres
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: none
@@ -16,8 +18,8 @@ spring:
       hibernate:
         format_sql: true
 jwt:
-  secret: 3f7c9b9a1e2d4f6a8c0b2d4e6f8a9c0b
-  expiration: 86400000
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 springdoc:
   api-docs:

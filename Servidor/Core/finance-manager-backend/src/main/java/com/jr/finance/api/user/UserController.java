@@ -1,5 +1,6 @@
 package com.jr.finance.api.user;
 
+import com.jr.finance.api.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -29,7 +30,14 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
     })
     @GetMapping(produces = "application/json")
-    public List<User> findAll() {
-        return userRepository.findAll();
+    public List<UserResponse> findAll() {
+        return userRepository.findAll().stream()
+                .map(user -> new UserResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        user.getCreatedAt()
+                ))
+                .toList();
     }
 }

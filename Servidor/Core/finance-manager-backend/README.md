@@ -22,7 +22,16 @@ En macOS/Linux:
 ./mvnw spring-boot:run
 ```
 
-La configuración local actual está en `src/main/resources/application.yaml`. En fases posteriores, sus valores sensibles se moverán a variables de entorno.
+La aplicación usa el perfil `local` por defecto. La configuración sensible se recibe exclusivamente mediante variables de entorno:
+
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `JWT_EXPIRATION` (opcional; por defecto, 24 horas)
+- `CORS_ALLOWED_ORIGINS` (opcional en local; obligatorio en producción)
+
+Para producción activa el perfil `prod` mediante `SPRING_PROFILES_ACTIVE=prod`. No guardes valores reales en archivos versionados ni en `.env` dentro del repositorio.
 
 ## Build y pruebas
 
@@ -34,11 +43,11 @@ La configuración local actual está en `src/main/resources/application.yaml`. E
 
 En macOS/Linux, sustituye `mvnw.cmd` por `./mvnw`.
 
-El test de contexto usa el perfil `test` y una base H2 en memoria; no se conecta ni modifica PostgreSQL local.
+El perfil `test` se activa automáticamente en las pruebas y usa una base H2 en memoria; no se conecta ni modifica PostgreSQL local.
 
 ## Configuración futura por entorno
 
-Los perfiles `local`, `test` y `prod` requerirán, como mínimo: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRATION` y `CORS_ALLOWED_ORIGINS`. No incluyas valores reales en el repositorio.
+Perfiles disponibles: `local`, `test` y `prod`. `local` permite únicamente orígenes de desarrollo conocidos; `prod` exige `CORS_ALLOWED_ORIGINS` con una allowlist explícita. No incluyas valores reales en el repositorio.
 
 ## Estructura básica
 

@@ -8,6 +8,7 @@ import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.common.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
@@ -137,11 +139,11 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request) {
 
-        ex.printStackTrace();
+        log.error("Error no controlado al procesar {} {}", request.getMethod(), request.getRequestURI(), ex);
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(error(
-                        ex.getClass().getSimpleName() + ": " + ex.getMessage(),
+                        "Ocurrió un error interno.",
                         HttpStatus.INTERNAL_SERVER_ERROR,
                         request
                 ));
@@ -154,6 +156,7 @@ public class GlobalExceptionHandler {
 
         return new ErrorResponse(
                 message,
+                status.name(),
                 status.value(),
                 LocalDateTime.now(),
                 request.getRequestURI()

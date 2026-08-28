@@ -39,7 +39,7 @@ public class ExpenseService {
         e.setExpenseDate(req.getExpenseDate());
 
         if (req.getCategoryId() != null) {
-            e.setCategory(categoryRepository.findById(req.getCategoryId())
+            e.setCategory(categoryRepository.findByIdAndUserId(req.getCategoryId(), userId)
                     .orElseThrow(() -> new NotFoundException("Category not found")));
         }
 

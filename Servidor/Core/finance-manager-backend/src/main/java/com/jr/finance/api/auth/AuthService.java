@@ -58,8 +58,8 @@ public class AuthService {
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
-                    log.warn("Usuario {} no encontrado.", request.getEmail());
-                    return new NotFoundException("Usuario no encontrado");
+                    log.warn("Credenciales inválidas durante el inicio de sesión.");
+                    return new UnauthorizedException("Credenciales inválidas");
                 });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

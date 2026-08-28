@@ -1,5 +1,6 @@
 package com.jr.finance.api.user;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -33,6 +34,7 @@ public class User {
     private Long id;
 
     @Column(nullable = false)
+    @JsonIgnore
     @Schema(
             description = "Nombre completo del usuario.",
             example = "Jhonatan Ramírez"

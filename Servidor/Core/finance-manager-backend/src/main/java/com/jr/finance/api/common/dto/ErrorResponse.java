@@ -21,6 +21,12 @@ public class ErrorResponse {
     private String message;
 
     @Schema(
+            description = "Código de error HTTP estandarizado.",
+            example = "UNAUTHORIZED"
+    )
+    private String error;
+
+    @Schema(
             description = "Código HTTP de la respuesta.",
             example = "400"
     )
