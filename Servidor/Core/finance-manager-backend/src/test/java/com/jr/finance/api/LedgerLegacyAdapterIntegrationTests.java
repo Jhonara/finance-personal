@@ -40,6 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -261,6 +262,78 @@ class LedgerLegacyAdapterIntegrationTests {
         mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(100000))
                 .andExpect(jsonPath("$.totalExpense").value(30000));
+    }
+
+    @Test
+    void transferHttpValidationRejectsZeroAndNegativeAmountsBeforePersisting() throws Exception {
+        User user = createUser();
+        long transactionsBefore = financialTransactionRepository.count();
+        long entriesBefore = ledgerEntryRepository.count();
+
+        for (String amount : new String[] {"0", "-1"}) {
+            mockMvc.perform(post("/api/transfers").header("Authorization", bearer(user))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"sourceAccountId":1,"destinationAccountId":2,"amount":%s,"effectiveDate":"2026-08-15"}
+                                    """.formatted(amount)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+                    .andExpect(jsonPath("$.status").value(400));
+        }
+
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore);
+    }
+
+    @Test
+    void transferDoesNotContaminateIncomeExpenseOrDashboardMetrics() throws Exception {
+        User user = createUser();
+        Account source = createAccount(user, true);
+        Account destination = createAccount(user, true);
+        Category category = new Category();
+        category.setName("Transfer metrics");
+        category.setUser(user);
+        category = categoryRepository.saveAndFlush(category);
+        ledgerService.recordOpeningBalance(user.getId(), source.getId(),
+                new com.jr.finance.api.ledger.FinancialOperationCommand(new BigDecimal("500000"), LocalDate.of(2026, 8, 1), null, "COP", null));
+        ledgerService.recordOpeningBalance(user.getId(), destination.getId(),
+                new com.jr.finance.api.ledger.FinancialOperationCommand(new BigDecimal("100000"), LocalDate.of(2026, 8, 1), null, "COP", null));
+        mockMvc.perform(post("/api/incomes").header("Authorization", bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":70000,"incomeType":"EXTRA","incomeDate":"2026-08-15","accountId":%d}
+                                """.formatted(source.getId())))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/expenses").header("Authorization", bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":20000,"paymentType":"CASH","expenseType":"VARIABLE","expenseDate":"2026-08-15","categoryId":%d,"accountId":%d}
+                                """.formatted(category.getId(), source.getId())))
+                .andExpect(status().isOk());
+
+        String incomesBefore = mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String summaryBefore = mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String comparisonBefore = mockMvc.perform(get("/api/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String balanceBefore = mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String dashboardBefore = mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        BigDecimal netWorthBefore = ledgerService.getAccountBalance(user.getId(), source.getId())
+                .add(ledgerService.getAccountBalance(user.getId(), destination.getId()));
+
+        mockMvc.perform(post("/api/transfers").header("Authorization", bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"sourceAccountId":%d,"destinationAccountId":%d,"amount":200000,"effectiveDate":"2026-08-15"}
+                                """.formatted(source.getId(), destination.getId())))
+                .andExpect(status().isCreated());
+
+        assertThat(mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(incomesBefore);
+        assertThat(mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(summaryBefore);
+        assertThat(mockMvc.perform(get("/api/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(comparisonBefore);
+        assertThat(mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(balanceBefore);
+        assertThat(mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(dashboardBefore);
+        BigDecimal netWorthAfter = ledgerService.getAccountBalance(user.getId(), source.getId())
+                .add(ledgerService.getAccountBalance(user.getId(), destination.getId()));
+        assertThat(netWorthAfter).isEqualByComparingTo(netWorthBefore);
     }
 
     private User createUser() {

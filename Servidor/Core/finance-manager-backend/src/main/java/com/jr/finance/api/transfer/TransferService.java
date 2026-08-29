@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Ser
   BigDecimal balance=entries.sumPostedByAccountId(source.getId(), FinancialTransactionStatus.VOIDED); if(balance.compareTo(r.getAmount())<0) throw new BadRequestException("Saldo insuficiente");
   var tx=new FinancialTransaction(); tx.setUser(users.findById(userId).orElseThrow(()->new NotFoundException("El usuario no existe"))); tx.setType(FinancialTransactionType.TRANSFER); tx.setStatus(FinancialTransactionStatus.POSTED); tx.setEffectiveDate(r.getEffectiveDate()); tx.setDescription(r.getDescription()==null||r.getDescription().trim().isEmpty()?null:r.getDescription().trim()); tx.setCurrency(source.getCurrency()); tx=transactions.saveAndFlush(tx);
   for(var pair:List.of(new Object[]{source,r.getAmount().negate()},new Object[]{destination,r.getAmount()})){var e=new LedgerEntry(); e.setFinancialTransaction(tx);e.setAccount((Account)pair[0]);e.setSignedAmount((BigDecimal)pair[1]);entries.save(e);} entries.flush();
-  return new TransferResponse(tx.getId(),source.getId(),destination.getId(),source.getName(),destination.getName(),r.getAmount(),tx.getCurrency(),tx.getEffectiveDate(),tx.getDescription(),tx.getStatus().name());
+  return new TransferResponse(tx.getId(), source.getId(), destination.getId(), source.getName(), destination.getName(),
+          tx.getCurrency(), tx.getStatus().name(), tx.getDescription(), r.getAmount(), tx.getEffectiveDate());
  }
 }

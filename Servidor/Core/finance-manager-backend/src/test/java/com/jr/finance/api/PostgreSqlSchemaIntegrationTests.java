@@ -15,7 +15,10 @@ import com.jr.finance.api.ledger.LedgerService;
 import com.jr.finance.api.ledger.LegacyLedgerMigrationService;
 import com.jr.finance.api.income.Income;
 import com.jr.finance.api.income.IncomeRepository;
+import com.jr.finance.api.transfer.TransferService;
+import com.jr.finance.api.transfer.dto.CreateTransferRequest;
 import javax.sql.DataSource;
+import jakarta.persistence.EntityManager;
 import com.jr.finance.api.saving.SavingGoal;
 import com.jr.finance.api.saving.SavingGoalRepository;
 import com.jr.finance.api.saving.SavingMovementRepository;
@@ -30,6 +33,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.context.bean.override.mockito.MockReset;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -48,6 +53,8 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
@@ -108,6 +115,11 @@ class PostgreSqlSchemaIntegrationTests {
     @Autowired private LegacyLedgerMigrationService legacyMigrationService;
     @Autowired private IncomeRepository incomeRepository;
     @Autowired private DataSource dataSource;
+    @Autowired private TransferService transferService;
+    @Autowired private EntityManager entityManager;
+
+    @MockitoSpyBean(reset = MockReset.AFTER)
+    private LedgerEntryRepository ledgerEntryRepositorySpy;
 
     @Test
     void appliesAllMigrationsAndValidatesTheJpaSchema() {
@@ -407,6 +419,127 @@ class PostgreSqlSchemaIntegrationTests {
     }
 
     @Test
+    void transferIsBalancedValidatesFundsAndCanBeReversed() {
+        User owner = createUser();
+        User other = createUser();
+        Account source = createAccount(owner, "Transfer source", true);
+        Account destination = createAccount(owner, "Transfer destination", true);
+        Account foreign = createAccount(other, "Foreign transfer", true);
+        ledgerService.recordOpeningBalance(owner.getId(), source.getId(), command("500000.0000", "COP"));
+        ledgerService.recordOpeningBalance(owner.getId(), destination.getId(), command("100000.0000", "COP"));
+        CreateTransferRequest request = transfer(source.getId(), destination.getId(), "200000.0000");
+        var response = transferService.create(owner.getId(), request);
+        assertThat(response.getSourceAccountId()).isEqualTo(source.getId());
+        assertThat(response.getDestinationAccountId()).isEqualTo(destination.getId());
+        assertThat(response.getAmount()).isEqualByComparingTo("200000.0000");
+        assertThat(response.getCurrency()).isEqualTo("COP");
+        assertThat(response.getStatus()).isEqualTo("POSTED");
+        assertThat(ledgerService.getAccountBalance(owner.getId(), source.getId())).isEqualByComparingTo("300000.0000");
+        assertThat(ledgerService.getAccountBalance(owner.getId(), destination.getId())).isEqualByComparingTo("300000.0000");
+        assertThat(jdbcTemplate.queryForObject("select sum(signed_amount) from ledger_entries where financial_transaction_id=?", BigDecimal.class, response.getId())).isEqualByComparingTo("0");
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(source.getId(), source.getId(), "1"))).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(source.getId(), foreign.getId(), "1"))).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(source.getId(), destination.getId(), "400000"))).isInstanceOf(BadRequestException.class);
+        ledgerService.reverseTransaction(response.getId(), owner.getId());
+        assertThat(ledgerService.getAccountBalance(owner.getId(), source.getId())).isEqualByComparingTo("500000.0000");
+        assertThat(ledgerService.getAccountBalance(owner.getId(), destination.getId())).isEqualByComparingTo("100000.0000");
+        assertThatThrownBy(() -> ledgerService.reverseTransaction(response.getId(), owner.getId())).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> ledgerService.reverseTransaction(response.getId(), other.getId())).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void concurrentTransfersCannotOverdrawTheSamePostgresAccount() throws Exception {
+        User owner = createUser(); Account source = createAccount(owner, "Concurrent source", true);
+        Account firstDestination = createAccount(owner, "Concurrent first", true);
+        Account secondDestination = createAccount(owner, "Concurrent second", true);
+        ledgerService.recordOpeningBalance(owner.getId(), source.getId(), command("100000", "COP"));
+        CyclicBarrier barrier = new CyclicBarrier(2); ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Boolean> first = pool.submit(() -> attemptTransfer(owner.getId(), transfer(source.getId(), firstDestination.getId(), "80000"), barrier));
+            Future<Boolean> second = pool.submit(() -> attemptTransfer(owner.getId(), transfer(source.getId(), secondDestination.getId(), "80000"), barrier));
+            assertThat(first.get()).isNotEqualTo(second.get());
+        } finally { pool.shutdownNow(); }
+        assertThat(ledgerService.getAccountBalance(owner.getId(), source.getId())).isEqualByComparingTo("20000");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from financial_transactions where type='TRANSFER'", Integer.class)).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void transferRejectsInactiveAccountsAndCurrencyMismatchWithoutPersistence() {
+        User owner = createUser();
+        Account active = createAccount(owner, "Active transfer", true);
+        Account inactive = createAccount(owner, "Inactive transfer", false);
+        Account destination = createAccount(owner, "Destination transfer", true);
+        Account usd = createAccount(owner, "USD transfer", true, "USD");
+        ledgerService.recordOpeningBalance(owner.getId(), active.getId(), command("100000", "COP"));
+        long transactionsBefore = financialTransactionRepository.count();
+        long entriesBefore = ledgerEntryRepository.count();
+        BigDecimal activeBalance = ledgerService.getAccountBalance(owner.getId(), active.getId());
+        BigDecimal destinationBalance = ledgerService.getAccountBalance(owner.getId(), destination.getId());
+
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(inactive.getId(), destination.getId(), "1")))
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(active.getId(), inactive.getId(), "1")))
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(active.getId(), usd.getId(), "1")))
+                .isInstanceOf(BadRequestException.class);
+
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore);
+        assertThat(ledgerService.getAccountBalance(owner.getId(), active.getId())).isEqualByComparingTo(activeBalance);
+        assertThat(ledgerService.getAccountBalance(owner.getId(), destination.getId())).isEqualByComparingTo(destinationBalance);
+    }
+
+    @Test
+    void transferReversalWorksAfterBothOriginalAccountsBecomeInactive() {
+        User owner = createUser();
+        Account source = createAccount(owner, "Inactive reversal source", true);
+        Account destination = createAccount(owner, "Inactive reversal destination", true);
+        ledgerService.recordOpeningBalance(owner.getId(), source.getId(), command("500000", "COP"));
+        ledgerService.recordOpeningBalance(owner.getId(), destination.getId(), command("100000", "COP"));
+        var transfer = transferService.create(owner.getId(), transfer(source.getId(), destination.getId(), "200000"));
+        source.setActive(false);
+        destination.setActive(false);
+        accountRepository.saveAndFlush(source);
+        accountRepository.saveAndFlush(destination);
+
+        ledgerService.reverseTransaction(transfer.getId(), owner.getId());
+
+        assertThat(ledgerService.getAccountBalance(owner.getId(), source.getId())).isEqualByComparingTo("500000");
+        assertThat(ledgerService.getAccountBalance(owner.getId(), destination.getId())).isEqualByComparingTo("100000");
+        assertThat(financialTransactionRepository.findById(transfer.getId()).orElseThrow().getStatus().name()).isEqualTo("REVERSED");
+    }
+
+    @Test
+    void transferRollsBackTransactionAndFirstEntryWhenSecondEntryPersistenceFails() {
+        User owner = createUser();
+        Account source = createAccount(owner, "Atomic transfer source", true);
+        Account destination = createAccount(owner, "Atomic transfer destination", true);
+        ledgerService.recordOpeningBalance(owner.getId(), source.getId(), command("100000", "COP"));
+        long transactionsBefore = financialTransactionRepository.count();
+        long entriesBefore = ledgerEntryRepository.count();
+        BigDecimal sourceBefore = ledgerService.getAccountBalance(owner.getId(), source.getId());
+        BigDecimal destinationBefore = ledgerService.getAccountBalance(owner.getId(), destination.getId());
+        java.util.concurrent.atomic.AtomicInteger saves = new java.util.concurrent.atomic.AtomicInteger();
+        doAnswer(invocation -> {
+            if (saves.incrementAndGet() == 2) {
+                throw new org.springframework.dao.DataIntegrityViolationException("forced second ledger entry failure");
+            }
+            com.jr.finance.api.ledger.LedgerEntry entry = invocation.getArgument(0);
+            entityManager.persist(entry);
+            return entry;
+        }).when(ledgerEntryRepositorySpy).save(any(com.jr.finance.api.ledger.LedgerEntry.class));
+
+        assertThatThrownBy(() -> transferService.create(owner.getId(), transfer(source.getId(), destination.getId(), "20000")))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        assertThat(saves.get()).isEqualTo(2);
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore);
+        assertThat(ledgerService.getAccountBalance(owner.getId(), source.getId())).isEqualByComparingTo(sourceBefore);
+        assertThat(ledgerService.getAccountBalance(owner.getId(), destination.getId())).isEqualByComparingTo(destinationBefore);
+    }
+
+    @Test
     void savingContributionIsAtomicAndCurrentAmountMatchesItsMovements() {
         User user = createUser();
         SavingGoal goal = createGoal(user, "Atomic", "1000.0000");
@@ -524,17 +657,31 @@ class PostgreSqlSchemaIntegrationTests {
     }
 
     private Account createAccount(User user, String name, boolean active) {
+        return createAccount(user, name, active, "COP");
+    }
+
+    private Account createAccount(User user, String name, boolean active, String currency) {
         Account account = new Account();
         account.setUser(user);
         account.setName(name);
         account.setType(AccountType.BANK);
-        account.setCurrency("COP");
+        account.setCurrency(currency);
         account.setActive(active);
         return accountRepository.saveAndFlush(account);
     }
 
     private FinancialOperationCommand command(String amount, String currency) {
         return new FinancialOperationCommand(new BigDecimal(amount), LocalDate.now(), "  Ledger test  ", currency, null);
+    }
+
+    private CreateTransferRequest transfer(Long source, Long destination, String amount) {
+        CreateTransferRequest request = new CreateTransferRequest(); request.setSourceAccountId(source); request.setDestinationAccountId(destination);
+        request.setAmount(new BigDecimal(amount)); request.setEffectiveDate(LocalDate.now()); request.setDescription("Transfer test"); return request;
+    }
+
+    private boolean attemptTransfer(Long userId, CreateTransferRequest request, CyclicBarrier barrier) {
+        try { await(barrier); transferService.create(userId, request); return true; }
+        catch (BadRequestException ex) { return false; }
     }
 
     private SavingGoal createGoal(User user, String name, String targetAmount) {
