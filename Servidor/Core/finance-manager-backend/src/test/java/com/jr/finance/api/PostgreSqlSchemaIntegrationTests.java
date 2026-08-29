@@ -2,6 +2,9 @@ package com.jr.finance.api;
 
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.common.exception.NotFoundException;
+import com.jr.finance.api.account.Account;
+import com.jr.finance.api.account.AccountRepository;
+import com.jr.finance.api.account.AccountType;
 import com.jr.finance.api.saving.SavingGoal;
 import com.jr.finance.api.saving.SavingGoalRepository;
 import com.jr.finance.api.saving.SavingMovementRepository;
@@ -74,6 +77,9 @@ class PostgreSqlSchemaIntegrationTests {
     private UserRepository userRepository;
 
     @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
     private PlatformTransactionManager transactionManager;
 
     @Test
@@ -86,18 +92,18 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(3)
+                .hasSize(4)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3");
+                .containsExactly("1", "2", "3", "4");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
-                        "add saving goal optimistic lock");
+                        "add saving goal optimistic lock", "create accounts");
     }
 
     @Test
@@ -138,13 +144,13 @@ class PostgreSqlSchemaIntegrationTests {
     void createsTheExpectedPostgreSqlSchemaAndAlertUniquenessRules() {
         List<String> expectedTables = List.of(
                 "users", "roles", "categories", "incomes", "expenses", "saving_goals",
-                "saving_movements", "credits", "credit_payments", "user_alerts_seen");
+                "saving_movements", "credits", "credit_payments", "user_alerts_seen", "accounts");
 
         Integer tablesFound = jdbcTemplate.queryForObject("""
                 select count(*) from information_schema.tables
                 where table_schema = 'public' and table_name in
                 ('users', 'roles', 'categories', 'incomes', 'expenses', 'saving_goals',
-                 'saving_movements', 'credits', 'credit_payments', 'user_alerts_seen')
+                 'saving_movements', 'credits', 'credit_payments', 'user_alerts_seen', 'accounts')
                 """, Integer.class);
         assertThat(tablesFound).isEqualTo(expectedTables.size());
 
@@ -162,6 +168,12 @@ class PostgreSqlSchemaIntegrationTests {
         assertNumericColumn("credits", "interest_rate", 9, 6);
         assertNumericColumn("credit_payments", "amount", 19, 4);
         assertNumericColumn("credit_payments", "extra_payment", 19, 4);
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*)
+                from information_schema.columns
+                where table_schema = 'public' and table_name = 'accounts'
+                  and column_name in ('user_id', 'name', 'type', 'currency', 'active', 'created_at', 'updated_at', 'version')
+                """, Integer.class)).isEqualTo(8);
 
         Integer foreignKeys = jdbcTemplate.queryForObject("""
                 select count(*) from information_schema.table_constraints
@@ -189,6 +201,48 @@ class PostgreSqlSchemaIntegrationTests {
         assertThatThrownBy(() -> jdbcTemplate.update(
                 "insert into user_alerts_seen (user_id, alert_code, related_id) values (?, ?, ?)", userId, "RELATED", 1L))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void enforcesAccountPostgreSqlConstraintsAndOptimisticLocking() throws Exception {
+        User user = createUser();
+        Account account = new Account();
+        account.setUser(user);
+        account.setName("PostgreSQL bank");
+        account.setType(AccountType.BANK);
+        account.setCurrency("COP");
+        account.setActive(true);
+        account = accountRepository.saveAndFlush(account);
+
+        assertThat(account.getVersion()).isEqualTo(0L);
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                insert into accounts (user_id, name, type, currency, active, created_at, updated_at, version)
+                values (?, ?, ?, ?, true, current_timestamp, current_timestamp, 0)
+                """, user.getId(), "PostgreSQL bank", "BANK", "COP"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                insert into accounts (user_id, name, type, currency, active, created_at, updated_at, version)
+                values (?, ?, ?, ?, true, current_timestamp, current_timestamp, 0)
+                """, user.getId(), "Invalid account", "CREDIT_CARD", "COP"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                insert into accounts (user_id, name, type, currency, active, created_at, updated_at, version)
+                values (?, ?, ?, ?, true, current_timestamp, current_timestamp, 0)
+                """, user.getId(), "Bad currency", "BANK", "CO"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        Account savedAccount = account;
+        CyclicBarrier loaded = new CyclicBarrier(2);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Boolean> first = executor.submit(() -> updateStaleAccount(savedAccount.getId(), loaded));
+            Future<Boolean> second = executor.submit(() -> updateStaleAccount(savedAccount.getId(), loaded));
+            assertThat(first.get()).isNotEqualTo(second.get());
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(accountRepository.findById(savedAccount.getId()).orElseThrow().getVersion()).isEqualTo(1L);
     }
 
     @Test
@@ -261,6 +315,20 @@ class PostgreSqlSchemaIntegrationTests {
                 await(loaded);
                 goal.setCurrentAmount(goal.getCurrentAmount().add(BigDecimal.TEN));
                 savingGoalRepository.saveAndFlush(goal);
+            });
+            return true;
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            return false;
+        }
+    }
+
+    private boolean updateStaleAccount(Long accountId, CyclicBarrier loaded) {
+        try {
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                Account account = accountRepository.findById(accountId).orElseThrow();
+                await(loaded);
+                account.setActive(!account.isActive());
+                accountRepository.saveAndFlush(account);
             });
             return true;
         } catch (ObjectOptimisticLockingFailureException ex) {

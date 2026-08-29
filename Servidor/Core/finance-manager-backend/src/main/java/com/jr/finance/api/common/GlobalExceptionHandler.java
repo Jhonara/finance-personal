@@ -72,7 +72,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(error(
-                        "La meta de ahorro fue modificada por otra operación. Intenta nuevamente.",
+                        "El recurso fue modificado por otra operación. Intenta nuevamente.",
                         HttpStatus.CONFLICT,
                         request
                 ));
