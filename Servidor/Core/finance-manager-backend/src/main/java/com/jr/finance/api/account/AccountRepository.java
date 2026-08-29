@@ -7,6 +7,7 @@ import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
@@ -23,4 +24,14 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Account a where a.id in :ids order by a.id")
     List<Account> lockByIds(List<Long> ids);
+
+    @Query("""
+            select a.id, a.name, a.type, a.currency, a.active, coalesce(sum(e.signedAmount), 0)
+            from Account a left join LedgerEntry e on e.account = a
+            left join e.financialTransaction t on t.status <> com.jr.finance.api.ledger.FinancialTransactionStatus.VOIDED
+            where a.user.id = :userId
+            group by a.id, a.name, a.type, a.currency, a.active
+            order by a.name
+            """)
+    List<Object[]> findDashboardBalancesByUserId(Long userId);
 }

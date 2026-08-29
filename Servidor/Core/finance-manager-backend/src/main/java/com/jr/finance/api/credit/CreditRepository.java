@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface CreditRepository extends JpaRepository<Credit, Long> {
     List<Credit> findByUserId(Long userId);
+
+    List<Credit> findByUserIdOrderByCreatedAtAscIdAsc(Long userId);
 }

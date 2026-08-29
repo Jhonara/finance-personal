@@ -315,7 +315,6 @@ class LedgerLegacyAdapterIntegrationTests {
         String summaryBefore = mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
         String comparisonBefore = mockMvc.perform(get("/api/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
         String balanceBefore = mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
-        String dashboardBefore = mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
         BigDecimal netWorthBefore = ledgerService.getAccountBalance(user.getId(), source.getId())
                 .add(ledgerService.getAccountBalance(user.getId(), destination.getId()));
 
@@ -330,7 +329,11 @@ class LedgerLegacyAdapterIntegrationTests {
         assertThat(mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(summaryBefore);
         assertThat(mockMvc.perform(get("/api/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(comparisonBefore);
         assertThat(mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(balanceBefore);
-        assertThat(mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(dashboardBefore);
+        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalIncome").value(70000))
+                .andExpect(jsonPath("$.totalExpense").value(20000))
+                .andExpect(jsonPath("$.netCashFlow").value(50000));
         BigDecimal netWorthAfter = ledgerService.getAccountBalance(user.getId(), source.getId())
                 .add(ledgerService.getAccountBalance(user.getId(), destination.getId()));
         assertThat(netWorthAfter).isEqualByComparingTo(netWorthBefore);

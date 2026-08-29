@@ -36,6 +36,10 @@ public class DashboardMonthResponse {
             example = "1800000.00"
     )
     private BigDecimal balance;
+    private BigDecimal netCashFlow;
+    private java.util.Map<String, BigDecimal> netWorthByCurrency;
+    private List<DashboardAccountResponse> accounts;
+    private DashboardBudgetSummary budgets;
 
     @Schema(
             description = "Resumen de gastos del período."
@@ -65,7 +69,8 @@ public class DashboardMonthResponse {
     @Schema(
             description = "Resumen rápido del estado de los créditos registrados."
     )
-    private List<CreditQuickStatus> credits;
+    private List<DashboardCreditResponse> credits;
+    private List<DashboardRecentTransactionResponse> recentTransactions;
 
     @Schema(
             description = "Resumen financiero generado por Inteligencia Artificial.",

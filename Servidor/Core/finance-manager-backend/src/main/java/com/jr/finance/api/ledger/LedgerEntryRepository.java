@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import com.jr.finance.api.budget.dto.BudgetCategorySpent;
 
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
 
@@ -73,4 +74,33 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
                                                @Param("start") LocalDate start,
                                                @Param("end") LocalDate end,
                                                @Param("voidedStatus") FinancialTransactionStatus voidedStatus);
+
+    @Query("""
+            select entry from LedgerEntry entry
+            join fetch entry.account
+            where entry.financialTransaction.id in :transactionIds
+            """)
+    List<LedgerEntry> findByFinancialTransactionIdInWithAccount(
+            @Param("transactionIds") List<Long> transactionIds);
+
+    @Query("""
+            select transaction.category.id as categoryId, -sum(entry.signedAmount) as spentAmount
+            from LedgerEntry entry
+            join entry.financialTransaction transaction
+            left join transaction.reversalOf original
+            where transaction.user.id = :userId
+              and transaction.category is not null
+              and (transaction.type = :expenseType
+                   or (transaction.type = :reversalType and original.type = :expenseType))
+              and transaction.status <> :voidedStatus
+              and transaction.effectiveDate between :start and :end
+            group by transaction.category.id
+            """)
+    List<BudgetCategorySpent> sumSpentByCategoryForUserAndPeriod(
+            @Param("userId") Long userId,
+            @Param("start") LocalDate start,
+            @Param("end") LocalDate end,
+            @Param("expenseType") FinancialTransactionType expenseType,
+            @Param("reversalType") FinancialTransactionType reversalType,
+            @Param("voidedStatus") FinancialTransactionStatus voidedStatus);
 }

@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Tag(
@@ -22,7 +21,6 @@ import java.util.Map;
 public class AlertController {
 
     private final AlertService alertService;
-    private final UserAlertSeenRepository seenRepository;
 
     @Operation(
             summary = "Obtener alertas",
@@ -58,14 +56,6 @@ public class AlertController {
                 ? Long.valueOf(body.get("relatedId").toString())
                 : null;
 
-        var seen = seenRepository.findByUserIdAndAlertCodeAndRelatedId(userId, code, relatedId)
-                .orElseGet(UserAlertSeen::new);
-
-        seen.setUserId(userId);
-        seen.setAlertCode(code);
-        seen.setRelatedId(relatedId);
-        seen.setSeenAt(LocalDateTime.now());
-
-        seenRepository.save(seen);
+        alertService.markAsSeen(userId, code, relatedId);
     }
 }

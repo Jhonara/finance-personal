@@ -20,6 +20,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,7 @@ public class BudgetService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<BudgetResponse> list(Long userId, Integer year, Integer month) {
         if ((year == null) != (month == null)) {
             throw new com.jr.finance.api.common.exception.BadRequestException("Año y mes deben enviarse juntos");
@@ -68,7 +71,12 @@ public class BudgetService {
             budgets = budgetRepository.findByUserIdAndYearAndMonthOrderByCategoryNameAsc(userId,
                     period.getYear(), period.getMonthValue());
         }
-        return budgets.stream().map(this::response).toList();
+        if (year == null) {
+            return budgets.stream().map(this::response).toList();
+        }
+        Map<Long, BigDecimal> spentByCategory = spentByCategory(userId, FinancialPeriod.of(year, month));
+        return budgets.stream().map(budget -> response(budget,
+                spentByCategory.getOrDefault(budget.getCategory().getId(), BigDecimal.ZERO))).toList();
     }
 
     public BudgetResponse get(Long userId, Long budgetId) {
@@ -92,14 +100,22 @@ public class BudgetService {
 
     private BudgetResponse response(Budget budget) {
         YearMonth period = YearMonth.of(budget.getYear(), budget.getMonth());
-        BigDecimal spent = ledgerEntryRepository.findByUserTypeAndPeriod(budget.getUser().getId(),
-                        FinancialTransactionType.EXPENSE, FinancialTransactionType.REVERSAL,
-                        period.atDay(1), period.atEndOfMonth(), FinancialTransactionStatus.VOIDED)
+        BigDecimal spent = spentByCategory(budget.getUser().getId(), period)
+                .getOrDefault(budget.getCategory().getId(), BigDecimal.ZERO);
+        return response(budget, spent);
+    }
+
+    private Map<Long, BigDecimal> spentByCategory(Long userId, YearMonth period) {
+        return ledgerEntryRepository.sumSpentByCategoryForUserAndPeriod(userId, period.atDay(1),
+                        period.atEndOfMonth(), FinancialTransactionType.EXPENSE,
+                        FinancialTransactionType.REVERSAL, FinancialTransactionStatus.VOIDED)
                 .stream()
-                .filter(entry -> entry.getFinancialTransaction().getCategory() != null
-                        && entry.getFinancialTransaction().getCategory().getId().equals(budget.getCategory().getId()))
-                .map(entry -> entry.getSignedAmount().negate())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .collect(Collectors.toMap(com.jr.finance.api.budget.dto.BudgetCategorySpent::getCategoryId,
+                        com.jr.finance.api.budget.dto.BudgetCategorySpent::getSpentAmount));
+    }
+
+    private BudgetResponse response(Budget budget, BigDecimal spent) {
+        YearMonth period = YearMonth.of(budget.getYear(), budget.getMonth());
         BigDecimal remaining = budget.getLimitAmount().subtract(spent);
         BigDecimal percentage = spent.multiply(BigDecimal.valueOf(100))
                 .divide(budget.getLimitAmount(), PERCENTAGE_SCALE, RoundingMode.HALF_UP);
