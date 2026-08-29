@@ -3,6 +3,10 @@ package com.jr.finance.api;
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.common.exception.ConflictException;
+import com.jr.finance.api.budget.BudgetRepository;
+import com.jr.finance.api.budget.BudgetService;
+import com.jr.finance.api.budget.dto.CreateBudgetRequest;
+import com.jr.finance.api.budget.Budget;
 import com.jr.finance.api.account.Account;
 import com.jr.finance.api.account.AccountRepository;
 import com.jr.finance.api.account.AccountType;
@@ -117,6 +121,8 @@ class PostgreSqlSchemaIntegrationTests {
     @Autowired private DataSource dataSource;
     @Autowired private TransferService transferService;
     @Autowired private EntityManager entityManager;
+    @Autowired private BudgetRepository budgetRepository;
+    @Autowired private BudgetService budgetService;
 
     @MockitoSpyBean(reset = MockReset.AFTER)
     private LedgerEntryRepository ledgerEntryRepositorySpy;
@@ -131,14 +137,14 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(8)
+                .hasSize(9)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
@@ -146,7 +152,7 @@ class PostgreSqlSchemaIntegrationTests {
                         "create financial transactions and ledger entries",
                         "add legacy operation metadata to financial transactions",
                         "enforce unique reversals and shared operation ids",
-                        "add legacy migration tracking");
+                        "add legacy migration tracking", "create budgets");
     }
 
     @Test
@@ -188,14 +194,14 @@ class PostgreSqlSchemaIntegrationTests {
         List<String> expectedTables = List.of(
                 "users", "roles", "categories", "incomes", "expenses", "saving_goals",
                 "saving_movements", "credits", "credit_payments", "user_alerts_seen", "accounts",
-                "financial_transactions", "ledger_entries");
+                "financial_transactions", "ledger_entries", "budgets");
 
         Integer tablesFound = jdbcTemplate.queryForObject("""
                 select count(*) from information_schema.tables
                 where table_schema = 'public' and table_name in
                 ('users', 'roles', 'categories', 'incomes', 'expenses', 'saving_goals',
                  'saving_movements', 'credits', 'credit_payments', 'user_alerts_seen', 'accounts',
-                 'financial_transactions', 'ledger_entries')
+                 'financial_transactions', 'ledger_entries', 'budgets')
                 """, Integer.class);
         assertThat(tablesFound).isEqualTo(expectedTables.size());
 
@@ -214,6 +220,7 @@ class PostgreSqlSchemaIntegrationTests {
         assertNumericColumn("credit_payments", "amount", 19, 4);
         assertNumericColumn("credit_payments", "extra_payment", 19, 4);
         assertNumericColumn("ledger_entries", "signed_amount", 19, 4);
+        assertNumericColumn("budgets", "limit_amount", 19, 4);
         assertThat(jdbcTemplate.queryForObject("""
                 select count(*)
                 from information_schema.columns
@@ -234,6 +241,7 @@ class PostgreSqlSchemaIntegrationTests {
                 "uk_user_alert_seen_without_related", "idx_financial_transactions_user_effective_date",
                 "idx_financial_transactions_user_type_effective_date", "idx_ledger_entries_account_id",
                 "idx_ledger_entries_financial_transaction_id", "uk_financial_transactions_reversal_of");
+        assertIndexes("idx_budgets_user_period");
 
         Long userId = jdbcTemplate.queryForObject(
                 "insert into users (name, email, password) values (?, ?, ?) returning id",
@@ -540,6 +548,55 @@ class PostgreSqlSchemaIntegrationTests {
     }
 
     @Test
+    void concurrentPostgresBudgetCreationLeavesOneRowAndOneConflict() throws Exception {
+        User owner = createUser();
+        Category category = new Category();
+        category.setUser(owner);
+        category.setName("Concurrent budget");
+        category = categoryRepository.saveAndFlush(category);
+        Long categoryId = category.getId();
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Boolean> first = pool.submit(() -> attemptBudgetCreate(owner.getId(), categoryId, barrier));
+            Future<Boolean> second = pool.submit(() -> attemptBudgetCreate(owner.getId(), categoryId, barrier));
+            assertThat(first.get()).isNotEqualTo(second.get());
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(budgetRepository.countByUserIdAndCategoryIdAndYearAndMonth(owner.getId(), categoryId, 2026, 8))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void postgresBudgetVersionRejectsAStaleUpdate() {
+        User owner = createUser();
+        Category category = new Category();
+        category.setUser(owner);
+        category.setName("Versioned budget");
+        category = categoryRepository.saveAndFlush(category);
+        CreateBudgetRequest request = new CreateBudgetRequest();
+        request.setCategoryId(category.getId());
+        request.setYear(2026);
+        request.setMonth(8);
+        request.setLimitAmount(new BigDecimal("100"));
+        Long budgetId = budgetService.create(owner.getId(), request).getId();
+
+        Budget first = new TransactionTemplate(transactionManager)
+                .execute(status -> budgetRepository.findById(budgetId).orElseThrow());
+        Budget stale = new TransactionTemplate(transactionManager)
+                .execute(status -> budgetRepository.findById(budgetId).orElseThrow());
+        first.setLimitAmount(new BigDecimal("200"));
+        stale.setLimitAmount(new BigDecimal("300"));
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> budgetRepository.saveAndFlush(first));
+
+        assertThatThrownBy(() -> new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> budgetRepository.saveAndFlush(stale)))
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+    }
+
+    @Test
     void savingContributionIsAtomicAndCurrentAmountMatchesItsMovements() {
         User user = createUser();
         SavingGoal goal = createGoal(user, "Atomic", "1000.0000");
@@ -682,6 +739,21 @@ class PostgreSqlSchemaIntegrationTests {
     private boolean attemptTransfer(Long userId, CreateTransferRequest request, CyclicBarrier barrier) {
         try { await(barrier); transferService.create(userId, request); return true; }
         catch (BadRequestException ex) { return false; }
+    }
+
+    private boolean attemptBudgetCreate(Long userId, Long categoryId, CyclicBarrier barrier) {
+        try {
+            await(barrier);
+            CreateBudgetRequest request = new CreateBudgetRequest();
+            request.setCategoryId(categoryId);
+            request.setYear(2026);
+            request.setMonth(8);
+            request.setLimitAmount(BigDecimal.TEN);
+            budgetService.create(userId, request);
+            return true;
+        } catch (ConflictException ex) {
+            return false;
+        }
     }
 
     private SavingGoal createGoal(User user, String name, String targetAmount) {
