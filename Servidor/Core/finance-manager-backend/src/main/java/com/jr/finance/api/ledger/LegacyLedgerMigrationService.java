@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -30,16 +33,38 @@ public class LegacyLedgerMigrationService {
     private final AccountRepository accountRepository;
     private final LegacyAccountMappingRepository mappingRepository;
     private final TransactionTemplate transactionTemplate;
+    private final DataSource dataSource;
+    /** Stable PostgreSQL key for “Finance Personal Legacy Ledger Migration”. */
+    public static final long MIGRATION_ADVISORY_LOCK_KEY = 5_219_675_832_184_017_391L;
 
     public LegacyMigrationReport dryRun() {
-        return migrate(false, DEFAULT_BATCH_SIZE);
+        return withMigrationLock(() -> migrate(false, DEFAULT_BATCH_SIZE));
     }
 
     public LegacyMigrationReport migrate(int batchSize) {
         if (batchSize < 1 || batchSize > 1000) {
             throw new IllegalArgumentException("El tamaño de lote debe estar entre 1 y 1000");
         }
-        return migrate(true, batchSize);
+        return withMigrationLock(() -> migrate(true, batchSize));
+    }
+
+    private LegacyMigrationReport withMigrationLock(java.util.function.Supplier<LegacyMigrationReport> action) {
+        try (Connection connection = dataSource.getConnection()) {
+            if (!"PostgreSQL".equalsIgnoreCase(connection.getMetaData().getDatabaseProductName())) return action.get();
+            try (PreparedStatement lock = connection.prepareStatement("select pg_try_advisory_lock(?)")) {
+                lock.setLong(1, MIGRATION_ADVISORY_LOCK_KEY);
+                var result = lock.executeQuery(); result.next();
+                if (!result.getBoolean(1)) throw new IllegalStateException("Ya existe una migración legacy activa");
+            }
+            try { return action.get(); }
+            finally {
+                try (PreparedStatement unlock = connection.prepareStatement("select pg_advisory_unlock(?)")) {
+                    unlock.setLong(1, MIGRATION_ADVISORY_LOCK_KEY); unlock.execute();
+                }
+            }
+        } catch (java.sql.SQLException ex) {
+            throw new IllegalStateException("No se pudo gestionar el advisory lock de migración legacy", ex);
+        }
     }
 
     private LegacyMigrationReport migrate(boolean apply, int batchSize) {

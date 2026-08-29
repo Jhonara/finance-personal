@@ -12,6 +12,10 @@ import com.jr.finance.api.ledger.FinancialOperationCommand;
 import com.jr.finance.api.ledger.FinancialTransactionRepository;
 import com.jr.finance.api.ledger.LedgerEntryRepository;
 import com.jr.finance.api.ledger.LedgerService;
+import com.jr.finance.api.ledger.LegacyLedgerMigrationService;
+import com.jr.finance.api.income.Income;
+import com.jr.finance.api.income.IncomeRepository;
+import javax.sql.DataSource;
 import com.jr.finance.api.saving.SavingGoal;
 import com.jr.finance.api.saving.SavingGoalRepository;
 import com.jr.finance.api.saving.SavingMovementRepository;
@@ -100,6 +104,10 @@ class PostgreSqlSchemaIntegrationTests {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired private LegacyLedgerMigrationService legacyMigrationService;
+    @Autowired private IncomeRepository incomeRepository;
+    @Autowired private DataSource dataSource;
 
     @Test
     void appliesAllMigrationsAndValidatesTheJpaSchema() {
@@ -341,6 +349,7 @@ class PostgreSqlSchemaIntegrationTests {
     void reversalIsAtomicUniqueAndKeepsBothSidesInTheBalance() throws Exception {
         User user = createUser();
         Account account = createAccount(user, "Reversal account", true);
+        long entriesBefore = ledgerEntryRepository.count();
         ledgerService.recordOpeningBalance(user.getId(), account.getId(), command("500000.0000", "COP"));
         var expense = ledgerService.recordExpense(user.getId(), account.getId(), command("100000.0000", "COP"));
         assertThat(ledgerService.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("400000.0000");
@@ -359,8 +368,42 @@ class PostgreSqlSchemaIntegrationTests {
                 .isEqualTo("REVERSED");
         assertThat(jdbcTemplate.queryForObject("select count(*) from financial_transactions where reversal_of_id = ?",
                 Integer.class, expense.getId())).isEqualTo(1);
-        assertThat(ledgerEntryRepository.count()).isEqualTo(3);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore + 3);
         assertThat(ledgerService.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("500000.0000");
+    }
+
+    @Test
+    void legacyMigratorUsesNonBlockingPostgresAdvisoryLockAndReleasesIt() throws Exception {
+        User user = createUser();
+        Income income = new Income();
+        income.setUser(user); income.setAmount(new BigDecimal("42.0000")); income.setIncomeDate(LocalDate.now());
+        incomeRepository.saveAndFlush(income);
+        long transactionsBefore = financialTransactionRepository.count();
+        long entriesBefore = ledgerEntryRepository.count();
+
+        try (var firstMigratorSession = dataSource.getConnection();
+             var lock = firstMigratorSession.prepareStatement("select pg_try_advisory_lock(?)")) {
+            lock.setLong(1, LegacyLedgerMigrationService.MIGRATION_ADVISORY_LOCK_KEY);
+            var result = lock.executeQuery(); result.next();
+            assertThat(result.getBoolean(1)).isTrue();
+
+            assertThatThrownBy(() -> legacyMigrationService.migrate(100))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("migración legacy activa");
+            assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore);
+            assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore);
+
+            try (var unlock = firstMigratorSession.prepareStatement("select pg_advisory_unlock(?)")) {
+                unlock.setLong(1, LegacyLedgerMigrationService.MIGRATION_ADVISORY_LOCK_KEY);
+                unlock.execute();
+            }
+        }
+
+        legacyMigrationService.migrate(100);
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore + 1);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore + 1);
+        legacyMigrationService.migrate(100);
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore + 1);
     }
 
     @Test
