@@ -202,10 +202,11 @@ public class ExpenseController {
 
     @Operation(
             summary = "Eliminar un gasto",
-            description = "Elimina un gasto perteneciente al usuario autenticado."
+            description = "Elimina físicamente un gasto legacy; para un gasto ledger crea una reversión contable."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Gasto eliminado correctamente"),
+            @ApiResponse(responseCode = "200", description = "Gasto eliminado o revertido correctamente"),
+            @ApiResponse(responseCode = "409", description = "El gasto ledger ya fue revertido"),
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
             @ApiResponse(responseCode = "404", description = "Gasto no encontrado")
     })

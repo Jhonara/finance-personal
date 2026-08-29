@@ -42,7 +42,8 @@ public class ExpenseMapper {
         ExpenseResponse response = new ExpenseResponse();
         response.setId(transaction.getId());
         response.setCategory(transaction.getCategory() == null ? null : transaction.getCategory().getName());
-        response.setAmount(entry.getSignedAmount().abs());
+        // A reversal is represented as a negative expense adjustment in legacy-compatible reads.
+        response.setAmount(entry.getSignedAmount().negate());
         response.setDescription(transaction.getDescription());
         response.setPaymentType(transaction.getPaymentType());
         response.setExpenseType(transaction.getExpenseType());

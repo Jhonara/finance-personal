@@ -70,6 +70,13 @@ public class FinancialTransaction {
     @Column(name = "expense_type", length = 20)
     private String expenseType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "legacy_source", length = 20)
+    private LegacyOperationSource legacySource;
+
+    @Column(name = "legacy_id")
+    private Long legacyId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reversal_of_id")
     private FinancialTransaction reversalOf;

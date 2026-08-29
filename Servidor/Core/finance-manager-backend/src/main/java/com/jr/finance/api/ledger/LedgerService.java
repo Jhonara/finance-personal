@@ -3,6 +3,7 @@ package com.jr.finance.api.ledger;
 import com.jr.finance.api.account.Account;
 import com.jr.finance.api.account.AccountRepository;
 import com.jr.finance.api.common.exception.BadRequestException;
+import com.jr.finance.api.common.exception.ConflictException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.expense.Category;
 import com.jr.finance.api.expense.CategoryRepository;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
@@ -68,6 +71,58 @@ public class LedgerService {
         getOwnedAccount(userId, accountId);
         BigDecimal balance = ledgerEntryRepository.sumPostedByAccountId(accountId, FinancialTransactionStatus.VOIDED);
         return balance == null ? BigDecimal.ZERO : balance;
+    }
+
+    /**
+     * Creates the accounting opposite of a posted operation.  The reversal is deliberately
+     * dated today: reports retain the original event in its historical period and record the
+     * correction in the period where the user made it.
+     */
+    @Transactional
+    public FinancialTransaction reverseTransaction(Long transactionId, Long userId) {
+        FinancialTransaction original = financialTransactionRepository.findOwnedForReversal(transactionId, userId)
+                .orElseThrow(() -> new NotFoundException("La operación no existe"));
+        if (original.getType() == FinancialTransactionType.REVERSAL) {
+            throw new BadRequestException("No se puede revertir una reversión");
+        }
+        if (original.getStatus() != FinancialTransactionStatus.POSTED) {
+            throw new ConflictException("La operación ya no puede revertirse");
+        }
+        if (financialTransactionRepository.existsByReversalOfId(original.getId())) {
+            throw new ConflictException("La operación ya fue revertida");
+        }
+
+        List<LedgerEntry> originalEntries = ledgerEntryRepository.findAllByFinancialTransactionId(original.getId());
+        if (originalEntries.isEmpty()) {
+            throw new ConflictException("La operación no tiene entradas para revertir");
+        }
+
+        FinancialTransaction reversal = new FinancialTransaction();
+        reversal.setUser(original.getUser());
+        reversal.setType(FinancialTransactionType.REVERSAL);
+        reversal.setStatus(FinancialTransactionStatus.POSTED);
+        reversal.setEffectiveDate(LocalDate.now());
+        reversal.setDescription("Reversión de operación #" + original.getId());
+        reversal.setCategory(original.getCategory());
+        reversal.setCurrency(original.getCurrency());
+        reversal.setIncomeType(original.getIncomeType());
+        reversal.setPaymentType(original.getPaymentType());
+        reversal.setExpenseType(original.getExpenseType());
+        reversal.setReversalOf(original);
+        FinancialTransaction savedReversal = financialTransactionRepository.saveAndFlush(reversal);
+
+        List<LedgerEntry> reversalEntries = originalEntries.stream().map(originalEntry -> {
+            LedgerEntry entry = new LedgerEntry();
+            entry.setFinancialTransaction(savedReversal);
+            entry.setAccount(originalEntry.getAccount());
+            entry.setSignedAmount(originalEntry.getSignedAmount().negate());
+            return entry;
+        }).toList();
+        ledgerEntryRepository.saveAllAndFlush(reversalEntries);
+
+        original.setStatus(FinancialTransactionStatus.REVERSED);
+        financialTransactionRepository.saveAndFlush(original);
+        return savedReversal;
     }
 
     private FinancialTransaction recordSingleEntry(Long userId, Long accountId, FinancialTransactionType type,

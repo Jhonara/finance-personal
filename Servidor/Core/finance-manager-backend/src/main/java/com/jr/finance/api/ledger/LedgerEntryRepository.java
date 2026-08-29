@@ -22,6 +22,13 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     Optional<LedgerEntry> findByFinancialTransactionId(@Param("financialTransactionId") Long financialTransactionId);
 
     @Query("""
+            select entry from LedgerEntry entry
+            join fetch entry.account
+            where entry.financialTransaction.id = :financialTransactionId
+            """)
+    List<LedgerEntry> findAllByFinancialTransactionId(@Param("financialTransactionId") Long financialTransactionId);
+
+    @Query("""
             select coalesce(sum(entry.signedAmount), 0)
             from LedgerEntry entry
             where entry.account.id = :accountId
@@ -33,13 +40,17 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     @Query("""
             select coalesce(sum(entry.signedAmount), 0)
             from LedgerEntry entry
+            left join entry.financialTransaction.reversalOf original
             where entry.financialTransaction.user.id = :userId
-              and entry.financialTransaction.type = :type
+              and (entry.financialTransaction.type = :type
+                   or (entry.financialTransaction.type = :reversalType
+                       and original.type = :type))
               and entry.financialTransaction.status <> :voidedStatus
               and entry.financialTransaction.effectiveDate between :start and :end
             """)
     BigDecimal sumSignedByUserAndTypeAndPeriod(@Param("userId") Long userId,
                                                 @Param("type") FinancialTransactionType type,
+                                                @Param("reversalType") FinancialTransactionType reversalType,
                                                 @Param("start") LocalDate start,
                                                 @Param("end") LocalDate end,
                                                 @Param("voidedStatus") FinancialTransactionStatus voidedStatus);
@@ -48,13 +59,17 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
             select entry from LedgerEntry entry
             join fetch entry.financialTransaction transaction
             left join fetch transaction.category
+            left join transaction.reversalOf original
             where transaction.user.id = :userId
-              and transaction.type = :type
+              and (transaction.type = :type
+                   or (transaction.type = :reversalType
+                       and original.type = :type))
               and transaction.status <> :voidedStatus
               and transaction.effectiveDate between :start and :end
             """)
     List<LedgerEntry> findByUserTypeAndPeriod(@Param("userId") Long userId,
                                                @Param("type") FinancialTransactionType type,
+                                               @Param("reversalType") FinancialTransactionType reversalType,
                                                @Param("start") LocalDate start,
                                                @Param("end") LocalDate end,
                                                @Param("voidedStatus") FinancialTransactionStatus voidedStatus);

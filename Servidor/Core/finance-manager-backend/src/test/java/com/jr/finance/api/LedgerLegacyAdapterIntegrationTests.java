@@ -11,6 +11,11 @@ import com.jr.finance.api.expense.ExpenseRepository;
 import com.jr.finance.api.income.Income;
 import com.jr.finance.api.income.IncomeRepository;
 import com.jr.finance.api.ledger.FinancialTransactionRepository;
+import com.jr.finance.api.ledger.FinancialTransactionStatus;
+import com.jr.finance.api.ledger.FinancialTransactionType;
+import com.jr.finance.api.ledger.LedgerService;
+import com.jr.finance.api.ledger.LegacyAccountMappingRepository;
+import com.jr.finance.api.ledger.LegacyLedgerMigrationService;
 import com.jr.finance.api.ledger.LedgerEntryRepository;
 import com.jr.finance.api.user.Role;
 import com.jr.finance.api.user.RoleRepository;
@@ -31,6 +36,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -51,11 +57,15 @@ class LedgerLegacyAdapterIntegrationTests {
     @Autowired private ExpenseRepository expenseRepository;
     @Autowired private LedgerEntryRepository ledgerEntryRepository;
     @Autowired private FinancialTransactionRepository financialTransactionRepository;
+    @Autowired private LedgerService ledgerService;
+    @Autowired private LegacyLedgerMigrationService legacyMigrationService;
+    @Autowired private LegacyAccountMappingRepository legacyAccountMappingRepository;
 
     @BeforeEach
     void cleanDatabase() {
         ledgerEntryRepository.deleteAll();
         financialTransactionRepository.deleteAll();
+        legacyAccountMappingRepository.deleteAll();
         expenseRepository.deleteAll();
         incomeRepository.deleteAll();
         categoryRepository.deleteAll();
@@ -155,6 +165,102 @@ class LedgerLegacyAdapterIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":1,\"paymentType\":\"CASH\",\"expenseType\":\"VARIABLE\",\"expenseDate\":\"2026-08-15\",\"accountId\":%d}".formatted(foreign.getId())))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletingLedgerExpenseCreatesOneReversalAndRestoresBalance() throws Exception {
+        User user = createUser();
+        Account account = createAccount(user, true);
+        ledgerService.recordOpeningBalance(user.getId(), account.getId(),
+                new com.jr.finance.api.ledger.FinancialOperationCommand(new BigDecimal("500000"),
+                        LocalDate.of(2026, 8, 1), null, "COP", null));
+
+        mockMvc.perform(post("/api/expenses").header("Authorization", bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100000,\"paymentType\":\"CASH\",\"expenseType\":\"VARIABLE\",\"expenseDate\":\"2026-08-15\",\"accountId\":%d}".formatted(account.getId())))
+                .andExpect(status().isOk());
+        Long expenseId = financialTransactionRepository.findAll().stream()
+                .filter(transaction -> transaction.getType() == FinancialTransactionType.EXPENSE)
+                .findFirst().orElseThrow().getId();
+
+        mockMvc.perform(delete("/api/expenses/{id}", expenseId).header("Authorization", bearer(user)))
+                .andExpect(status().isOk());
+
+        var original = financialTransactionRepository.findById(expenseId).orElseThrow();
+        var reversal = financialTransactionRepository.findAll().stream()
+                .filter(transaction -> transaction.getType() == FinancialTransactionType.REVERSAL)
+                .findFirst().orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(FinancialTransactionStatus.REVERSED, original.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(FinancialTransactionStatus.POSTED, reversal.getStatus());
+        org.junit.jupiter.api.Assertions.assertTrue(financialTransactionRepository.existsByReversalOfId(expenseId));
+        org.junit.jupiter.api.Assertions.assertEquals(3, ledgerEntryRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(0, ledgerService.getAccountBalance(user.getId(), account.getId())
+                .compareTo(new BigDecimal("500000")));
+
+        mockMvc.perform(delete("/api/expenses/{id}", expenseId).header("Authorization", bearer(user)))
+                .andExpect(status().isConflict());
+        org.junit.jupiter.api.Assertions.assertEquals(3, ledgerEntryRepository.count());
+    }
+
+    @Test
+    void reversalAllowsAnInactiveOriginalAccountAndHidesForeignOperations() throws Exception {
+        User owner = createUser();
+        User other = createUser();
+        Account ownerAccount = createAccount(owner, true);
+        Account otherAccount = createAccount(other, true);
+        var ownerExpense = ledgerService.recordExpense(owner.getId(), ownerAccount.getId(),
+                new com.jr.finance.api.ledger.FinancialOperationCommand(BigDecimal.TEN, LocalDate.now(), null, "COP", null));
+        var foreignExpense = ledgerService.recordExpense(other.getId(), otherAccount.getId(),
+                new com.jr.finance.api.ledger.FinancialOperationCommand(BigDecimal.TEN, LocalDate.now(), null, "COP", null));
+        ownerAccount.setActive(false);
+        accountRepository.saveAndFlush(ownerAccount);
+
+        mockMvc.perform(delete("/api/expenses/{id}", ownerExpense.getId()).header("Authorization", bearer(owner)))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/expenses/{id}", foreignExpense.getId()).header("Authorization", bearer(owner)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletingLegacyExpenseKeepsTheTemporaryPhysicalDeleteBehavior() throws Exception {
+        User user = createUser();
+        Expense legacy = new Expense();
+        legacy.setUser(user);
+        legacy.setAmount(BigDecimal.TEN);
+        legacy.setExpenseDate(LocalDate.now());
+        legacy = expenseRepository.saveAndFlush(legacy);
+
+        mockMvc.perform(delete("/api/expenses/{id}", legacy.getId()).header("Authorization", bearer(user)))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertFalse(expenseRepository.existsById(legacy.getId()));
+        org.junit.jupiter.api.Assertions.assertEquals(0, financialTransactionRepository.count());
+    }
+
+    @Test
+    void historicalMigrationIsIdempotentAndCombinedReadsDoNotDoubleCount() throws Exception {
+        User user = createUser();
+        Income income = new Income(); income.setUser(user); income.setAmount(new BigDecimal("100000"));
+        income.setIncomeDate(LocalDate.of(2026, 8, 10)); income.setIncomeType("EXTRA"); incomeRepository.saveAndFlush(income);
+        Expense expense = new Expense(); expense.setUser(user); expense.setAmount(new BigDecimal("30000"));
+        expense.setExpenseDate(LocalDate.of(2026, 8, 11)); expense.setExpenseType("VARIABLE"); expenseRepository.saveAndFlush(expense);
+
+        var first = legacyMigrationService.migrate(100);
+        var second = legacyMigrationService.migrate(100);
+        org.junit.jupiter.api.Assertions.assertEquals(1, first.incomesMigrated());
+        org.junit.jupiter.api.Assertions.assertEquals(1, first.expensesMigrated());
+        org.junit.jupiter.api.Assertions.assertEquals(0, second.incomesMigrated());
+        org.junit.jupiter.api.Assertions.assertEquals(0, second.expensesMigrated());
+        org.junit.jupiter.api.Assertions.assertEquals(2, financialTransactionRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(2, ledgerEntryRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(1, legacyAccountMappingRepository.count());
+
+        mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/expenses/month?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(100000))
+                .andExpect(jsonPath("$.totalExpense").value(30000));
     }
 
     private User createUser() {

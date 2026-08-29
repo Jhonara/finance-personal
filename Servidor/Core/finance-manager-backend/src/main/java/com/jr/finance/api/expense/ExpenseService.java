@@ -2,6 +2,8 @@ package com.jr.finance.api.expense;
 
 import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.common.exception.NotFoundException;
+import com.jr.finance.api.ledger.FinancialTransaction;
+import com.jr.finance.api.ledger.FinancialTransactionRepository;
 import com.jr.finance.api.expense.dto.CreateExpenseRequest;
 import com.jr.finance.api.expense.dto.ExpenseResponse;
 import com.jr.finance.api.expense.dto.MonthComparisonResponse;
@@ -15,6 +17,7 @@ import com.jr.finance.api.ledger.LedgerEntryRepository;
 import com.jr.finance.api.ledger.LedgerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,6 +34,7 @@ public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final LedgerService ledgerService;
     private final LedgerEntryRepository ledgerEntryRepository;
+    private final FinancialTransactionRepository financialTransactionRepository;
     private final ExpenseMapper expenseMapper;
 
     public ExpenseResponse create(Long userId, CreateExpenseRequest req) {
@@ -45,9 +49,9 @@ public class ExpenseService {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
         List<ExpenseResponse> responses = new java.util.ArrayList<>(expenseMapper.toResponseList(
-                expenseRepository.findByUserIdAndExpenseDateBetween(userId, start, end)));
+                expenseRepository.findUnmigratedByUserIdAndExpenseDateBetween(userId, start, end)));
         responses.addAll(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
-                start, end, FinancialTransactionStatus.VOIDED).stream().map(expenseMapper::toResponse).toList());
+                FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED).stream().map(expenseMapper::toResponse).toList());
         return responses.stream().sorted(Comparator.comparing(ExpenseResponse::getExpenseDate).reversed()
                 .thenComparing(ExpenseResponse::getId)).toList();
     }
@@ -68,10 +72,10 @@ public class ExpenseService {
             byCategory.put(category != null ? category : "Sin categoría", amount);
         }
         for (var entry : ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
-                start, end, FinancialTransactionStatus.VOIDED)) {
+                FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED)) {
             String category = entry.getFinancialTransaction().getCategory() == null
                     ? "Sin categoría" : entry.getFinancialTransaction().getCategory().getName();
-            byCategory.merge(category, entry.getSignedAmount().abs(), BigDecimal::add);
+            byCategory.merge(category, entry.getSignedAmount().negate(), BigDecimal::add);
         }
 
         return new MonthlySummaryResponse(total, fixedTotal, variableTotal, byCategory);
@@ -166,30 +170,44 @@ public class ExpenseService {
         );
     }
 
+    @Transactional
     public void delete(Long userId, Long expenseId) {
         Expense e = expenseRepository.findById(expenseId)
-                .orElseThrow(() -> new NotFoundException("El gasto no existe"));
-
-        if (!e.getUser().getId().equals(userId)) {
-            throw new NotFoundException("El gasto no existe");
+                .filter(expense -> expense.getUser().getId().equals(userId))
+                .orElse(null);
+        if (e != null) {
+            var migrated = financialTransactionRepository.findByLegacySourceAndLegacyIdAndUserId(
+                    com.jr.finance.api.ledger.LegacyOperationSource.EXPENSE, e.getId(), userId);
+            if (migrated.isPresent()) {
+                ledgerService.reverseTransaction(migrated.get().getId(), userId);
+            } else {
+                expenseRepository.delete(e);
+            }
+            return;
         }
 
-        expenseRepository.delete(e);
+        var ledgerTransaction = financialTransactionRepository.findOwnedForReversal(expenseId, userId)
+                .orElseThrow(() -> new NotFoundException("El gasto no existe"));
+        if (ledgerTransaction.getType() != FinancialTransactionType.EXPENSE) {
+            throw new NotFoundException("El gasto no existe");
+        }
+        ledgerService.reverseTransaction(expenseId, userId);
     }
 
     public BigDecimal totalByPeriod(Long userId, LocalDate start, LocalDate end) {
         BigDecimal legacyTotal = expenseRepository.totalByPeriod(userId, start, end);
         BigDecimal ledgerTotal = ledgerEntryRepository.sumSignedByUserAndTypeAndPeriod(userId,
-                FinancialTransactionType.EXPENSE, start, end, FinancialTransactionStatus.VOIDED);
-        return legacyTotal.add(ledgerTotal.abs());
+                FinancialTransactionType.EXPENSE, FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED);
+        return legacyTotal.add(ledgerTotal.negate());
     }
 
     private BigDecimal totalByType(Long userId, String type, LocalDate start, LocalDate end) {
         BigDecimal legacyTotal = expenseRepository.totalByType(userId, type, start, end);
         BigDecimal ledgerTotal = ledgerEntryRepository.findByUserTypeAndPeriod(userId,
-                        FinancialTransactionType.EXPENSE, start, end, FinancialTransactionStatus.VOIDED).stream()
+                        FinancialTransactionType.EXPENSE, FinancialTransactionType.REVERSAL,
+                        start, end, FinancialTransactionStatus.VOIDED).stream()
                 .filter(entry -> type.equals(entry.getFinancialTransaction().getExpenseType()))
-                .map(entry -> entry.getSignedAmount().abs())
+                .map(entry -> entry.getSignedAmount().negate())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return legacyTotal.add(ledgerTotal);
     }

@@ -2,6 +2,7 @@ package com.jr.finance.api;
 
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.common.exception.NotFoundException;
+import com.jr.finance.api.common.exception.ConflictException;
 import com.jr.finance.api.account.Account;
 import com.jr.finance.api.account.AccountRepository;
 import com.jr.finance.api.account.AccountType;
@@ -110,20 +111,22 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(6)
+                .hasSize(8)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5", "6");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
                         "add saving goal optimistic lock", "create accounts",
                         "create financial transactions and ledger entries",
-                        "add legacy operation metadata to financial transactions");
+                        "add legacy operation metadata to financial transactions",
+                        "enforce unique reversals and shared operation ids",
+                        "add legacy migration tracking");
     }
 
     @Test
@@ -210,7 +213,7 @@ class PostgreSqlSchemaIntegrationTests {
                 "idx_saving_goals_user_id", "idx_saving_movements_goal_movement_date",
                 "uk_user_alert_seen_without_related", "idx_financial_transactions_user_effective_date",
                 "idx_financial_transactions_user_type_effective_date", "idx_ledger_entries_account_id",
-                "idx_ledger_entries_financial_transaction_id");
+                "idx_ledger_entries_financial_transaction_id", "uk_financial_transactions_reversal_of");
 
         Long userId = jdbcTemplate.queryForObject(
                 "insert into users (name, email, password) values (?, ?, ?) returning id",
@@ -274,13 +277,15 @@ class PostgreSqlSchemaIntegrationTests {
     void ledgerRecordsIncomeExpenseAndOpeningBalanceFromPostgreSql() {
         User user = createUser();
         Account account = createAccount(user, "Ledger account", true);
+        long transactionsBefore = financialTransactionRepository.count();
+        long entriesBefore = ledgerEntryRepository.count();
 
         ledgerService.recordOpeningBalance(user.getId(), account.getId(), command("500000.0000", "COP"));
         ledgerService.recordIncome(user.getId(), account.getId(), command("100000.0000", "COP"));
         ledgerService.recordExpense(user.getId(), account.getId(), command("200000.0000", "COP"));
 
-        assertThat(financialTransactionRepository.count()).isEqualTo(3);
-        assertThat(ledgerEntryRepository.count()).isEqualTo(3);
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore + 3);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore + 3);
         assertThat(ledgerService.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("400000.0000");
         Long transactionId = jdbcTemplate.queryForObject("select min(id) from financial_transactions", Long.class);
         assertThatThrownBy(() -> jdbcTemplate.update("""
@@ -330,6 +335,32 @@ class PostgreSqlSchemaIntegrationTests {
 
         assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore);
         assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore);
+    }
+
+    @Test
+    void reversalIsAtomicUniqueAndKeepsBothSidesInTheBalance() throws Exception {
+        User user = createUser();
+        Account account = createAccount(user, "Reversal account", true);
+        ledgerService.recordOpeningBalance(user.getId(), account.getId(), command("500000.0000", "COP"));
+        var expense = ledgerService.recordExpense(user.getId(), account.getId(), command("100000.0000", "COP"));
+        assertThat(ledgerService.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("400000.0000");
+
+        CyclicBarrier launch = new CyclicBarrier(2);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Boolean> first = executor.submit(() -> reverseConcurrently(expense.getId(), user.getId(), launch));
+            Future<Boolean> second = executor.submit(() -> reverseConcurrently(expense.getId(), user.getId(), launch));
+            assertThat(first.get()).isNotEqualTo(second.get());
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(financialTransactionRepository.findById(expense.getId()).orElseThrow().getStatus().name())
+                .isEqualTo("REVERSED");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from financial_transactions where reversal_of_id = ?",
+                Integer.class, expense.getId())).isEqualTo(1);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(3);
+        assertThat(ledgerService.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("500000.0000");
     }
 
     @Test
@@ -405,6 +436,16 @@ class PostgreSqlSchemaIntegrationTests {
             });
             return true;
         } catch (ObjectOptimisticLockingFailureException ex) {
+            return false;
+        }
+    }
+
+    private boolean reverseConcurrently(Long transactionId, Long userId, CyclicBarrier launch) {
+        try {
+            await(launch);
+            ledgerService.reverseTransaction(transactionId, userId);
+            return true;
+        } catch (ConflictException ex) {
             return false;
         }
     }

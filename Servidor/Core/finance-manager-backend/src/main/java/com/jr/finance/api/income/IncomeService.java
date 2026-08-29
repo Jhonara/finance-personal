@@ -55,9 +55,9 @@ public class IncomeService {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
         List<IncomeResponse> responses = new java.util.ArrayList<>(incomeMapper.toResponseList(
-                incomeRepository.findByUserIdAndIncomeDateBetween(userId, start, end)));
+                incomeRepository.findUnmigratedByUserIdAndIncomeDateBetween(userId, start, end)));
         responses.addAll(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.INCOME,
-                start, end, FinancialTransactionStatus.VOIDED).stream().map(incomeMapper::toResponse).toList());
+                FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED).stream().map(incomeMapper::toResponse).toList());
         return responses.stream().sorted(Comparator.comparing(IncomeResponse::getIncomeDate).reversed()
                 .thenComparing(IncomeResponse::getId)).toList();
     }
@@ -65,7 +65,7 @@ public class IncomeService {
     public BigDecimal totalByPeriod(Long userId, LocalDate start, LocalDate end) {
         BigDecimal legacyTotal = incomeRepository.totalByPeriod(userId, start, end);
         BigDecimal ledgerTotal = ledgerEntryRepository.sumSignedByUserAndTypeAndPeriod(userId,
-                FinancialTransactionType.INCOME, start, end, FinancialTransactionStatus.VOIDED);
+                FinancialTransactionType.INCOME, FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED);
         return legacyTotal.add(ledgerTotal);
     }
 }
