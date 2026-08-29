@@ -1,6 +1,11 @@
 package com.jr.finance.api;
 
 import com.jr.finance.api.auth.JwtService;
+import com.jr.finance.api.account.Account;
+import com.jr.finance.api.account.AccountRepository;
+import com.jr.finance.api.account.AccountType;
+import com.jr.finance.api.ledger.FinancialTransactionRepository;
+import com.jr.finance.api.ledger.LedgerEntryRepository;
 import com.jr.finance.api.expense.Category;
 import com.jr.finance.api.expense.CategoryRepository;
 import com.jr.finance.api.expense.ExpenseRepository;
@@ -61,10 +66,22 @@ class SecurityIntegrationTests {
     @Autowired
     private ExpenseRepository expenseRepository;
 
+    @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
+    private LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    private FinancialTransactionRepository financialTransactionRepository;
+
     @BeforeEach
     void cleanDatabase() {
+        ledgerEntryRepository.deleteAll();
+        financialTransactionRepository.deleteAll();
         expenseRepository.deleteAll();
         categoryRepository.deleteAll();
+        accountRepository.deleteAll();
         userRepository.deleteAll();
         roleRepository.deleteAll();
     }
@@ -155,12 +172,20 @@ class SecurityIntegrationTests {
         category.setUser(userB);
         category = categoryRepository.save(category);
 
+        Account account = new Account();
+        account.setName("User A account");
+        account.setUser(userA);
+        account.setType(AccountType.BANK);
+        account.setCurrency("COP");
+        account.setActive(true);
+        account = accountRepository.save(account);
+
         mockMvc.perform(post("/api/expenses")
                         .header("Authorization", bearer(userA))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"amount":100,"paymentType":"CARD","expenseType":"VARIABLE", "expenseDate":"%s", "categoryId":%d}
-                                """.formatted(LocalDate.now(), category.getId())))
+                                {"amount":100,"paymentType":"CARD","expenseType":"VARIABLE", "expenseDate":"%s", "categoryId":%d, "accountId":%d}
+                                """.formatted(LocalDate.now(), category.getId(), account.getId())))
                 .andExpect(status().isNotFound());
 
         org.junit.jupiter.api.Assertions.assertEquals(0, expenseRepository.count());

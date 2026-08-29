@@ -2,7 +2,9 @@ package com.jr.finance.api.common;
 
 import com.jr.finance.api.common.dto.MonthlyBalanceResponse;
 import com.jr.finance.api.expense.ExpenseRepository;
+import com.jr.finance.api.expense.ExpenseService;
 import com.jr.finance.api.income.IncomeRepository;
+import com.jr.finance.api.income.IncomeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,8 +16,8 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class BalanceService {
 
-    private final IncomeRepository incomeRepository;
-    private final ExpenseRepository expenseRepository;
+    private final IncomeService incomeService;
+    private final ExpenseService expenseService;
 
     public MonthlyBalanceResponse monthlyBalance(Long userId, int year, int month) {
 
@@ -29,8 +31,8 @@ public class BalanceService {
         var startDate = yearMonth.atDay(1);
         var endDate = yearMonth.atEndOfMonth();
 
-        BigDecimal totalIncome = incomeRepository.totalByPeriod(userId, startDate, endDate);
-        BigDecimal totalExpense = expenseRepository.totalByPeriod(userId, startDate, endDate);
+        BigDecimal totalIncome = incomeService.totalByPeriod(userId, startDate, endDate);
+        BigDecimal totalExpense = expenseService.totalByPeriod(userId, startDate, endDate);
 
         totalIncome = totalIncome != null ? totalIncome : BigDecimal.ZERO;
         totalExpense = totalExpense != null ? totalExpense : BigDecimal.ZERO;

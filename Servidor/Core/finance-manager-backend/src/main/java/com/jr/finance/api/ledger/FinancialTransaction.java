@@ -61,6 +61,15 @@ public class FinancialTransaction {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Column(name = "income_type", length = 50)
+    private String incomeType;
+
+    @Column(name = "payment_type", length = 50)
+    private String paymentType;
+
+    @Column(name = "expense_type", length = 20)
+    private String expenseType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reversal_of_id")
     private FinancialTransaction reversalOf;

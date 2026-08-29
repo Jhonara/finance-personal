@@ -64,4 +64,8 @@ public class CreateExpenseRequest {
             example = "3"
     )
     private Long categoryId;
+
+    @NotNull(message = "La cuenta es obligatoria")
+    @Schema(description = "Cuenta afectada por el gasto.", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Long accountId;
 }

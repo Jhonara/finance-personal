@@ -1,13 +1,18 @@
 package com.jr.finance.api.expense;
 
-import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.common.FinancialPeriod;
+import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.expense.dto.CreateExpenseRequest;
+import com.jr.finance.api.expense.dto.ExpenseResponse;
 import com.jr.finance.api.expense.dto.MonthComparisonResponse;
 import com.jr.finance.api.expense.dto.MonthlySummaryResponse;
 import com.jr.finance.api.expense.dto.PeriodComparisonResponse;
-import com.jr.finance.api.user.User;
-import com.jr.finance.api.user.UserRepository;
+import com.jr.finance.api.expense.mapper.ExpenseMapper;
+import com.jr.finance.api.ledger.FinancialOperationCommand;
+import com.jr.finance.api.ledger.FinancialTransactionStatus;
+import com.jr.finance.api.ledger.FinancialTransactionType;
+import com.jr.finance.api.ledger.LedgerEntryRepository;
+import com.jr.finance.api.ledger.LedgerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -23,36 +29,27 @@ import java.util.Map;
 public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
-    private final CategoryRepository categoryRepository;
-    private final UserRepository userRepository;
+    private final LedgerService ledgerService;
+    private final LedgerEntryRepository ledgerEntryRepository;
+    private final ExpenseMapper expenseMapper;
 
-    public Expense create(Long userId, CreateExpenseRequest req) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-
-        Expense e = new Expense();
-        e.setUser(user);
-        e.setAmount(req.getAmount());
-        e.setDescription(req.getDescription());
-        e.setPaymentType(req.getPaymentType());
-        e.setExpenseType(req.getExpenseType());
-        e.setExpenseDate(req.getExpenseDate());
-
-        if (req.getCategoryId() != null) {
-            e.setCategory(categoryRepository.findByIdAndUserId(req.getCategoryId(), userId)
-                    .orElseThrow(() -> new NotFoundException("Category not found")));
-        }
-
-        return expenseRepository.save(e);
+    public ExpenseResponse create(Long userId, CreateExpenseRequest req) {
+        var transaction = ledgerService.recordExpense(userId, req.getAccountId(),
+                new FinancialOperationCommand(req.getAmount(), req.getExpenseDate(), req.getDescription(), null,
+                        req.getCategoryId()), req.getPaymentType(), req.getExpenseType());
+        return expenseMapper.toResponse(ledgerEntryRepository.findByFinancialTransactionId(transaction.getId()).orElseThrow());
     }
 
-    public List<Expense> listByMonth(Long userId, int year, int month) {
+    public List<ExpenseResponse> listByMonth(Long userId, int year, int month) {
         var ym = FinancialPeriod.of(year, month);
-        return expenseRepository.findByUserIdAndExpenseDateBetween(
-                userId,
-                ym.atDay(1),
-                ym.atEndOfMonth()
-        );
+        LocalDate start = ym.atDay(1);
+        LocalDate end = ym.atEndOfMonth();
+        List<ExpenseResponse> responses = new java.util.ArrayList<>(expenseMapper.toResponseList(
+                expenseRepository.findByUserIdAndExpenseDateBetween(userId, start, end)));
+        responses.addAll(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
+                start, end, FinancialTransactionStatus.VOIDED).stream().map(expenseMapper::toResponse).toList());
+        return responses.stream().sorted(Comparator.comparing(ExpenseResponse::getExpenseDate).reversed()
+                .thenComparing(ExpenseResponse::getId)).toList();
     }
 
     public MonthlySummaryResponse monthlySummary(Long userId, int year, int month) {
@@ -60,15 +57,21 @@ public class ExpenseService {
         var start = ym.atDay(1);
         var end = ym.atEndOfMonth();
 
-        BigDecimal total = expenseRepository.totalByPeriod(userId, start, end);
-        BigDecimal fixedTotal = expenseRepository.totalByType(userId, "FIXED", start, end);
-        BigDecimal variableTotal = expenseRepository.totalByType(userId, "VARIABLE", start, end);
+        BigDecimal total = totalByPeriod(userId, start, end);
+        BigDecimal fixedTotal = totalByType(userId, "FIXED", start, end);
+        BigDecimal variableTotal = totalByType(userId, "VARIABLE", start, end);
 
         Map<String, BigDecimal> byCategory = new HashMap<>();
         for (Object[] row : expenseRepository.totalByCategory(userId, start, end)) {
             String category = (String) row[0];
             BigDecimal amount = (BigDecimal) row[1];
             byCategory.put(category != null ? category : "Sin categoría", amount);
+        }
+        for (var entry : ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
+                start, end, FinancialTransactionStatus.VOIDED)) {
+            String category = entry.getFinancialTransaction().getCategory() == null
+                    ? "Sin categoría" : entry.getFinancialTransaction().getCategory().getName();
+            byCategory.merge(category, entry.getSignedAmount().abs(), BigDecimal::add);
         }
 
         return new MonthlySummaryResponse(total, fixedTotal, variableTotal, byCategory);
@@ -85,8 +88,8 @@ public class ExpenseService {
         var startPrev = previous.atDay(1);
         var endPrev = previous.atEndOfMonth();
 
-        BigDecimal currentTotal = expenseRepository.totalByPeriod(userId, startCurrent, endCurrent);
-        BigDecimal previousTotal = expenseRepository.totalByPeriod(userId, startPrev, endPrev);
+        BigDecimal currentTotal = totalByPeriod(userId, startCurrent, endCurrent);
+        BigDecimal previousTotal = totalByPeriod(userId, startPrev, endPrev);
 
         BigDecimal difference = currentTotal.subtract(previousTotal);
 
@@ -133,8 +136,8 @@ public class ExpenseService {
         var start2 = p2.atDay(1);
         var end2 = p2.atEndOfMonth();
 
-        BigDecimal total1 = expenseRepository.totalByPeriod(userId, start1, end1);
-        BigDecimal total2 = expenseRepository.totalByPeriod(userId, start2, end2);
+        BigDecimal total1 = totalByPeriod(userId, start1, end1);
+        BigDecimal total2 = totalByPeriod(userId, start2, end2);
 
         BigDecimal difference = total1.subtract(total2);
 
@@ -172,5 +175,22 @@ public class ExpenseService {
         }
 
         expenseRepository.delete(e);
+    }
+
+    public BigDecimal totalByPeriod(Long userId, LocalDate start, LocalDate end) {
+        BigDecimal legacyTotal = expenseRepository.totalByPeriod(userId, start, end);
+        BigDecimal ledgerTotal = ledgerEntryRepository.sumSignedByUserAndTypeAndPeriod(userId,
+                FinancialTransactionType.EXPENSE, start, end, FinancialTransactionStatus.VOIDED);
+        return legacyTotal.add(ledgerTotal.abs());
+    }
+
+    private BigDecimal totalByType(Long userId, String type, LocalDate start, LocalDate end) {
+        BigDecimal legacyTotal = expenseRepository.totalByType(userId, type, start, end);
+        BigDecimal ledgerTotal = ledgerEntryRepository.findByUserTypeAndPeriod(userId,
+                        FinancialTransactionType.EXPENSE, start, end, FinancialTransactionStatus.VOIDED).stream()
+                .filter(entry -> type.equals(entry.getFinancialTransaction().getExpenseType()))
+                .map(entry -> entry.getSignedAmount().abs())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return legacyTotal.add(ledgerTotal);
     }
 }

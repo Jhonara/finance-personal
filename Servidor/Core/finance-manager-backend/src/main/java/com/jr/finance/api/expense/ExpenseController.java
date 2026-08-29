@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.jr.finance.api.expense.dto.ExpenseResponse;
-import com.jr.finance.api.expense.mapper.ExpenseMapper;
 
 import java.util.List;
 
@@ -29,7 +28,6 @@ import java.util.List;
 public class ExpenseController {
 
     private final ExpenseService expenseService;
-    private final ExpenseMapper expenseMapper;
 
     @Operation(
             summary = "Registrar un gasto",
@@ -51,9 +49,7 @@ public class ExpenseController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return expenseMapper.toResponse(
-                expenseService.create(userId, req)
-        );
+        return expenseService.create(userId, req);
     }
 
     @Operation(
@@ -87,9 +83,7 @@ public class ExpenseController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return expenseMapper.toResponseList(
-                expenseService.listByMonth(userId, year, month)
-        );
+        return expenseService.listByMonth(userId, year, month);
     }
 
     @Operation(

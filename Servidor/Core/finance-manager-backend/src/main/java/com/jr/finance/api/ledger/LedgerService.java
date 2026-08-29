@@ -29,12 +29,26 @@ public class LedgerService {
 
     @Transactional
     public FinancialTransaction recordIncome(Long userId, Long accountId, FinancialOperationCommand command) {
-        return recordSingleEntry(userId, accountId, FinancialTransactionType.INCOME, command, true);
+        return recordIncome(userId, accountId, command, null);
+    }
+
+    @Transactional
+    public FinancialTransaction recordIncome(Long userId, Long accountId, FinancialOperationCommand command,
+                                             String incomeType) {
+        return recordSingleEntry(userId, accountId, FinancialTransactionType.INCOME, command, true,
+                incomeType, null, null);
     }
 
     @Transactional
     public FinancialTransaction recordExpense(Long userId, Long accountId, FinancialOperationCommand command) {
-        return recordSingleEntry(userId, accountId, FinancialTransactionType.EXPENSE, command, false);
+        return recordExpense(userId, accountId, command, null, null);
+    }
+
+    @Transactional
+    public FinancialTransaction recordExpense(Long userId, Long accountId, FinancialOperationCommand command,
+                                              String paymentType, String expenseType) {
+        return recordSingleEntry(userId, accountId, FinancialTransactionType.EXPENSE, command, false,
+                null, paymentType, expenseType);
     }
 
     @Transactional
@@ -47,7 +61,7 @@ public class LedgerService {
             throw new BadRequestException("El saldo de apertura no puede ser cero");
         }
         return persistSingleEntry(userId, accountId, FinancialTransactionType.OPENING_BALANCE, command,
-                command.amount(), null);
+                command.amount(), null, null, null, null);
     }
 
     public BigDecimal getAccountBalance(Long userId, Long accountId) {
@@ -57,24 +71,28 @@ public class LedgerService {
     }
 
     private FinancialTransaction recordSingleEntry(Long userId, Long accountId, FinancialTransactionType type,
-                                                    FinancialOperationCommand command, boolean positive) {
+                                                    FinancialOperationCommand command, boolean positive,
+                                                    String incomeType, String paymentType, String expenseType) {
         validateCommand(command);
         if (command.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("El monto debe ser mayor que 0");
         }
         Category category = resolveCategory(userId, command.categoryId());
         BigDecimal signedAmount = positive ? command.amount() : command.amount().negate();
-        return persistSingleEntry(userId, accountId, type, command, signedAmount, category);
+        return persistSingleEntry(userId, accountId, type, command, signedAmount, category,
+                incomeType, paymentType, expenseType);
     }
 
     private FinancialTransaction persistSingleEntry(Long userId, Long accountId, FinancialTransactionType type,
                                                      FinancialOperationCommand command, BigDecimal signedAmount,
-                                                     Category category) {
+                                                     Category category, String incomeType, String paymentType,
+                                                     String expenseType) {
         Account account = getOwnedAccount(userId, accountId);
         if (!account.isActive()) {
             throw new BadRequestException("La cuenta está inactiva");
         }
-        if (!account.getCurrency().equals(command.currency())) {
+        String currency = command.currency() == null ? account.getCurrency() : command.currency();
+        if (!account.getCurrency().equals(currency)) {
             throw new BadRequestException("La moneda de la transacción debe coincidir con la moneda de la cuenta");
         }
 
@@ -88,7 +106,10 @@ public class LedgerService {
         transaction.setEffectiveDate(command.effectiveDate());
         transaction.setDescription(normalizeDescription(command.description()));
         transaction.setCategory(category);
-        transaction.setCurrency(command.currency());
+        transaction.setCurrency(currency);
+        transaction.setIncomeType(incomeType);
+        transaction.setPaymentType(paymentType);
+        transaction.setExpenseType(expenseType);
         FinancialTransaction savedTransaction = financialTransactionRepository.saveAndFlush(transaction);
 
         LedgerEntry entry = new LedgerEntry();
@@ -116,7 +137,7 @@ public class LedgerService {
         if (command == null || command.amount() == null || command.effectiveDate() == null) {
             throw new BadRequestException("Monto y fecha efectiva son obligatorios");
         }
-        if (command.currency() == null || !ISO_CURRENCY.matcher(command.currency()).matches()) {
+        if (command.currency() != null && !ISO_CURRENCY.matcher(command.currency()).matches()) {
             throw new BadRequestException("La moneda debe usar un código ISO-4217 de tres letras mayúsculas");
         }
     }

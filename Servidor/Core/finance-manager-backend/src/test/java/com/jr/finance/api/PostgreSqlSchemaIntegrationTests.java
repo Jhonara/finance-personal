@@ -110,19 +110,20 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(5)
+                .hasSize(6)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5");
+                .containsExactly("1", "2", "3", "4", "5", "6");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
                         "add saving goal optimistic lock", "create accounts",
-                        "create financial transactions and ledger entries");
+                        "create financial transactions and ledger entries",
+                        "add legacy operation metadata to financial transactions");
     }
 
     @Test

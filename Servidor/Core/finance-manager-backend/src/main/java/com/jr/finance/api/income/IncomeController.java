@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.jr.finance.api.income.dto.IncomeResponse;
-import com.jr.finance.api.income.mapper.IncomeMapper;
 
 import java.util.List;
 
@@ -26,7 +25,6 @@ import java.util.List;
 public class IncomeController {
 
     private final IncomeService incomeService;
-    private final IncomeMapper incomeMapper;
 
     @Operation(
             summary = "Registrar un ingreso",
@@ -48,9 +46,7 @@ public class IncomeController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return incomeMapper.toResponse(
-                incomeService.create(userId, req)
-        );
+        return incomeService.create(userId, req);
     }
 
     @Operation(
@@ -84,8 +80,6 @@ public class IncomeController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return incomeMapper.toResponseList(
-                incomeService.listByMonth(userId, year, month)
-        );
+        return incomeService.listByMonth(userId, year, month);
     }
 }

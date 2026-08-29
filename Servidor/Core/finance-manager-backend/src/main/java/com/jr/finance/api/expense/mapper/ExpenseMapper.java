@@ -2,6 +2,7 @@ package com.jr.finance.api.expense.mapper;
 
 import com.jr.finance.api.expense.Expense;
 import com.jr.finance.api.expense.dto.ExpenseResponse;
+import com.jr.finance.api.ledger.LedgerEntry;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -34,5 +35,18 @@ public class ExpenseMapper {
         return expenses.stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public ExpenseResponse toResponse(LedgerEntry entry) {
+        var transaction = entry.getFinancialTransaction();
+        ExpenseResponse response = new ExpenseResponse();
+        response.setId(transaction.getId());
+        response.setCategory(transaction.getCategory() == null ? null : transaction.getCategory().getName());
+        response.setAmount(entry.getSignedAmount().abs());
+        response.setDescription(transaction.getDescription());
+        response.setPaymentType(transaction.getPaymentType());
+        response.setExpenseType(transaction.getExpenseType());
+        response.setExpenseDate(transaction.getEffectiveDate());
+        return response;
     }
 }

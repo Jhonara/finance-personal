@@ -1,14 +1,21 @@
 package com.jr.finance.api.income;
 
-import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.income.dto.CreateIncomeRequest;
-import com.jr.finance.api.user.User;
-import com.jr.finance.api.user.UserRepository;
+import com.jr.finance.api.income.dto.IncomeResponse;
+import com.jr.finance.api.income.mapper.IncomeMapper;
+import com.jr.finance.api.ledger.FinancialOperationCommand;
+import com.jr.finance.api.ledger.FinancialTransactionStatus;
+import com.jr.finance.api.ledger.FinancialTransactionType;
+import com.jr.finance.api.ledger.LedgerEntryRepository;
+import com.jr.finance.api.ledger.LedgerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -17,35 +24,26 @@ import java.util.List;
 public class IncomeService {
 
     private final IncomeRepository incomeRepository;
-    private final UserRepository userRepository;
+    private final LedgerService ledgerService;
+    private final LedgerEntryRepository ledgerEntryRepository;
+    private final IncomeMapper incomeMapper;
 
-    public Income create(Long userId, CreateIncomeRequest req) {
+    public IncomeResponse create(Long userId, CreateIncomeRequest req) {
 
         log.info("Creando ingreso para el usuario {}.", userId);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("Usuario con id {} no encontrado al crear un ingreso.", userId);
-                    return new NotFoundException("Usuario no encontrado");
-                });
-
-        Income income = new Income();
-        income.setUser(user);
-        income.setAmount(req.getAmount());
-        income.setDescription(req.getDescription());
-        income.setIncomeType(req.getIncomeType());
-        income.setIncomeDate(req.getIncomeDate());
-
-        Income savedIncome = incomeRepository.save(income);
+        var transaction = ledgerService.recordIncome(userId, req.getAccountId(),
+                new FinancialOperationCommand(req.getAmount(), req.getIncomeDate(), req.getDescription(), null, null),
+                req.getIncomeType());
+        var entry = ledgerEntryRepository.findByFinancialTransactionId(transaction.getId()).orElseThrow();
 
         log.info("Ingreso {} creado correctamente para el usuario {}.",
-                savedIncome.getId(),
+                transaction.getId(),
                 userId);
-
-        return savedIncome;
+        return incomeMapper.toResponse(entry);
     }
 
-    public List<Income> listByMonth(Long userId, int year, int month) {
+    public List<IncomeResponse> listByMonth(Long userId, int year, int month) {
 
         log.info("Consultando ingresos del usuario {} para {}/{}.",
                 userId,
@@ -54,10 +52,20 @@ public class IncomeService {
 
         var ym = FinancialPeriod.of(year, month);
 
-        return incomeRepository.findByUserIdAndIncomeDateBetween(
-                userId,
-                ym.atDay(1),
-                ym.atEndOfMonth()
-        );
+        LocalDate start = ym.atDay(1);
+        LocalDate end = ym.atEndOfMonth();
+        List<IncomeResponse> responses = new java.util.ArrayList<>(incomeMapper.toResponseList(
+                incomeRepository.findByUserIdAndIncomeDateBetween(userId, start, end)));
+        responses.addAll(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.INCOME,
+                start, end, FinancialTransactionStatus.VOIDED).stream().map(incomeMapper::toResponse).toList());
+        return responses.stream().sorted(Comparator.comparing(IncomeResponse::getIncomeDate).reversed()
+                .thenComparing(IncomeResponse::getId)).toList();
+    }
+
+    public BigDecimal totalByPeriod(Long userId, LocalDate start, LocalDate end) {
+        BigDecimal legacyTotal = incomeRepository.totalByPeriod(userId, start, end);
+        BigDecimal ledgerTotal = ledgerEntryRepository.sumSignedByUserAndTypeAndPeriod(userId,
+                FinancialTransactionType.INCOME, start, end, FinancialTransactionStatus.VOIDED);
+        return legacyTotal.add(ledgerTotal);
     }
 }

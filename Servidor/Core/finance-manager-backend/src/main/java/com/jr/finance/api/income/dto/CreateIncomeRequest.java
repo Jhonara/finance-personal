@@ -49,4 +49,8 @@ public class CreateIncomeRequest {
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     private LocalDate incomeDate;
+
+    @NotNull(message = "La cuenta es obligatoria")
+    @Schema(description = "Cuenta que recibe el ingreso.", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Long accountId;
 }
