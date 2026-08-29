@@ -1,22 +1,23 @@
 package com.jr.finance.api.alerts;
 
 import com.jr.finance.api.auth.UserPrincipal;
+import com.jr.finance.api.alerts.dto.MarkAlertSeenRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 
 @Tag(
         name = "Alertas",
         description = "Consulta y administración de alertas financieras generadas automáticamente."
 )
 @RestController
-@RequestMapping("/api/alerts")
+@RequestMapping("/api/v1/alerts")
 @RequiredArgsConstructor
 public class AlertController {
 
@@ -46,15 +47,14 @@ public class AlertController {
             @ApiResponse(responseCode = "404", description = "Alerta no encontrada")
     })
     @PostMapping("/{code}/seen")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void markAsSeen(@PathVariable String code,
-                           @RequestBody(required = false) Map<String, Object> body,
+                           @RequestBody(required = false) MarkAlertSeenRequest body,
                            Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
-        Long relatedId = body != null && body.get("relatedId") != null
-                ? Long.valueOf(body.get("relatedId").toString())
-                : null;
+        Long relatedId = body == null ? null : body.relatedId();
 
         alertService.markAsSeen(userId, code, relatedId);
     }

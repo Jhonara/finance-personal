@@ -88,25 +88,25 @@ class BudgetIntegrationTests {
                 {"categoryId":%d,"year":2026,"month":8,"limitAmount":500000}
                 """.formatted(food.getId());
 
-        mockMvc.perform(post("/api/budgets").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/budgets").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.categoryId").value(food.getId()))
                 .andExpect(jsonPath("$.period").value("2026-08"))
                 .andExpect(jsonPath("$.limitAmount").value(500000))
                 .andExpect(jsonPath("$.version").value(0));
-        mockMvc.perform(post("/api/budgets").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/budgets").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict());
-        mockMvc.perform(post("/api/budgets").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/budgets").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryId\":%d,\"year\":2026,\"month\":8,\"limitAmount\":0}".formatted(food.getId())))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/budgets").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/budgets").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryId\":%d,\"year\":2026,\"month\":13,\"limitAmount\":1}".formatted(food.getId())))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/budgets").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/budgets").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryId\":%d,\"year\":2026,\"month\":8,\"limitAmount\":1}".formatted(foreign.getId())))
                 .andExpect(status().isNotFound());
@@ -128,7 +128,7 @@ class BudgetIntegrationTests {
         transferService.create(user.getId(), transfer(source.getId(), destination.getId(), "80000"));
         Long budgetId = createBudget(user, food, "200000");
 
-        mockMvc.perform(get("/api/budgets/{id}", budgetId).header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/budgets/{id}", budgetId).header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.spentAmount").value(175000))
                 .andExpect(jsonPath("$.remainingAmount").value(25000))
@@ -136,7 +136,7 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.status").value("WARNING"));
 
         ledgerService.reverseTransaction(reversible.getId(), user.getId());
-        mockMvc.perform(get("/api/budgets?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/budgets?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].spentAmount").value(150000))
                 .andExpect(jsonPath("$[0].remainingAmount").value(50000))
@@ -151,17 +151,17 @@ class BudgetIntegrationTests {
         Long id = createBudget(owner, category(owner, "Food"), "500000");
         Long foreignId = createBudget(other, category(other, "Other"), "1");
 
-        mockMvc.perform(patch("/api/budgets/{id}", id).header("Authorization", bearer(owner))
+        mockMvc.perform(patch("/api/v1/budgets/{id}", id).header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"limitAmount\":700000,\"version\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.limitAmount").value(700000))
                 .andExpect(jsonPath("$.version").value(1));
-        mockMvc.perform(patch("/api/budgets/{id}", id).header("Authorization", bearer(owner))
+        mockMvc.perform(patch("/api/v1/budgets/{id}", id).header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"limitAmount\":1,\"version\":0}"))
                 .andExpect(status().isConflict());
-        mockMvc.perform(get("/api/budgets/{id}", foreignId).header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/budgets/{id}", foreignId).header("Authorization", bearer(owner)))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(patch("/api/budgets/{id}", foreignId).header("Authorization", bearer(owner))
+        mockMvc.perform(patch("/api/v1/budgets/{id}", foreignId).header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"limitAmount\":1,\"version\":0}"))
                 .andExpect(status().isNotFound());
         assertThat(budgetRepository.count()).isEqualTo(2);
@@ -239,14 +239,14 @@ class BudgetIntegrationTests {
         ledgerService.recordExpense(other.getId(), otherAccount.getId(),
                 command("400000", LocalDate.of(2026, 8, 2), foreignFood.getId()));
 
-        markSeen(owner, "BUDGET_WARNING", augustFood).andExpect(status().isOk());
+        markSeen(owner, "BUDGET_WARNING", augustFood).andExpect(status().isNoContent());
         assertThat(userAlertSeenRepository.count()).isEqualTo(1);
         assertThat(alertService.buildAlerts(owner.getId()).stream()
                 .filter(alert -> "BUDGET_WARNING".equals(alert.getCode()))
                 .map(alert -> ((Number) alert.getData().get("budgetId")).longValue()))
                 .contains(augustTransport).doesNotContain(augustFood);
 
-        markSeen(owner, "BUDGET_WARNING", augustFood).andExpect(status().isOk());
+        markSeen(owner, "BUDGET_WARNING", augustFood).andExpect(status().isNoContent());
         assertThat(userAlertSeenRepository.count()).isEqualTo(1);
 
         long countBeforeInvalidRequests = userAlertSeenRepository.count();
@@ -257,7 +257,7 @@ class BudgetIntegrationTests {
         markSeen(owner, "ALL_GOOD", null).andExpect(status().isNotFound());
         assertThat(userAlertSeenRepository.count()).isEqualTo(countBeforeInvalidRequests);
 
-        markSeen(owner, "BUDGET_WARNING", julyFood).andExpect(status().isOk());
+        markSeen(owner, "BUDGET_WARNING", julyFood).andExpect(status().isNoContent());
         assertThat(userAlertSeenRepository.count()).isEqualTo(2);
         assertThat(alertService.buildAlerts(owner.getId()).stream()
                 .filter(alert -> "BUDGET_WARNING".equals(alert.getCode()))
@@ -279,7 +279,7 @@ class BudgetIntegrationTests {
         User owner = createUser();
         User other = createUser();
 
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.credits.length()").value(0))
                 .andExpect(jsonPath("$.totalIncome").value(0))
@@ -291,7 +291,7 @@ class BudgetIntegrationTests {
         Credit second = credit(owner, "Education", "8000000", "12.25", 24, LocalDate.of(2026, 8, 20), 20);
         credit(other, "Foreign", "1000000", "9.50", 12, LocalDate.of(2026, 8, 1), 5);
 
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.credits.length()").value(2))
                 .andExpect(jsonPath("$.credits[0].id").value(first.getId()))
@@ -307,7 +307,7 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.netCashFlow").value(0))
                 .andExpect(jsonPath("$.netWorthByCurrency").isEmpty());
 
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(other)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(other)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.credits.length()").value(1))
                 .andExpect(jsonPath("$.credits[0].name").value("Foreign"));
@@ -339,7 +339,7 @@ class BudgetIntegrationTests {
                 command("10", LocalDate.of(2026, 8, 5), null));
         ledgerService.reverseTransaction(julyIncome.getId(), owner.getId());
 
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recentTransactions.length()").value(5))
                 .andExpect(jsonPath("$.recentTransactions[0].type").value("REVERSAL"))
@@ -361,12 +361,12 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.recentTransactions[4].categoryId").value(food.getId()))
                 .andExpect(jsonPath("$.recentTransactions[4].accountId").value(source.getId()));
 
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=7").header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=7").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recentTransactions.length()").value(2))
                 .andExpect(jsonPath("$.recentTransactions[0].type").value("INCOME"))
                 .andExpect(jsonPath("$.recentTransactions[1].type").value("OPENING_BALANCE"));
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(other)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(other)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recentTransactions.length()").value(2))
                 .andExpect(jsonPath("$.recentTransactions[0].accountId").value(foreignAccount.getId()));
@@ -404,7 +404,7 @@ class BudgetIntegrationTests {
         assertBudget(budgetService.list(owner.getId(), 2026, 8), "Transport", "300000", "0", "100.00", "WARNING");
         assertBudget(budgetService.list(owner.getId(), 2026, 8), "Health", "0", "100000", "0.00", "OK");
         assertThat(budgetService.list(owner.getId(), 2026, 8)).hasSize(3);
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalExpense").value(1000000))
                 .andExpect(jsonPath("$.budgets.totalBudgeted").value(900000))
@@ -429,7 +429,7 @@ class BudgetIntegrationTests {
         return createBudget(user, category, limit, 2026, 8);
     }
     private Long createBudget(User user, Category category, String limit, int year, int month) throws Exception {
-        String response = mockMvc.perform(post("/api/budgets").header("Authorization", bearer(user))
+        String response = mockMvc.perform(post("/api/v1/budgets").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryId\":%d,\"year\":%d,\"month\":%d,\"limitAmount\":%s}".formatted(category.getId(), year, month, limit)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
@@ -467,7 +467,7 @@ class BudgetIntegrationTests {
     private org.springframework.test.web.servlet.ResultActions markSeen(User user, String code, Long relatedId)
             throws Exception {
         String content = relatedId == null ? "{}" : "{\"relatedId\":%d}".formatted(relatedId);
-        return mockMvc.perform(post("/api/alerts/{code}/seen", code).header("Authorization", bearer(user))
+        return mockMvc.perform(post("/api/v1/alerts/{code}/seen", code).header("Authorization", bearer(user))
                 .contentType(MediaType.APPLICATION_JSON).content(content));
     }
 

@@ -1,5 +1,6 @@
 package com.jr.finance.api.common;
 
+import com.jr.finance.api.auth.RateLimitException;
 import com.jr.finance.api.common.dto.ErrorResponse;
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.common.exception.ConflictException;
@@ -10,8 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -25,156 +26,38 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(
-            NotFoundException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(error(
-                        ex.getMessage(),
-                        HttpStatus.NOT_FOUND,
-                        request
-                ));
-    }
-
+    public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException ex, HttpServletRequest request) { return response(ex.getMessage(), "NOT_FOUND", HttpStatus.NOT_FOUND, request); }
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ErrorResponse> handleBadRequest(
-            BadRequestException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.badRequest()
-                .body(error(
-                        ex.getMessage(),
-                        HttpStatus.BAD_REQUEST,
-                        request
-                ));
+    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex, HttpServletRequest request) { return response(ex.getMessage(), "BAD_REQUEST", HttpStatus.BAD_REQUEST, request); }
+    @ExceptionHandler({ConflictException.class, ObjectOptimisticLockingFailureException.class})
+    public ResponseEntity<ErrorResponse> handleConflict(Exception ex, HttpServletRequest request) {
+        String message = ex instanceof ObjectOptimisticLockingFailureException ? "El recurso fue modificado por otra operación. Intenta nuevamente." : ex.getMessage();
+        return response(message, "CONFLICT", HttpStatus.CONFLICT, request);
     }
-
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(
-            ConflictException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(error(
-                        ex.getMessage(),
-                        HttpStatus.CONFLICT,
-                        request
-                ));
-    }
-
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<ErrorResponse> handleOptimisticLock(
-            ObjectOptimisticLockingFailureException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(error(
-                        "El recurso fue modificado por otra operación. Intenta nuevamente.",
-                        HttpStatus.CONFLICT,
-                        request
-                ));
-    }
-
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ErrorResponse> handleUnauthorized(
-            UnauthorizedException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(error(
-                        ex.getMessage(),
-                        HttpStatus.UNAUTHORIZED,
-                        request
-                ));
-    }
-
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) { return response(ex.getMessage(), "UNAUTHORIZED", HttpStatus.UNAUTHORIZED, request); }
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<ErrorResponse> handleForbidden(
-            ForbiddenException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(error(
-                        ex.getMessage(),
-                        HttpStatus.FORBIDDEN,
-                        request
-                ));
-    }
-
+    public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex, HttpServletRequest request) { return response(ex.getMessage(), "FORBIDDEN", HttpStatus.FORBIDDEN, request); }
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request) {
-
-        String message = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(FieldError::getDefaultMessage)
-                .collect(Collectors.joining(", "));
-
-        return ResponseEntity.badRequest()
-                .body(error(
-                        message,
-                        HttpStatus.BAD_REQUEST,
-                        request
-                ));
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        Map<String, String> fields = ex.getBindingResult().getFieldErrors().stream().collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage, (first, ignored) -> first, LinkedHashMap::new));
+        return response("Request validation failed", "VALIDATION_ERROR", HttpStatus.BAD_REQUEST, request, fields);
     }
-
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraint(
-            ConstraintViolationException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.badRequest()
-                .body(error(
-                        ex.getMessage(),
-                        HttpStatus.BAD_REQUEST,
-                        request
-                ));
-    }
+    public ResponseEntity<ErrorResponse> handleConstraint(ConstraintViolationException ex, HttpServletRequest request) { return response("Request validation failed", "VALIDATION_ERROR", HttpStatus.BAD_REQUEST, request); }
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleJsonParse(
-            org.springframework.http.converter.HttpMessageNotReadableException ex,
-            HttpServletRequest request) {
-
-        return ResponseEntity.badRequest()
-                .body(error(
-                        "El cuerpo de la solicitud contiene un JSON inválido.",
-                        HttpStatus.BAD_REQUEST,
-                        request
-                ));
+    public ResponseEntity<ErrorResponse> handleJsonParse(HttpServletRequest request) { return response("El cuerpo de la solicitud contiene un JSON inválido.", "INVALID_REQUEST_BODY", HttpStatus.BAD_REQUEST, request); }
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", String.valueOf(ex.getRetryAfterSeconds())).body(error("Too many attempts. Try again later.", "RATE_LIMITED", HttpStatus.TOO_MANY_REQUESTS, request, Map.of()));
     }
-
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(
-            Exception ex,
-            HttpServletRequest request) {
-
+    public ResponseEntity<ErrorResponse> handleException(Exception ex, HttpServletRequest request) {
         log.error("Error no controlado al procesar {} {}", request.getMethod(), request.getRequestURI(), ex);
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(error(
-                        "Ocurrió un error interno.",
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        request
-                ));
+        return response("Ocurrió un error interno.", "INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
-
-    private ErrorResponse error(
-            String message,
-            HttpStatus status,
-            HttpServletRequest request) {
-
-        return new ErrorResponse(
-                message,
-                status.name(),
-                status.value(),
-                LocalDateTime.now(),
-                request.getRequestURI()
-        );
-    }
-
+    private ResponseEntity<ErrorResponse> response(String message, String code, HttpStatus status, HttpServletRequest request) { return response(message, code, status, request, Map.of()); }
+    private ResponseEntity<ErrorResponse> response(String message, String code, HttpStatus status, HttpServletRequest request, Map<String, String> fields) { return ResponseEntity.status(status).body(error(message, code, status, request, fields)); }
+    private ErrorResponse error(String message, String code, HttpStatus status, HttpServletRequest request, Map<String, String> fields) { return new ErrorResponse(message, code, status.value(), LocalDateTime.now(), request.getRequestURI(), fields); }
 }

@@ -137,14 +137,14 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(9)
+                .hasSize(10)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
@@ -152,7 +152,7 @@ class PostgreSqlSchemaIntegrationTests {
                         "create financial transactions and ledger entries",
                         "add legacy operation metadata to financial transactions",
                         "enforce unique reversals and shared operation ids",
-                        "add legacy migration tracking", "create budgets");
+                        "add legacy migration tracking", "create budgets", "create refresh tokens");
     }
 
     @Test
@@ -194,14 +194,14 @@ class PostgreSqlSchemaIntegrationTests {
         List<String> expectedTables = List.of(
                 "users", "roles", "categories", "incomes", "expenses", "saving_goals",
                 "saving_movements", "credits", "credit_payments", "user_alerts_seen", "accounts",
-                "financial_transactions", "ledger_entries", "budgets");
+                "financial_transactions", "ledger_entries", "budgets", "refresh_tokens");
 
         Integer tablesFound = jdbcTemplate.queryForObject("""
                 select count(*) from information_schema.tables
                 where table_schema = 'public' and table_name in
                 ('users', 'roles', 'categories', 'incomes', 'expenses', 'saving_goals',
                  'saving_movements', 'credits', 'credit_payments', 'user_alerts_seen', 'accounts',
-                 'financial_transactions', 'ledger_entries', 'budgets')
+                 'financial_transactions', 'ledger_entries', 'budgets', 'refresh_tokens')
                 """, Integer.class);
         assertThat(tablesFound).isEqualTo(expectedTables.size());
 
@@ -241,7 +241,8 @@ class PostgreSqlSchemaIntegrationTests {
                 "uk_user_alert_seen_without_related", "idx_financial_transactions_user_effective_date",
                 "idx_financial_transactions_user_type_effective_date", "idx_ledger_entries_account_id",
                 "idx_ledger_entries_financial_transaction_id", "uk_financial_transactions_reversal_of");
-        assertIndexes("idx_budgets_user_period");
+        assertIndexes("idx_budgets_user_period", "idx_refresh_tokens_user_id", "idx_refresh_tokens_family_id",
+                "idx_refresh_tokens_expires_at");
 
         Long userId = jdbcTemplate.queryForObject(
                 "insert into users (name, email, password) values (?, ?, ?) returning id",

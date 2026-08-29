@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/accounts")
+@RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
 @Tag(name = "Cuentas", description = "Operaciones para administrar cuentas financieras sin saldo calculado.")
 public class AccountController {

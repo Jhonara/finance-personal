@@ -30,7 +30,7 @@ public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(), new ErrorResponse(
                 "Authentication required.",
-                HttpStatus.UNAUTHORIZED.name(),
+                "UNAUTHORIZED",
                 HttpStatus.UNAUTHORIZED.value(),
                 LocalDateTime.now(),
                 request.getRequestURI()

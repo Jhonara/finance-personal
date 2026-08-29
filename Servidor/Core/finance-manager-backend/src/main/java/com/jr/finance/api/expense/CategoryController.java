@@ -12,12 +12,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/categories")
+@RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
 @Tag(
         name = "Categorías",
@@ -42,7 +44,7 @@ public class CategoryController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public CategoryResponse create(
+    public ResponseEntity<CategoryResponse> create(
             @Valid @RequestBody CreateCategoryRequest req,
             Authentication auth) {
 
@@ -51,7 +53,7 @@ public class CategoryController {
 
         Category category = categoryService.create(userId, req.getName());
 
-        return categoryMapper.toResponse(category);
+        return ResponseEntity.status(HttpStatus.CREATED).body(categoryMapper.toResponse(category));
     }
 
     @Operation(
@@ -83,6 +85,7 @@ public class CategoryController {
             @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
     })
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @Parameter(
                     description = "Identificador de la categoría.",

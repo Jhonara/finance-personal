@@ -30,7 +30,7 @@ public class ApiAccessDeniedHandler implements AccessDeniedHandler {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(), new ErrorResponse(
                 "Access denied.",
-                HttpStatus.FORBIDDEN.name(),
+                "FORBIDDEN",
                 HttpStatus.FORBIDDEN.value(),
                 LocalDateTime.now(),
                 request.getRequestURI()

@@ -47,7 +47,7 @@ class AccountIntegrationTests {
     void createsAnActiveAccountWithTheRequestedTypeAndCurrency() throws Exception {
         User user = createUser();
 
-        mockMvc.perform(post("/api/accounts")
+        mockMvc.perform(post("/api/v1/accounts")
                         .header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"  Bancolombia  \",\"type\":\"BANK\",\"currency\":\"COP\"}"))
@@ -64,23 +64,23 @@ class AccountIntegrationTests {
         User user = createUser();
         String authorization = bearer(user);
 
-        mockMvc.perform(post("/api/accounts").header("Authorization", authorization)
+        mockMvc.perform(post("/api/v1/accounts").header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\" \",\"type\":\"BANK\",\"currency\":\"COP\"}"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/accounts").header("Authorization", authorization)
+        mockMvc.perform(post("/api/v1/accounts").header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Wallet\",\"type\":\"CREDIT_CARD\",\"currency\":\"COP\"}"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/accounts").header("Authorization", authorization)
+        mockMvc.perform(post("/api/v1/accounts").header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Wallet\",\"type\":\"DIGITAL_WALLET\",\"currency\":\"CO\"}"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/accounts").header("Authorization", authorization)
+        mockMvc.perform(post("/api/v1/accounts").header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Wallet\",\"type\":\"DIGITAL_WALLET\",\"currency\":\"COP\"}"))
                 .andExpect(status().isCreated());
-        mockMvc.perform(post("/api/accounts").header("Authorization", authorization)
+        mockMvc.perform(post("/api/v1/accounts").header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Wallet\",\"type\":\"DIGITAL_WALLET\",\"currency\":\"COP\"}"))
                 .andExpect(status().isConflict());
@@ -93,13 +93,13 @@ class AccountIntegrationTests {
         Long ownerAccountId = createAccount(owner, "Owner account");
         Long otherAccountId = createAccount(other, "Other account");
 
-        mockMvc.perform(get("/api/accounts").header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/accounts").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(ownerAccountId));
-        mockMvc.perform(get("/api/accounts/{id}", otherAccountId).header("Authorization", bearer(owner)))
+        mockMvc.perform(get("/api/v1/accounts/{id}", otherAccountId).header("Authorization", bearer(owner)))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(patch("/api/accounts/{id}", otherAccountId).header("Authorization", bearer(owner))
+        mockMvc.perform(patch("/api/v1/accounts/{id}", otherAccountId).header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false,\"version\":0}"))
                 .andExpect(status().isNotFound());
@@ -111,7 +111,7 @@ class AccountIntegrationTests {
         Long accountId = createAccount(user, "Cash");
         String authorization = bearer(user);
 
-        mockMvc.perform(patch("/api/accounts/{id}", accountId).header("Authorization", authorization)
+        mockMvc.perform(patch("/api/v1/accounts/{id}", accountId).header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Daily cash\",\"type\":\"CASH\",\"active\":false,\"version\":0}"))
                 .andExpect(status().isOk())
@@ -119,17 +119,17 @@ class AccountIntegrationTests {
                 .andExpect(jsonPath("$.type").value("CASH"))
                 .andExpect(jsonPath("$.active").value(false))
                 .andExpect(jsonPath("$.version").value(1));
-        mockMvc.perform(patch("/api/accounts/{id}", accountId).header("Authorization", authorization)
+        mockMvc.perform(patch("/api/v1/accounts/{id}", accountId).header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":true,\"version\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(true))
                 .andExpect(jsonPath("$.version").value(2));
-        mockMvc.perform(patch("/api/accounts/{id}", accountId).header("Authorization", authorization)
+        mockMvc.perform(patch("/api/v1/accounts/{id}", accountId).header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false,\"version\":0}"))
                 .andExpect(status().isConflict());
-        mockMvc.perform(patch("/api/accounts/{id}", accountId).header("Authorization", authorization)
+        mockMvc.perform(patch("/api/v1/accounts/{id}", accountId).header("Authorization", authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"currency\":\"USD\",\"version\":2}"))
                 .andExpect(status().isBadRequest());
@@ -150,7 +150,7 @@ class AccountIntegrationTests {
     }
 
     private Long createAccount(User user, String name) throws Exception {
-        String response = mockMvc.perform(post("/api/accounts")
+        String response = mockMvc.perform(post("/api/v1/accounts")
                         .header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"%s\",\"type\":\"BANK\",\"currency\":\"COP\"}".formatted(name)))

@@ -29,10 +29,13 @@ La aplicación usa el perfil `local` por defecto. La configuración sensible se 
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `JWT_SECRET`
-- `JWT_EXPIRATION` (opcional; por defecto, 24 horas)
+- `JWT_EXPIRATION` (opcional; por defecto, 15 minutos)
+- `JWT_REFRESH_EXPIRATION` (opcional; por defecto, 30 días)
 - `CORS_ALLOWED_ORIGINS` (opcional en local; obligatorio en producción)
 
 Para producción activa el perfil `prod` mediante `SPRING_PROFILES_ACTIVE=prod`. No guardes valores reales en archivos versionados ni en `.env` dentro del repositorio.
+
+La API oficial usa el prefijo `/api/v1`. La autenticación devuelve un access token JWT y un refresh token rotativo; el refresh token debe almacenarse por el cliente móvil en almacenamiento seguro y puede revocarse mediante `POST /api/v1/auth/logout`.
 
 ## Esquema y migraciones
 

@@ -1,6 +1,8 @@
 package com.jr.finance.api;
 
 import com.jr.finance.api.auth.JwtService;
+import com.jr.finance.api.auth.RefreshTokenRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jr.finance.api.account.Account;
 import com.jr.finance.api.account.AccountRepository;
 import com.jr.finance.api.account.AccountType;
@@ -29,6 +31,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -75,10 +78,17 @@ class SecurityIntegrationTests {
     @Autowired
     private FinancialTransactionRepository financialTransactionRepository;
 
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @BeforeEach
     void cleanDatabase() {
         ledgerEntryRepository.deleteAll();
         financialTransactionRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         expenseRepository.deleteAll();
         categoryRepository.deleteAll();
         accountRepository.deleteAll();
@@ -90,18 +100,20 @@ class SecurityIntegrationTests {
     void loginWithValidCredentialsReturnsTokenAndTokenGrantsAccess() throws Exception {
         createUser("user@example.com", "password123", "USER");
 
-        String response = mockMvc.perform(post("/api/auth/login")
+        String response = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"user@example.com\",\"password\":\"password123\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
-        String token = response.replaceAll(".*\\\"token\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        String token = objectMapper.readValue(response, Map.class).get("accessToken").toString();
 
-        mockMvc.perform(get("/api/categories")
+        mockMvc.perform(get("/api/v1/categories")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }
@@ -110,13 +122,13 @@ class SecurityIntegrationTests {
     void loginDoesNotRevealWhetherUserExists() throws Exception {
         createUser("user@example.com", "password123", "USER");
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"user@example.com\",\"password\":\"wrong-password\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Credenciales inválidas"));
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"missing@example.com\",\"password\":\"wrong-password\"}"))
                 .andExpect(status().isUnauthorized())
@@ -127,19 +139,19 @@ class SecurityIntegrationTests {
     void protectedEndpointsReturnConsistentUnauthorizedErrorsForInvalidTokens() throws Exception {
         String validToken = jwtService.generateToken("missing@example.com");
 
-        mockMvc.perform(get("/api/categories"))
+        mockMvc.perform(get("/api/v1/categories"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
-        mockMvc.perform(get("/api/categories").header("Authorization", "Bearer not-a-token"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("Authentication required."));
-
-        mockMvc.perform(get("/api/categories").header("Authorization", "Bearer " + expiredToken()))
+        mockMvc.perform(get("/api/v1/categories").header("Authorization", "Bearer not-a-token"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Authentication required."));
 
-        mockMvc.perform(get("/api/categories").header("Authorization", "Bearer " + validToken + "tampered"))
+        mockMvc.perform(get("/api/v1/categories").header("Authorization", "Bearer " + expiredToken()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Authentication required."));
+
+        mockMvc.perform(get("/api/v1/categories").header("Authorization", "Bearer " + validToken + "tampered"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Authentication required."));
     }
@@ -149,12 +161,12 @@ class SecurityIntegrationTests {
         User regularUser = createUser("user@example.com", "password123", "USER");
         User adminUser = createUser("admin@example.com", "password123", "ADMIN");
 
-        mockMvc.perform(get("/api/users")
+        mockMvc.perform(get("/api/v1/users")
                         .header("Authorization", bearer(regularUser)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        mockMvc.perform(get("/api/users")
+        mockMvc.perform(get("/api/v1/users")
                         .header("Authorization", bearer(adminUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].password").doesNotExist())
@@ -180,7 +192,7 @@ class SecurityIntegrationTests {
         account.setActive(true);
         account = accountRepository.save(account);
 
-        mockMvc.perform(post("/api/expenses")
+        mockMvc.perform(post("/api/v1/expenses")
                         .header("Authorization", bearer(userA))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -196,24 +208,76 @@ class SecurityIntegrationTests {
         User user = createUser("period@example.com", "password123", "USER");
         String authorization = bearer(user);
 
-        mockMvc.perform(get("/api/incomes/month?year=2026&month=0")
+        mockMvc.perform(get("/api/v1/incomes/month?year=2026&month=0")
                         .header("Authorization", authorization))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/expenses/summary?year=2026&month=13")
+        mockMvc.perform(get("/api/v1/expenses/summary?year=2026&month=13")
                         .header("Authorization", authorization))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/expenses/compare?year=1999&month=1")
+        mockMvc.perform(get("/api/v1/expenses/compare?year=1999&month=1")
                         .header("Authorization", authorization))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/expenses/compare-periods?year1=2026&month1=1&year2=2101&month2=1")
+        mockMvc.perform(get("/api/v1/expenses/compare-periods?year1=2026&month1=1&year2=2101&month2=1")
                         .header("Authorization", authorization))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/balance/month?year=2026&month=0")
+        mockMvc.perform(get("/api/v1/balance/month?year=2026&month=0")
                         .header("Authorization", authorization))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/dashboard/month?year=2101&month=1")
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2101&month=1")
                         .header("Authorization", authorization))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refreshRotationReuseDetectionLogoutAndLogoutAllWork() throws Exception {
+        createUser("refresh@example.com", "password123", "USER");
+        String login = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"refresh@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        Map<String, Object> first = objectMapper.readValue(login, Map.class);
+        String firstRefresh = first.get("refreshToken").toString();
+
+        String refreshed = mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(firstRefresh)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String secondRefresh = objectMapper.readValue(refreshed, Map.class).get("refreshToken").toString();
+        org.junit.jupiter.api.Assertions.assertNotEquals(firstRefresh, secondRefresh);
+
+        mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(firstRefresh)))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(secondRefresh)))
+                .andExpect(status().isUnauthorized());
+
+        String relogin = mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"refresh@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String refresh = objectMapper.readValue(relogin, Map.class).get("refreshToken").toString();
+        mockMvc.perform(post("/api/v1/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(refresh)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(refresh)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void authenticationRateLimitAndValidationUseStableErrorContract() throws Exception {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"limited@example.com\",\"password\":\"wrong-password\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"limited@example.com\",\"password\":\"wrong-password\"}"))
+                .andExpect(status().isTooManyRequests()).andExpect(jsonPath("$.code").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"other@example.com\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.password").exists());
     }
 
     private User createUser(String email, String password, String roleName) {

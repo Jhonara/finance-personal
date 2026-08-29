@@ -13,6 +13,7 @@ spring:
 jwt:
   secret: test-jwt-secret-for-isolated-context-tests-only
   expiration: 60000
+  refresh-expiration: 2592000000
 
 cors:
   allowed-origins: http://localhost

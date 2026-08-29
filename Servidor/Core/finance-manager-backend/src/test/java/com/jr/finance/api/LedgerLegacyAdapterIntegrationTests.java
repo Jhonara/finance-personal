@@ -80,19 +80,19 @@ class LedgerLegacyAdapterIntegrationTests {
         User user = createUser();
         Account account = createAccount(user, true);
 
-        mockMvc.perform(post("/api/incomes").header("Authorization", bearer(user))
+        mockMvc.perform(post("/api/v1/incomes").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":100000,\"description\":\"Salary\",\"incomeType\":\"SALARY\",\"incomeDate\":\"2026-08-15\",\"accountId\":%d}".formatted(account.getId())))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.amount").value(100000))
                 .andExpect(jsonPath("$.incomeType").value("SALARY"));
 
         org.junit.jupiter.api.Assertions.assertEquals(0, incomeRepository.count());
         org.junit.jupiter.api.Assertions.assertEquals(1, financialTransactionRepository.count());
         org.junit.jupiter.api.Assertions.assertEquals(1, ledgerEntryRepository.count());
-        mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
-        mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(100000));
     }
 
@@ -105,22 +105,22 @@ class LedgerLegacyAdapterIntegrationTests {
         category.setUser(user);
         category = categoryRepository.save(category);
 
-        mockMvc.perform(post("/api/expenses").header("Authorization", bearer(user))
+        mockMvc.perform(post("/api/v1/expenses").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":30000,\"description\":\"Market\",\"paymentType\":\"CARD\",\"expenseType\":\"VARIABLE\",\"expenseDate\":\"2026-08-15\",\"categoryId\":%d,\"accountId\":%d}".formatted(category.getId(), account.getId())))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.category").value("Food"))
                 .andExpect(jsonPath("$.expenseType").value("VARIABLE"));
 
         org.junit.jupiter.api.Assertions.assertEquals(0, expenseRepository.count());
-        mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/expenses/summary?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(30000))
                 .andExpect(jsonPath("$.variableTotal").value(30000));
-        mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalExpense").value(30000))
                 .andExpect(jsonPath("$.balance").value(-30000));
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalExpense").value(30000))
                 .andExpect(jsonPath("$.balance").value(-30000));
     }
@@ -136,14 +136,14 @@ class LedgerLegacyAdapterIntegrationTests {
         legacyIncome.setIncomeDate(LocalDate.of(2026, 8, 10));
         incomeRepository.save(legacyIncome);
 
-        mockMvc.perform(post("/api/incomes").header("Authorization", bearer(user))
+        mockMvc.perform(post("/api/v1/incomes").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":100000,\"incomeType\":\"SALARY\",\"incomeDate\":\"2026-08-15\",\"accountId\":%d}".formatted(account.getId())))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
-        mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(100000));
     }
 
@@ -154,15 +154,15 @@ class LedgerLegacyAdapterIntegrationTests {
         Account inactive = createAccount(owner, false);
         Account foreign = createAccount(other, true);
 
-        mockMvc.perform(post("/api/incomes").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/incomes").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":1,\"incomeType\":\"EXTRA\",\"incomeDate\":\"2026-08-15\"}"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/incomes").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/incomes").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":1,\"incomeType\":\"EXTRA\",\"incomeDate\":\"2026-08-15\",\"accountId\":%d}".formatted(inactive.getId())))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/expenses").header("Authorization", bearer(owner))
+        mockMvc.perform(post("/api/v1/expenses").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":1,\"paymentType\":\"CASH\",\"expenseType\":\"VARIABLE\",\"expenseDate\":\"2026-08-15\",\"accountId\":%d}".formatted(foreign.getId())))
                 .andExpect(status().isNotFound());
@@ -176,15 +176,15 @@ class LedgerLegacyAdapterIntegrationTests {
                 new com.jr.finance.api.ledger.FinancialOperationCommand(new BigDecimal("500000"),
                         LocalDate.of(2026, 8, 1), null, "COP", null));
 
-        mockMvc.perform(post("/api/expenses").header("Authorization", bearer(user))
+        mockMvc.perform(post("/api/v1/expenses").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\":100000,\"paymentType\":\"CASH\",\"expenseType\":\"VARIABLE\",\"expenseDate\":\"2026-08-15\",\"accountId\":%d}".formatted(account.getId())))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
         Long expenseId = financialTransactionRepository.findAll().stream()
                 .filter(transaction -> transaction.getType() == FinancialTransactionType.EXPENSE)
                 .findFirst().orElseThrow().getId();
 
-        mockMvc.perform(delete("/api/expenses/{id}", expenseId).header("Authorization", bearer(user)))
+        mockMvc.perform(delete("/api/v1/expenses/{id}", expenseId).header("Authorization", bearer(user)))
                 .andExpect(status().isOk());
 
         var original = financialTransactionRepository.findById(expenseId).orElseThrow();
@@ -198,7 +198,7 @@ class LedgerLegacyAdapterIntegrationTests {
         org.junit.jupiter.api.Assertions.assertEquals(0, ledgerService.getAccountBalance(user.getId(), account.getId())
                 .compareTo(new BigDecimal("500000")));
 
-        mockMvc.perform(delete("/api/expenses/{id}", expenseId).header("Authorization", bearer(user)))
+        mockMvc.perform(delete("/api/v1/expenses/{id}", expenseId).header("Authorization", bearer(user)))
                 .andExpect(status().isConflict());
         org.junit.jupiter.api.Assertions.assertEquals(3, ledgerEntryRepository.count());
     }
@@ -216,9 +216,9 @@ class LedgerLegacyAdapterIntegrationTests {
         ownerAccount.setActive(false);
         accountRepository.saveAndFlush(ownerAccount);
 
-        mockMvc.perform(delete("/api/expenses/{id}", ownerExpense.getId()).header("Authorization", bearer(owner)))
+        mockMvc.perform(delete("/api/v1/expenses/{id}", ownerExpense.getId()).header("Authorization", bearer(owner)))
                 .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/expenses/{id}", foreignExpense.getId()).header("Authorization", bearer(owner)))
+        mockMvc.perform(delete("/api/v1/expenses/{id}", foreignExpense.getId()).header("Authorization", bearer(owner)))
                 .andExpect(status().isNotFound());
     }
 
@@ -231,7 +231,7 @@ class LedgerLegacyAdapterIntegrationTests {
         legacy.setExpenseDate(LocalDate.now());
         legacy = expenseRepository.saveAndFlush(legacy);
 
-        mockMvc.perform(delete("/api/expenses/{id}", legacy.getId()).header("Authorization", bearer(user)))
+        mockMvc.perform(delete("/api/v1/expenses/{id}", legacy.getId()).header("Authorization", bearer(user)))
                 .andExpect(status().isNotFound());
         org.junit.jupiter.api.Assertions.assertTrue(expenseRepository.existsById(legacy.getId()));
         org.junit.jupiter.api.Assertions.assertEquals(0, financialTransactionRepository.count());
@@ -255,11 +255,11 @@ class LedgerLegacyAdapterIntegrationTests {
         org.junit.jupiter.api.Assertions.assertEquals(2, ledgerEntryRepository.count());
         org.junit.jupiter.api.Assertions.assertEquals(1, legacyAccountMappingRepository.count());
 
-        mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
-        mockMvc.perform(get("/api/expenses/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/expenses/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
-        mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
+        mockMvc.perform(get("/api/v1/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(100000))
                 .andExpect(jsonPath("$.totalExpense").value(30000));
     }
@@ -271,13 +271,13 @@ class LedgerLegacyAdapterIntegrationTests {
         long entriesBefore = ledgerEntryRepository.count();
 
         for (String amount : new String[] {"0", "-1"}) {
-            mockMvc.perform(post("/api/transfers").header("Authorization", bearer(user))
+            mockMvc.perform(post("/api/v1/transfers").header("Authorization", bearer(user))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {"sourceAccountId":1,"destinationAccountId":2,"amount":%s,"effectiveDate":"2026-08-15"}
                                     """.formatted(amount)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                     .andExpect(jsonPath("$.status").value(400));
         }
 
@@ -298,38 +298,38 @@ class LedgerLegacyAdapterIntegrationTests {
                 new com.jr.finance.api.ledger.FinancialOperationCommand(new BigDecimal("500000"), LocalDate.of(2026, 8, 1), null, "COP", null));
         ledgerService.recordOpeningBalance(user.getId(), destination.getId(),
                 new com.jr.finance.api.ledger.FinancialOperationCommand(new BigDecimal("100000"), LocalDate.of(2026, 8, 1), null, "COP", null));
-        mockMvc.perform(post("/api/incomes").header("Authorization", bearer(user))
+        mockMvc.perform(post("/api/v1/incomes").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"amount":70000,"incomeType":"EXTRA","incomeDate":"2026-08-15","accountId":%d}
                                 """.formatted(source.getId())))
-                .andExpect(status().isOk());
-        mockMvc.perform(post("/api/expenses").header("Authorization", bearer(user))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/v1/expenses").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"amount":20000,"paymentType":"CASH","expenseType":"VARIABLE","expenseDate":"2026-08-15","categoryId":%d,"accountId":%d}
                                 """.formatted(category.getId(), source.getId())))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
-        String incomesBefore = mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
-        String summaryBefore = mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
-        String comparisonBefore = mockMvc.perform(get("/api/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
-        String balanceBefore = mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String incomesBefore = mockMvc.perform(get("/api/v1/incomes/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String summaryBefore = mockMvc.perform(get("/api/v1/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String comparisonBefore = mockMvc.perform(get("/api/v1/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
+        String balanceBefore = mockMvc.perform(get("/api/v1/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString();
         BigDecimal netWorthBefore = ledgerService.getAccountBalance(user.getId(), source.getId())
                 .add(ledgerService.getAccountBalance(user.getId(), destination.getId()));
 
-        mockMvc.perform(post("/api/transfers").header("Authorization", bearer(user))
+        mockMvc.perform(post("/api/v1/transfers").header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"sourceAccountId":%d,"destinationAccountId":%d,"amount":200000,"effectiveDate":"2026-08-15"}
                                 """.formatted(source.getId(), destination.getId())))
                 .andExpect(status().isCreated());
 
-        assertThat(mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(incomesBefore);
-        assertThat(mockMvc.perform(get("/api/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(summaryBefore);
-        assertThat(mockMvc.perform(get("/api/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(comparisonBefore);
-        assertThat(mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(balanceBefore);
-        mockMvc.perform(get("/api/dashboard/month?year=2026&month=8").header("Authorization", bearer(user)))
+        assertThat(mockMvc.perform(get("/api/v1/incomes/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(incomesBefore);
+        assertThat(mockMvc.perform(get("/api/v1/expenses/summary?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(summaryBefore);
+        assertThat(mockMvc.perform(get("/api/v1/expenses/compare?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(comparisonBefore);
+        assertThat(mockMvc.perform(get("/api/v1/balance/month?year=2026&month=8").header("Authorization", bearer(user))).andReturn().getResponse().getContentAsString()).isEqualTo(balanceBefore);
+        mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalIncome").value(70000))
                 .andExpect(jsonPath("$.totalExpense").value(20000))

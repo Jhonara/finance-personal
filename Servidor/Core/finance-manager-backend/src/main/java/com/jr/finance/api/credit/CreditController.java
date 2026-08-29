@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.jr.finance.api.credit.dto.CreditResponse;
 import com.jr.finance.api.credit.mapper.CreditMapper;
@@ -19,7 +21,7 @@ import com.jr.finance.api.credit.mapper.CreditMapper;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/credits")
+@RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
 @Tag(
         name = "Créditos",
@@ -49,12 +51,10 @@ public class CreditController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public CreditResponse create(@Valid @RequestBody CreateCreditRequest request, Authentication auth) {
+    public ResponseEntity<CreditResponse> create(@Valid @RequestBody CreateCreditRequest request, Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
-        return creditMapper.toResponse(
-                creditService.create(userId, request)
-        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(creditMapper.toResponse(creditService.create(userId, request)));
     }
 
     @Operation(

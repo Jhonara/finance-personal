@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.jr.finance.api.saving.dto.SavingGoalResponse;
 import com.jr.finance.api.saving.mapper.SavingGoalMapper;
@@ -20,7 +22,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/savings")
+@RequestMapping("/api/v1/savings")
 @RequiredArgsConstructor
 @Tag(
         name = "Metas de Ahorro",
@@ -45,16 +47,14 @@ public class SavingController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public SavingGoalResponse createGoal(
+    public ResponseEntity<SavingGoalResponse> createGoal(
             @Valid @RequestBody CreateSavingGoalRequest req,
             Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return savingGoalMapper.toResponse(
-                savingService.createGoal(userId, req)
-        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(savingGoalMapper.toResponse(savingService.createGoal(userId, req)));
     }
 
     @Operation(

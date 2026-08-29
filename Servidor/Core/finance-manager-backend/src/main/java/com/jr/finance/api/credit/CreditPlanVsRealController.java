@@ -11,7 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/credits")
+@RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
 @Tag(
         name = "Análisis de Créditos",

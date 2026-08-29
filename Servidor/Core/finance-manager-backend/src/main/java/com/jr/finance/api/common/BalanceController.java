@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
         description = "Consulta el balance financiero mensual del usuario."
 )
 @RestController
-@RequestMapping("/api/balance")
+@RequestMapping("/api/v1/balance")
 @RequiredArgsConstructor
 public class BalanceController {
 

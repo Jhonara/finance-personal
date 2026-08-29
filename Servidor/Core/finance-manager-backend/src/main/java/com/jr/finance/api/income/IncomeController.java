@@ -10,13 +10,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.jr.finance.api.income.dto.IncomeResponse;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/incomes")
+@RequestMapping("/api/v1/incomes")
 @RequiredArgsConstructor
 @Tag(
         name = "Ingresos",
@@ -39,14 +41,14 @@ public class IncomeController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public IncomeResponse create(
+    public ResponseEntity<IncomeResponse> create(
             @Valid @RequestBody CreateIncomeRequest req,
             Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return incomeService.create(userId, req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(incomeService.create(userId, req));
     }
 
     @Operation(

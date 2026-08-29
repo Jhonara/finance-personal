@@ -46,7 +46,10 @@ public class SecurityConfig {
 
                         // Endpoints públicos
                         .requestMatchers(
-                                "/api/auth/**",
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout",
 
                                 // Swagger
                                 "/swagger",
@@ -61,7 +64,7 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated())
 

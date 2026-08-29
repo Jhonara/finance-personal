@@ -14,7 +14,10 @@ public record AuthResponse(
                 description = "Token JWT para acceder a los endpoints protegidos.",
                 example = "eyJhbGciOiJIUzI1NiJ9..."
         )
-        String token
+        String accessToken,
+        String refreshToken,
+        String tokenType,
+        long expiresIn
 
 ) {
 }

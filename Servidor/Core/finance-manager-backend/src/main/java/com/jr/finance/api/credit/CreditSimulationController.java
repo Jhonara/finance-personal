@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/credits")
+@RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
 @Tag(
         name = "Simulación de Créditos",

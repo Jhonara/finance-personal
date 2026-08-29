@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -24,7 +25,7 @@ public class ErrorResponse {
             description = "Código de error HTTP estandarizado.",
             example = "UNAUTHORIZED"
     )
-    private String error;
+    private String code;
 
     @Schema(
             description = "Código HTTP de la respuesta.",
@@ -43,4 +44,10 @@ public class ErrorResponse {
             example = "/api/auth/register"
     )
     private String path;
+
+    private Map<String, String> fieldErrors;
+
+    public ErrorResponse(String message, String code, int status, LocalDateTime timestamp, String path) {
+        this(message, code, status, timestamp, path, Map.of());
+    }
 }

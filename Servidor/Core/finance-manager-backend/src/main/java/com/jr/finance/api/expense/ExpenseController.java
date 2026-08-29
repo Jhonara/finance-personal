@@ -13,13 +13,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.jr.finance.api.expense.dto.ExpenseResponse;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/expenses")
+@RequestMapping("/api/v1/expenses")
 @RequiredArgsConstructor
 @Tag(
         name = "Gastos",
@@ -42,14 +44,14 @@ public class ExpenseController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public ExpenseResponse create(
+    public ResponseEntity<ExpenseResponse> create(
             @Valid @RequestBody CreateExpenseRequest req,
             Authentication auth) {
 
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        return expenseService.create(userId, req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.create(userId, req));
     }
 
     @Operation(
