@@ -5,6 +5,12 @@ import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.account.Account;
 import com.jr.finance.api.account.AccountRepository;
 import com.jr.finance.api.account.AccountType;
+import com.jr.finance.api.expense.Category;
+import com.jr.finance.api.expense.CategoryRepository;
+import com.jr.finance.api.ledger.FinancialOperationCommand;
+import com.jr.finance.api.ledger.FinancialTransactionRepository;
+import com.jr.finance.api.ledger.LedgerEntryRepository;
+import com.jr.finance.api.ledger.LedgerService;
 import com.jr.finance.api.saving.SavingGoal;
 import com.jr.finance.api.saving.SavingGoalRepository;
 import com.jr.finance.api.saving.SavingMovementRepository;
@@ -80,6 +86,18 @@ class PostgreSqlSchemaIntegrationTests {
     private AccountRepository accountRepository;
 
     @Autowired
+    private LedgerService ledgerService;
+
+    @Autowired
+    private FinancialTransactionRepository financialTransactionRepository;
+
+    @Autowired
+    private LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
     private PlatformTransactionManager transactionManager;
 
     @Test
@@ -92,18 +110,19 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(4)
+                .hasSize(5)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4");
+                .containsExactly("1", "2", "3", "4", "5");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
-                        "add saving goal optimistic lock", "create accounts");
+                        "add saving goal optimistic lock", "create accounts",
+                        "create financial transactions and ledger entries");
     }
 
     @Test
@@ -144,13 +163,15 @@ class PostgreSqlSchemaIntegrationTests {
     void createsTheExpectedPostgreSqlSchemaAndAlertUniquenessRules() {
         List<String> expectedTables = List.of(
                 "users", "roles", "categories", "incomes", "expenses", "saving_goals",
-                "saving_movements", "credits", "credit_payments", "user_alerts_seen", "accounts");
+                "saving_movements", "credits", "credit_payments", "user_alerts_seen", "accounts",
+                "financial_transactions", "ledger_entries");
 
         Integer tablesFound = jdbcTemplate.queryForObject("""
                 select count(*) from information_schema.tables
                 where table_schema = 'public' and table_name in
                 ('users', 'roles', 'categories', 'incomes', 'expenses', 'saving_goals',
-                 'saving_movements', 'credits', 'credit_payments', 'user_alerts_seen', 'accounts')
+                 'saving_movements', 'credits', 'credit_payments', 'user_alerts_seen', 'accounts',
+                 'financial_transactions', 'ledger_entries')
                 """, Integer.class);
         assertThat(tablesFound).isEqualTo(expectedTables.size());
 
@@ -168,6 +189,7 @@ class PostgreSqlSchemaIntegrationTests {
         assertNumericColumn("credits", "interest_rate", 9, 6);
         assertNumericColumn("credit_payments", "amount", 19, 4);
         assertNumericColumn("credit_payments", "extra_payment", 19, 4);
+        assertNumericColumn("ledger_entries", "signed_amount", 19, 4);
         assertThat(jdbcTemplate.queryForObject("""
                 select count(*)
                 from information_schema.columns
@@ -185,7 +207,9 @@ class PostgreSqlSchemaIntegrationTests {
         assertIndexes("idx_expenses_user_expense_date", "idx_incomes_user_income_date",
                 "idx_credits_user_id", "idx_credit_payments_credit_payment_date",
                 "idx_saving_goals_user_id", "idx_saving_movements_goal_movement_date",
-                "uk_user_alert_seen_without_related");
+                "uk_user_alert_seen_without_related", "idx_financial_transactions_user_effective_date",
+                "idx_financial_transactions_user_type_effective_date", "idx_ledger_entries_account_id",
+                "idx_ledger_entries_financial_transaction_id");
 
         Long userId = jdbcTemplate.queryForObject(
                 "insert into users (name, email, password) values (?, ?, ?) returning id",
@@ -243,6 +267,68 @@ class PostgreSqlSchemaIntegrationTests {
         }
 
         assertThat(accountRepository.findById(savedAccount.getId()).orElseThrow().getVersion()).isEqualTo(1L);
+    }
+
+    @Test
+    void ledgerRecordsIncomeExpenseAndOpeningBalanceFromPostgreSql() {
+        User user = createUser();
+        Account account = createAccount(user, "Ledger account", true);
+
+        ledgerService.recordOpeningBalance(user.getId(), account.getId(), command("500000.0000", "COP"));
+        ledgerService.recordIncome(user.getId(), account.getId(), command("100000.0000", "COP"));
+        ledgerService.recordExpense(user.getId(), account.getId(), command("200000.0000", "COP"));
+
+        assertThat(financialTransactionRepository.count()).isEqualTo(3);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(3);
+        assertThat(ledgerService.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("400000.0000");
+        Long transactionId = jdbcTemplate.queryForObject("select min(id) from financial_transactions", Long.class);
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                insert into ledger_entries (financial_transaction_id, account_id, signed_amount, created_at)
+                values (?, ?, 0, current_timestamp)
+                """, transactionId, account.getId()))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void ledgerRejectsForeignInactiveAndCurrencyMismatchedAccountsAndForeignCategories() {
+        User owner = createUser();
+        User other = createUser();
+        Account active = createAccount(owner, "Active ledger account", true);
+        Account inactive = createAccount(owner, "Inactive ledger account", false);
+        Account foreign = createAccount(other, "Foreign ledger account", true);
+        Category foreignCategory = new Category();
+        foreignCategory.setName("Other category");
+        foreignCategory.setUser(other);
+        foreignCategory = categoryRepository.saveAndFlush(foreignCategory);
+
+        assertThatThrownBy(() -> ledgerService.recordIncome(owner.getId(), foreign.getId(), command("1.0000", "COP")))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> ledgerService.getAccountBalance(owner.getId(), foreign.getId()))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> ledgerService.recordIncome(owner.getId(), inactive.getId(), command("1.0000", "COP")))
+                .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> ledgerService.recordExpense(owner.getId(), active.getId(), command("1.0000", "USD")))
+                .isInstanceOf(BadRequestException.class);
+
+        FinancialOperationCommand categoryCommand = new FinancialOperationCommand(
+                new BigDecimal("1.0000"), LocalDate.now(), null, "COP", foreignCategory.getId());
+        assertThatThrownBy(() -> ledgerService.recordExpense(owner.getId(), active.getId(), categoryCommand))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void ledgerCreationRollsBackWhenItsEntryCannotBePersisted() {
+        User user = createUser();
+        Account account = createAccount(user, "Atomic ledger account", true);
+        long transactionsBefore = financialTransactionRepository.count();
+        long entriesBefore = ledgerEntryRepository.count();
+
+        assertThatThrownBy(() -> ledgerService.recordIncome(user.getId(), account.getId(),
+                command("1000000000000000.0000", "COP")))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        assertThat(financialTransactionRepository.count()).isEqualTo(transactionsBefore);
+        assertThat(ledgerEntryRepository.count()).isEqualTo(entriesBefore);
     }
 
     @Test
@@ -350,6 +436,20 @@ class PostgreSqlSchemaIntegrationTests {
         user.setEmail("saving-" + UUID.randomUUID() + "@test.local");
         user.setPassword("not-a-real-password");
         return userRepository.saveAndFlush(user);
+    }
+
+    private Account createAccount(User user, String name, boolean active) {
+        Account account = new Account();
+        account.setUser(user);
+        account.setName(name);
+        account.setType(AccountType.BANK);
+        account.setCurrency("COP");
+        account.setActive(active);
+        return accountRepository.saveAndFlush(account);
+    }
+
+    private FinancialOperationCommand command(String amount, String currency) {
+        return new FinancialOperationCommand(new BigDecimal(amount), LocalDate.now(), "  Ledger test  ", currency, null);
     }
 
     private SavingGoal createGoal(User user, String name, String targetAmount) {
