@@ -20,6 +20,8 @@ import com.jr.finance.api.ledger.LegacyLedgerMigrationService;
 import com.jr.finance.api.income.Income;
 import com.jr.finance.api.income.IncomeRepository;
 import com.jr.finance.api.transfer.TransferService;
+import com.jr.finance.api.transaction.TransactionQuery;
+import com.jr.finance.api.transaction.TransactionService;
 import com.jr.finance.api.transfer.dto.CreateTransferRequest;
 import javax.sql.DataSource;
 import jakarta.persistence.EntityManager;
@@ -123,6 +125,7 @@ class PostgreSqlSchemaIntegrationTests {
     @Autowired private EntityManager entityManager;
     @Autowired private BudgetRepository budgetRepository;
     @Autowired private BudgetService budgetService;
+    @Autowired private TransactionService transactionHistoryService;
 
     @MockitoSpyBean(reset = MockReset.AFTER)
     private LedgerEntryRepository ledgerEntryRepositorySpy;
@@ -595,6 +598,22 @@ class PostgreSqlSchemaIntegrationTests {
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> budgetRepository.saveAndFlush(stale)))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+    }
+
+    @Test
+    void transactionHistoryUsesPostgresPaginationAndAccountFilter() {
+        User owner = createUser();
+        Account source = createAccount(owner, "History source", true);
+        Account destination = createAccount(owner, "History destination", true);
+        ledgerService.recordIncome(owner.getId(), source.getId(), command("100", "COP"));
+        ledgerService.recordOpeningBalance(owner.getId(), destination.getId(), command("10", "COP"));
+
+        var page = transactionHistoryService.find(owner.getId(), new TransactionQuery(null, null, null, null,
+                source.getId(), null, null, null, 0, 1));
+
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().getFirst().accountId()).isEqualTo(source.getId());
     }
 
     @Test
