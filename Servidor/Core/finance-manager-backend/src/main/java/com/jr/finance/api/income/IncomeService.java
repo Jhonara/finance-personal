@@ -23,7 +23,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class IncomeService {
 
-    private final IncomeRepository incomeRepository;
     private final LedgerService ledgerService;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final IncomeMapper incomeMapper;
@@ -54,18 +53,15 @@ public class IncomeService {
 
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
-        List<IncomeResponse> responses = new java.util.ArrayList<>(incomeMapper.toResponseList(
-                incomeRepository.findUnmigratedByUserIdAndIncomeDateBetween(userId, start, end)));
-        responses.addAll(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.INCOME,
+        List<IncomeResponse> responses = new java.util.ArrayList<>(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.INCOME,
                 FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED).stream().map(incomeMapper::toResponse).toList());
         return responses.stream().sorted(Comparator.comparing(IncomeResponse::getIncomeDate).reversed()
                 .thenComparing(IncomeResponse::getId)).toList();
     }
 
     public BigDecimal totalByPeriod(Long userId, LocalDate start, LocalDate end) {
-        BigDecimal legacyTotal = incomeRepository.totalByPeriod(userId, start, end);
         BigDecimal ledgerTotal = ledgerEntryRepository.sumSignedByUserAndTypeAndPeriod(userId,
                 FinancialTransactionType.INCOME, FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED);
-        return legacyTotal.add(ledgerTotal);
+        return ledgerTotal;
     }
 }

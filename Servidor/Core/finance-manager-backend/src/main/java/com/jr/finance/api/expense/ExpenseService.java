@@ -31,7 +31,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ExpenseService {
 
-    private final ExpenseRepository expenseRepository;
     private final LedgerService ledgerService;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final FinancialTransactionRepository financialTransactionRepository;
@@ -48,9 +47,7 @@ public class ExpenseService {
         var ym = FinancialPeriod.of(year, month);
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
-        List<ExpenseResponse> responses = new java.util.ArrayList<>(expenseMapper.toResponseList(
-                expenseRepository.findUnmigratedByUserIdAndExpenseDateBetween(userId, start, end)));
-        responses.addAll(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
+        List<ExpenseResponse> responses = new java.util.ArrayList<>(ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
                 FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED).stream().map(expenseMapper::toResponse).toList());
         return responses.stream().sorted(Comparator.comparing(ExpenseResponse::getExpenseDate).reversed()
                 .thenComparing(ExpenseResponse::getId)).toList();
@@ -66,11 +63,6 @@ public class ExpenseService {
         BigDecimal variableTotal = totalByType(userId, "VARIABLE", start, end);
 
         Map<String, BigDecimal> byCategory = new HashMap<>();
-        for (Object[] row : expenseRepository.totalByCategory(userId, start, end)) {
-            String category = (String) row[0];
-            BigDecimal amount = (BigDecimal) row[1];
-            byCategory.put(category != null ? category : "Sin categoría", amount);
-        }
         for (var entry : ledgerEntryRepository.findByUserTypeAndPeriod(userId, FinancialTransactionType.EXPENSE,
                 FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED)) {
             String category = entry.getFinancialTransaction().getCategory() == null
@@ -172,20 +164,6 @@ public class ExpenseService {
 
     @Transactional
     public void delete(Long userId, Long expenseId) {
-        Expense e = expenseRepository.findById(expenseId)
-                .filter(expense -> expense.getUser().getId().equals(userId))
-                .orElse(null);
-        if (e != null) {
-            var migrated = financialTransactionRepository.findByLegacySourceAndLegacyIdAndUserId(
-                    com.jr.finance.api.ledger.LegacyOperationSource.EXPENSE, e.getId(), userId);
-            if (migrated.isPresent()) {
-                ledgerService.reverseTransaction(migrated.get().getId(), userId);
-            } else {
-                expenseRepository.delete(e);
-            }
-            return;
-        }
-
         var ledgerTransaction = financialTransactionRepository.findOwnedForReversal(expenseId, userId)
                 .orElseThrow(() -> new NotFoundException("El gasto no existe"));
         if (ledgerTransaction.getType() != FinancialTransactionType.EXPENSE) {
@@ -195,20 +173,18 @@ public class ExpenseService {
     }
 
     public BigDecimal totalByPeriod(Long userId, LocalDate start, LocalDate end) {
-        BigDecimal legacyTotal = expenseRepository.totalByPeriod(userId, start, end);
         BigDecimal ledgerTotal = ledgerEntryRepository.sumSignedByUserAndTypeAndPeriod(userId,
                 FinancialTransactionType.EXPENSE, FinancialTransactionType.REVERSAL, start, end, FinancialTransactionStatus.VOIDED);
-        return legacyTotal.add(ledgerTotal.negate());
+        return ledgerTotal.negate();
     }
 
     private BigDecimal totalByType(Long userId, String type, LocalDate start, LocalDate end) {
-        BigDecimal legacyTotal = expenseRepository.totalByType(userId, type, start, end);
         BigDecimal ledgerTotal = ledgerEntryRepository.findByUserTypeAndPeriod(userId,
                         FinancialTransactionType.EXPENSE, FinancialTransactionType.REVERSAL,
                         start, end, FinancialTransactionStatus.VOIDED).stream()
                 .filter(entry -> type.equals(entry.getFinancialTransaction().getExpenseType()))
                 .map(entry -> entry.getSignedAmount().negate())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return legacyTotal.add(ledgerTotal);
+        return ledgerTotal;
     }
 }

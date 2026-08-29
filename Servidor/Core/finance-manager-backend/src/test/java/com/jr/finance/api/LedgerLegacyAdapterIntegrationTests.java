@@ -125,7 +125,7 @@ class LedgerLegacyAdapterIntegrationTests {
     }
 
     @Test
-    void legacyHistoryAndLedgerBackedOperationsAreReadTogether() throws Exception {
+    void legacyRowsAreIgnoredAfterLedgerCutover() throws Exception {
         User user = createUser();
         Account account = createAccount(user, true);
         Income legacyIncome = new Income();
@@ -141,9 +141,9 @@ class LedgerLegacyAdapterIntegrationTests {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/incomes/month?year=2026&month=8").header("Authorization", bearer(user)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
         mockMvc.perform(get("/api/balance/month?year=2026&month=8").header("Authorization", bearer(user)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(150000));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalIncome").value(100000));
     }
 
     @Test
@@ -222,7 +222,7 @@ class LedgerLegacyAdapterIntegrationTests {
     }
 
     @Test
-    void deletingLegacyExpenseKeepsTheTemporaryPhysicalDeleteBehavior() throws Exception {
+    void deletingLegacyExpenseIsNoLongerAProductionOperationAfterCutover() throws Exception {
         User user = createUser();
         Expense legacy = new Expense();
         legacy.setUser(user);
@@ -231,8 +231,8 @@ class LedgerLegacyAdapterIntegrationTests {
         legacy = expenseRepository.saveAndFlush(legacy);
 
         mockMvc.perform(delete("/api/expenses/{id}", legacy.getId()).header("Authorization", bearer(user)))
-                .andExpect(status().isOk());
-        org.junit.jupiter.api.Assertions.assertFalse(expenseRepository.existsById(legacy.getId()));
+                .andExpect(status().isNotFound());
+        org.junit.jupiter.api.Assertions.assertTrue(expenseRepository.existsById(legacy.getId()));
         org.junit.jupiter.api.Assertions.assertEquals(0, financialTransactionRepository.count());
     }
 
