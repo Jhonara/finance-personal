@@ -1,0 +1,3 @@
+package com.jr.finance.api.transfer;
+import com.jr.finance.api.auth.UserPrincipal; import com.jr.finance.api.transfer.dto.*; import jakarta.validation.Valid; import lombok.RequiredArgsConstructor; import org.springframework.http.*; import org.springframework.security.core.Authentication; import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/transfers") @RequiredArgsConstructor public class TransferController { private final TransferService service; @PostMapping public ResponseEntity<TransferResponse> create(@Valid @RequestBody CreateTransferRequest request, Authentication auth){return ResponseEntity.status(HttpStatus.CREATED).body(service.create(((UserPrincipal)auth.getPrincipal()).getUser().getId(),request));}}
