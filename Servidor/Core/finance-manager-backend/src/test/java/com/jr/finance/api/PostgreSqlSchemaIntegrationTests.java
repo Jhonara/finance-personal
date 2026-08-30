@@ -20,6 +20,11 @@ import com.jr.finance.api.ledger.LegacyLedgerMigrationService;
 import com.jr.finance.api.income.Income;
 import com.jr.finance.api.income.IncomeRepository;
 import com.jr.finance.api.transfer.TransferService;
+import com.jr.finance.api.credit.Credit;
+import com.jr.finance.api.credit.CreditRepository;
+import com.jr.finance.api.credit.CreditPaymentRepository;
+import com.jr.finance.api.credit.CreditPaymentService;
+import com.jr.finance.api.credit.dto.CreateCreditPaymentRequest;
 import com.jr.finance.api.transaction.TransactionQuery;
 import com.jr.finance.api.transaction.TransactionService;
 import com.jr.finance.api.transfer.dto.CreateTransferRequest;
@@ -126,6 +131,9 @@ class PostgreSqlSchemaIntegrationTests {
     @Autowired private BudgetRepository budgetRepository;
     @Autowired private BudgetService budgetService;
     @Autowired private TransactionService transactionHistoryService;
+    @Autowired private CreditRepository creditRepository;
+    @Autowired private CreditPaymentRepository creditPaymentRepository;
+    @Autowired private CreditPaymentService creditPaymentService;
 
     @MockitoSpyBean(reset = MockReset.AFTER)
     private LedgerEntryRepository ledgerEntryRepositorySpy;
@@ -140,14 +148,14 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(11)
+                .hasSize(13)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
@@ -156,7 +164,59 @@ class PostgreSqlSchemaIntegrationTests {
                         "add legacy operation metadata to financial transactions",
                         "enforce unique reversals and shared operation ids",
                         "add legacy migration tracking", "create budgets", "create refresh tokens",
-                        "add category type and active");
+                        "add category type and active", "consolidate credit core", "integrate credit with ledger");
+    }
+
+    @Test
+    void creditV12AddsCurrencyVersionAndCanonicalPaymentAllocation() {
+        Long userId = jdbcTemplate.queryForObject("insert into users (name, email, password) values (?, ?, ?) returning id",
+                Long.class, "Credit V12", "credit-v12-" + UUID.randomUUID() + "@test.local", "not-a-real-password");
+        Long creditId = jdbcTemplate.queryForObject("""
+                insert into credits (user_id, name, amount, interest_rate, installments, start_date, payment_day)
+                values (?, 'Credit', 1000, 12, 12, current_date, 15) returning id
+                """, Long.class, userId);
+        assertThat(jdbcTemplate.queryForObject("select currency = 'COP' and version = 0 from credits where id = ?", Boolean.class, creditId)).isTrue();
+        Long paymentId = jdbcTemplate.queryForObject("""
+                insert into credit_payments (credit_id, payment_date, amount, extra_payment, total_amount, principal_amount, interest_amount, extra_principal_amount)
+                values (?, current_date, 90, 10, 100, 90, 0, 10) returning id
+                """, Long.class, creditId);
+        assertThat(paymentId).isNotNull();
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                insert into credit_payments (credit_id, payment_date, amount, total_amount, principal_amount, interest_amount, extra_principal_amount)
+                values (?, current_date, 100, 100, 99, 0, 0)
+                """, creditId)).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void serializesConcurrentCreditPaymentsAndNeverOverpaysPrincipal() throws Exception {
+        User user = createUser();
+        Credit credit = new Credit();
+        credit.setUser(user); credit.setName("Concurrent credit"); credit.setPrincipal(new BigDecimal("1000"));
+        credit.setAnnualRate(BigDecimal.ZERO); credit.setTermMonths(2); credit.setDisbursementDate(LocalDate.now().minusMonths(1));
+        credit.setPaymentDay(15); credit.setCurrency("COP");
+        credit = creditRepository.saveAndFlush(credit);
+        Long creditId = credit.getId();
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Boolean> first = executor.submit(() -> payConcurrently(user.getId(), creditId, barrier));
+            Future<Boolean> second = executor.submit(() -> payConcurrently(user.getId(), creditId, barrier));
+            assertThat(first.get()).isNotEqualTo(second.get());
+        } finally { executor.shutdownNow(); }
+        assertThat(creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId)).hasSize(1);
+        BigDecimal applied = creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).getFirst().getPrincipalAmount();
+        assertThat(applied).isEqualByComparingTo("800.00");
+    }
+
+    private boolean payConcurrently(Long userId, Long creditId, CyclicBarrier barrier) {
+        try {
+            barrier.await();
+            CreateCreditPaymentRequest request = new CreateCreditPaymentRequest();
+            request.setAmount(new BigDecimal("800")); request.setPaymentDate(LocalDate.now());
+            creditPaymentService.registerPayment(userId, creditId, request);
+            return true;
+        } catch (BadRequestException expected) { return false;
+        } catch (Exception e) { throw new RuntimeException(e); }
     }
 
     @Test

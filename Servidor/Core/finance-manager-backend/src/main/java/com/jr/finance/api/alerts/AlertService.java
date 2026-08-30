@@ -112,7 +112,8 @@ public class AlertService {
                                 Map.of(
                                         "creditId", credit.getId(),
                                         "realInterest", planVsReal.getRealInterestPaid(),
-                                        "plannedInterest", planVsReal.getPlannedInterestPaid()
+                                        "plannedInterest", planVsReal.getPlannedInterestPaid(),
+                                        "annualEffectiveRatePercent", credit.getAnnualRate()
                                 )
                         )
                 );

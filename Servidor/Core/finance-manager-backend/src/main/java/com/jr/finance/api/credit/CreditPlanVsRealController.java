@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
 @Tag(
-        name = "Análisis de Créditos",
+        name = "Credits",
         description = "Operaciones para comparar el plan de pagos original de un crédito con los pagos realmente realizados."
 )
 public class CreditPlanVsRealController {

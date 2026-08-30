@@ -69,6 +69,10 @@ public class CreditSimulationResponse {
     )
     private BigDecimal totalToPayToday;
 
+    private BigDecimal totalInterest;
+
+    private BigDecimal totalPaid;
+
     @Schema(
             description = "Tabla de amortización generada para el crédito simulado."
     )

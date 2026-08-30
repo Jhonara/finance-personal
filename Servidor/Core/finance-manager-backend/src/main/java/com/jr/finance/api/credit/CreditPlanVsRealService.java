@@ -20,6 +20,7 @@ public class CreditPlanVsRealService {
     private final CreditRepository creditRepository;
     private final CreditPaymentRepository paymentRepository;
     private final CreditSimulationService simulationService;
+    private final CreditSnapshotService snapshotService;
 
     public CreditPlanVsRealResponse calculate(Long userId, Long creditId) {
 
@@ -42,7 +43,8 @@ public class CreditPlanVsRealService {
         }
 
         List<CreditPayment> payments =
-                paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId);
+                paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).stream()
+                        .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED).toList();
 
         // Plan teórico
         CreditSimulationRequest simulationRequest = new CreditSimulationRequest();
@@ -81,51 +83,10 @@ public class CreditPlanVsRealService {
         }
 
         // Pagos reales
-        BigDecimal realTotalPaid = BigDecimal.ZERO;
-        BigDecimal realCapitalPaid = BigDecimal.ZERO;
-        BigDecimal realInterestPaid = BigDecimal.ZERO;
-
-        BigDecimal dailyRate = simulation.getDailyRate()
-                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
-
-        BigDecimal currentBalance = credit.getPrincipal();
-        LocalDate lastPaymentDate = credit.getDisbursementDate();
-
-        for (CreditPayment payment : payments) {
-
-            long days = ChronoUnit.DAYS.between(
-                    lastPaymentDate,
-                    payment.getPaymentDate()
-            );
-
-            BigDecimal interest = currentBalance
-                    .multiply(dailyRate)
-                    .multiply(BigDecimal.valueOf(days))
-                    .setScale(2, RoundingMode.HALF_UP);
-
-            BigDecimal capital = payment.getAmount()
-                    .subtract(interest)
-                    .max(BigDecimal.ZERO);
-
-            if (payment.getExtraPayment() != null) {
-                capital = capital.add(payment.getExtraPayment());
-            }
-
-            currentBalance = currentBalance
-                    .subtract(capital)
-                    .max(BigDecimal.ZERO);
-
-            realInterestPaid = realInterestPaid.add(interest);
-            realCapitalPaid = realCapitalPaid.add(capital);
-
-            realTotalPaid = realTotalPaid
-                    .add(payment.getAmount())
-                    .add(payment.getExtraPayment() != null
-                            ? payment.getExtraPayment()
-                            : BigDecimal.ZERO);
-
-            lastPaymentDate = payment.getPaymentDate();
-        }
+        BigDecimal realTotalPaid = payments.stream().map(CreditPayment::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal realCapitalPaid = payments.stream().map(p -> p.getPrincipalAmount().add(p.getExtraPrincipalAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal realInterestPaid = payments.stream().map(CreditPayment::getInterestAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal currentBalance = snapshotService.snapshot(credit).remainingBalance();
 
         int realInstallments = payments.size();
 

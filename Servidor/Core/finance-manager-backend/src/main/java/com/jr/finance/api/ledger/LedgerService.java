@@ -74,6 +74,29 @@ public class LedgerService {
         return balance == null ? BigDecimal.ZERO : balance;
     }
 
+    /** Records a real cash movement which is intentionally outside ordinary income/expense. */
+    @Transactional
+    public FinancialTransaction recordCreditCashMovement(Long userId, Long accountId, FinancialTransactionType type,
+                                                          BigDecimal amount, LocalDate date, String currency,
+                                                          String description) {
+        if (type != FinancialTransactionType.CREDIT_DISBURSEMENT && type != FinancialTransactionType.CREDIT_PAYMENT)
+            throw new IllegalArgumentException("Tipo de movimiento de crédito inválido");
+        Account account = getOwnedAccount(userId, accountId);
+        if (!account.isActive()) throw new BadRequestException("La cuenta está inactiva");
+        if (!account.getCurrency().equals(currency)) throw new BadRequestException("La moneda del crédito no coincide con la cuenta");
+        if (type == FinancialTransactionType.CREDIT_PAYMENT && getAccountBalance(userId, accountId).compareTo(amount) < 0)
+            throw new BadRequestException("Saldo insuficiente");
+        User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("El usuario no existe"));
+        FinancialTransaction transaction = new FinancialTransaction();
+        transaction.setUser(user); transaction.setType(type); transaction.setStatus(FinancialTransactionStatus.POSTED);
+        transaction.setEffectiveDate(date); transaction.setCurrency(currency); transaction.setDescription(normalizeDescription(description));
+        transaction = financialTransactionRepository.saveAndFlush(transaction);
+        LedgerEntry entry = new LedgerEntry(); entry.setFinancialTransaction(transaction); entry.setAccount(account);
+        entry.setSignedAmount(type == FinancialTransactionType.CREDIT_DISBURSEMENT ? amount : amount.negate());
+        ledgerEntryRepository.saveAndFlush(entry);
+        return transaction;
+    }
+
     /**
      * Creates the accounting opposite of a posted operation.  The reversal is deliberately
      * dated today: reports retain the original event in its historical period and record the

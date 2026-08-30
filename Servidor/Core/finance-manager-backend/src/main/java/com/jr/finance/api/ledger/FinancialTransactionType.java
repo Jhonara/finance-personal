@@ -5,5 +5,7 @@ public enum FinancialTransactionType {
     EXPENSE,
     OPENING_BALANCE,
     REVERSAL,
-    TRANSFER
+    TRANSFER,
+    CREDIT_DISBURSEMENT,
+    CREDIT_PAYMENT
 }

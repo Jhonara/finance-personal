@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import com.jr.finance.api.credit.CreditStatus;
 
 @Schema(
         name = "DashboardCreditResponse",
@@ -16,6 +17,9 @@ public record DashboardCreditResponse(
         BigDecimal annualRate,
         Integer termMonths,
         LocalDate disbursementDate,
-        Integer paymentDay
+        Integer paymentDay,
+        java.math.BigDecimal remainingBalance,
+        CreditStatus status,
+        LocalDate nextPaymentDate
 ) {
 }

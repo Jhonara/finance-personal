@@ -24,7 +24,7 @@ import java.util.List;
 @RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
 @Tag(
-        name = "Créditos",
+        name = "Credits",
         description = "Operaciones para administrar los créditos registrados por el usuario."
 )
 public class CreditController {

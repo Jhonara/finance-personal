@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 @Tag(
-        name = "Alertas",
+        name = "Alerts",
         description = "Consulta y administración de alertas financieras generadas automáticamente."
 )
 @RestController

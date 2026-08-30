@@ -14,6 +14,7 @@ import com.jr.finance.api.dashboard.dto.DashboardAccountResponse;
 import com.jr.finance.api.dashboard.dto.DashboardBudgetSummary;
 import com.jr.finance.api.dashboard.dto.DashboardCreditResponse;
 import com.jr.finance.api.credit.CreditRepository;
+import com.jr.finance.api.credit.CreditSnapshotService;
 import com.jr.finance.api.dashboard.dto.DashboardRecentTransactionResponse;
 import com.jr.finance.api.ledger.FinancialTransaction;
 import com.jr.finance.api.ledger.FinancialTransactionRepository;
@@ -47,6 +48,7 @@ public class DashboardService {
     private final AccountRepository accountRepository;
     private final BudgetService budgetService;
     private final CreditRepository creditRepository;
+    private final CreditSnapshotService creditSnapshotService;
     private final FinancialTransactionRepository transactionRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
 
@@ -91,7 +93,7 @@ public class DashboardService {
         List<DashboardAccountResponse> accounts = accountRepository.findDashboardBalancesByUserId(userId).stream()
                 .map(row -> new DashboardAccountResponse((Long) row[0], (String) row[1],
                         (com.jr.finance.api.account.AccountType) row[2], (String) row[3], (Boolean) row[4], (BigDecimal) row[5])).toList();
-        var netWorthByCurrency = accounts.stream().collect(Collectors.groupingBy(DashboardAccountResponse::getCurrency,
+        var assetsByCurrency = accounts.stream().collect(Collectors.groupingBy(DashboardAccountResponse::getCurrency,
                 Collectors.reducing(BigDecimal.ZERO, DashboardAccountResponse::getBalance, BigDecimal::add)));
         var budgetItems = budgetService.list(userId, year, month);
         var alerts = alertService.buildAlerts(userId, year, month, false, budgetItems);
@@ -102,10 +104,18 @@ public class DashboardService {
                 budgetItems.stream().filter(b -> b.getStatus() == BudgetStatus.WARNING).count(),
                 budgetItems.stream().filter(b -> b.getStatus() == BudgetStatus.EXCEEDED).count());
         List<DashboardCreditResponse> credits = creditRepository.findByUserIdOrderByCreatedAtAscIdAsc(userId).stream()
-                .map(credit -> new DashboardCreditResponse(credit.getId(), credit.getName(), credit.getPrincipal(),
-                        credit.getAnnualRate(), credit.getTermMonths(), credit.getDisbursementDate(),
-                        credit.getPaymentDay()))
+                .map(credit -> { var snapshot = creditSnapshotService.snapshot(credit);
+                    return new DashboardCreditResponse(credit.getId(), credit.getName(), credit.getPrincipal(),
+                        credit.getAnnualRate(), credit.getTermMonths(), credit.getDisbursementDate(), credit.getPaymentDay(),
+                        snapshot.remainingBalance(), snapshot.status(), snapshot.nextPaymentDate()); })
                 .toList();
+        var liabilitiesByCurrency = creditRepository.findByUserId(userId).stream()
+                .map(credit -> java.util.Map.entry(credit.getCurrency(), creditSnapshotService.snapshot(credit).remainingBalance()))
+                .collect(Collectors.groupingBy(java.util.Map.Entry::getKey,
+                        Collectors.reducing(BigDecimal.ZERO, java.util.Map.Entry::getValue, BigDecimal::add)));
+        var netWorthByCurrency = new java.util.TreeMap<String, BigDecimal>();
+        assetsByCurrency.forEach((currency, value) -> netWorthByCurrency.put(currency, value.subtract(liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO))));
+        liabilitiesByCurrency.forEach((currency, value) -> netWorthByCurrency.putIfAbsent(currency, value.negate()));
         List<DashboardRecentTransactionResponse> recentTransactions = recentTransactions(userId, year, month);
 
         log.info("Dashboard generado correctamente para el usuario {}.", userId);
@@ -115,7 +125,7 @@ public class DashboardService {
                 totalExpense,
                 balance,
                 balance,
-                netWorthByCurrency,
+                netWorthByCurrency, assetsByCurrency, liabilitiesByCurrency,
                 accounts,
                 budgets,
                 summary,

@@ -21,7 +21,7 @@ import java.util.List;
 @RequestMapping("/api/v1/incomes")
 @RequiredArgsConstructor
 @Tag(
-        name = "Ingresos",
+        name = "Income",
         description = "Operaciones para registrar y consultar los ingresos del usuario."
 )
 public class IncomeController {

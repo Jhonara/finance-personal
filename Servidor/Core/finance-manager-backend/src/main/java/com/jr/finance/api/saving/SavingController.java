@@ -25,7 +25,7 @@ import java.util.List;
 @RequestMapping("/api/v1/savings")
 @RequiredArgsConstructor
 @Tag(
-        name = "Metas de Ahorro",
+        name = "Savings",
         description = "Operaciones para administrar metas de ahorro y registrar aportes."
 )
 public class SavingController {

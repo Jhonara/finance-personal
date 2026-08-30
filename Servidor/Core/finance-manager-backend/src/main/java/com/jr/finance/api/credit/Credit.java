@@ -1,6 +1,7 @@
 package com.jr.finance.api.credit;
 
 import com.jr.finance.api.user.User;
+import com.jr.finance.api.ledger.FinancialTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -27,6 +28,11 @@ import java.time.LocalDateTime;
         description = "Entidad que representa un crédito registrado por un usuario."
 )
 public class Credit {
+
+    @PrePersist
+    void applyLegacyDefaults() {
+        if (currency == null) currency = "COP";
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -84,6 +90,17 @@ public class Credit {
             example = "15"
     )
     private Integer paymentDay;
+
+    @Column(nullable = false, length = 3)
+    private String currency;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "disbursement_transaction_id")
+    private FinancialTransaction disbursementTransaction;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -4,6 +4,8 @@ import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.credit.dto.CreateCreditRequest;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
+import com.jr.finance.api.ledger.LedgerService;
+import com.jr.finance.api.ledger.FinancialTransactionType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,9 @@ public class CreditService {
 
     private final CreditRepository creditRepository;
     private final UserRepository userRepository;
+    private final LedgerService ledgerService;
 
+    @org.springframework.transaction.annotation.Transactional
     public Credit create(Long userId, CreateCreditRequest req) {
 
         log.info("Creando crédito para el usuario con id: {}", userId);
@@ -36,8 +40,16 @@ public class CreditService {
         credit.setTermMonths(req.getTermMonths());
         credit.setDisbursementDate(req.getDisbursementDate());
         credit.setPaymentDay(req.getPaymentDay());
+        credit.setCurrency(req.getCurrency());
 
         Credit savedCredit = creditRepository.save(credit);
+        if (req.getDisbursementAccountId() != null) {
+            var transaction = ledgerService.recordCreditCashMovement(userId, req.getDisbursementAccountId(),
+                    FinancialTransactionType.CREDIT_DISBURSEMENT, savedCredit.getPrincipal(),
+                    savedCredit.getDisbursementDate(), savedCredit.getCurrency(), "Desembolso de crédito #" + savedCredit.getId());
+            savedCredit.setDisbursementTransaction(transaction);
+            savedCredit = creditRepository.save(savedCredit);
+        }
 
         log.info("Crédito con id {} creado correctamente para el usuario {}.",
                 savedCredit.getId(),

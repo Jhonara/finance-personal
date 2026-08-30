@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -38,7 +40,7 @@ public class CreateCreditRequest {
             example = "18.50"
     )
     @NotNull(message = "La tasa EA es obligatoria")
-    @Positive(message = "La tasa EA debe ser mayor que 0")
+    @PositiveOrZero(message = "La tasa EA no puede ser negativa")
     private BigDecimal annualRate;
 
     @Schema(
@@ -66,4 +68,11 @@ public class CreateCreditRequest {
     @Min(value = 1, message = "El día de pago debe estar entre 1 y 31")
     @Max(value = 31, message = "El día de pago debe estar entre 1 y 31")
     private Integer paymentDay;
+
+    @NotBlank(message = "La moneda es obligatoria")
+    @Pattern(regexp = "[A-Z]{3}", message = "La moneda debe usar ISO-4217 en mayúsculas")
+    @Schema(description = "Moneda ISO-4217 del crédito, sin conversión FX.", example = "COP", requiredMode = Schema.RequiredMode.REQUIRED)
+    private String currency;
+    @Schema(description = "Cuenta opcional que recibe el desembolso real. Debe estar activa y usar la misma moneda.", example = "1")
+    private Long disbursementAccountId;
 }

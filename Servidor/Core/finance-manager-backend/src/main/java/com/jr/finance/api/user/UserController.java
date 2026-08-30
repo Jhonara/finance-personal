@@ -14,7 +14,7 @@ import java.util.List;
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Tag(
-        name = "Usuarios",
+        name = "Users",
         description = "Operaciones para consultar los usuarios registrados en el sistema."
 )
 public class UserController {

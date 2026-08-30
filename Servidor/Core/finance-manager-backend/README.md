@@ -32,10 +32,15 @@ La aplicación usa el perfil `local` por defecto. La configuración sensible se 
 - `JWT_EXPIRATION` (opcional; por defecto, 15 minutos)
 - `JWT_REFRESH_EXPIRATION` (opcional; por defecto, 30 días)
 - `CORS_ALLOWED_ORIGINS` (opcional en local; obligatorio en producción)
+- `SWAGGER_ENABLED` (opcional; habilitado por defecto en `local` y `test`, deshabilitado por defecto en `prod`)
 
 Para producción activa el perfil `prod` mediante `SPRING_PROFILES_ACTIVE=prod`. No guardes valores reales en archivos versionados ni en `.env` dentro del repositorio.
 
 La API oficial usa el prefijo `/api/v1`. La autenticación devuelve un access token JWT y un refresh token rotativo; el refresh token debe almacenarse por el cliente móvil en almacenamiento seguro y puede revocarse mediante `POST /api/v1/auth/logout`.
+
+## OpenAPI y Swagger
+
+Con perfil `local`, abre Swagger UI en `http://localhost:8080/swagger` y el documento OpenAPI en `http://localhost:8080/v3/api-docs`. Ambos usan Bearer JWT para los endpoints protegidos; `register`, `login` y `refresh` son públicos. En producción permanecen deshabilitados salvo que se establezca explícitamente `SWAGGER_ENABLED=true`.
 
 ## Esquema y migraciones
 
@@ -55,7 +60,7 @@ Flyway tiene la limpieza deshabilitada permanentemente. Nunca ejecutes `flyway c
 
 En macOS/Linux, sustituye `mvnw.cmd` por `./mvnw`.
 
-El perfil `test` mantiene H2 para pruebas rápidas de aplicación. Las pruebas de esquema usan Testcontainers con PostgreSQL 16 temporal, ejecutan Flyway y validan JPA; no se conectan ni modifican PostgreSQL local. Si Docker no está disponible, esas pruebas se omiten explícitamente y la salida lo indicará: H2 no sustituye esa validación.
+El perfil `test` mantiene H2 para pruebas rápidas de aplicación. Las pruebas de esquema usan Testcontainers con PostgreSQL 16 temporal, ejecutan Flyway y validan JPA; no se conectan ni modifican PostgreSQL local. Para el cierre de calidad del proyecto Docker debe estar disponible: la suite exige cero pruebas omitidas.
 
 ## Configuración futura por entorno
 

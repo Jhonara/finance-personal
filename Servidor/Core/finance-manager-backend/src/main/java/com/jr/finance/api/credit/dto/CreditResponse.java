@@ -6,6 +6,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.jr.finance.api.credit.CreditStatus;
 
 @Data
 @Schema(
@@ -37,4 +38,15 @@ public class CreditResponse {
 
     @Schema(description = "Fecha de creación.", example = "2026-07-22T08:30:00")
     private LocalDateTime createdAt;
+
+    private String currency;
+    private Long version;
+    private BigDecimal remainingBalance;
+    private CreditStatus status;
+    private LocalDate nextPaymentDate;
+    private BigDecimal expectedPaymentAmount;
+    private BigDecimal paidPrincipal;
+    private BigDecimal paidInterest;
+    private boolean disbursementLinked;
+    private Long disbursementTransactionId;
 }

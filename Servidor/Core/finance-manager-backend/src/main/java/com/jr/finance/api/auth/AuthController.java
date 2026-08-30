@@ -21,7 +21,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(
-        name = "Autenticación",
+        name = "Auth",
         description = "Operaciones relacionadas con el registro e inicio de sesión."
 )
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class AuthController {
 
     @Operation(
             summary = "Registrar usuario",
-            description = "Crea un nuevo usuario dentro del sistema."
+            description = "Endpoint público. Registra un usuario y entrega access token JWT, refresh token opaco y su expiración.", security = {}
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario registrado"),
@@ -52,7 +52,7 @@ public class AuthController {
 
     @Operation(
             summary = "Iniciar sesión",
-            description = "Autentica un usuario y devuelve un token JWT."
+            description = "Endpoint público. Devuelve access token JWT y refresh token opaco; los intentos están limitados por tasa.", security = {}
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Inicio de sesión exitoso"),
@@ -69,18 +69,24 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @Operation(summary = "Rotar refresh token", description = "Endpoint público. Revoca el refresh token recibido y entrega un nuevo par de tokens.", security = {})
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Tokens rotados"), @ApiResponse(responseCode = "401", description = "Refresh token inválido o revocado"), @ApiResponse(responseCode = "429", description = "Límite de intentos")})
     @PostMapping("/refresh")
     public AuthResponse refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest httpRequest) {
         rateLimitService.check("refresh", httpRequest.getRemoteAddr(), null);
         return authService.refresh(request.refreshToken());
     }
 
+    @Operation(summary = "Cerrar sesión", description = "Revoca el refresh token entregado.", security = {})
+    @ApiResponses(@ApiResponse(responseCode = "204", description = "Refresh token revocado"))
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request.refreshToken());
     }
 
+    @Operation(summary = "Cerrar todas las sesiones", description = "Revoca todos los refresh tokens activos del usuario autenticado.")
+    @ApiResponses(@ApiResponse(responseCode = "204", description = "Sesiones revocadas"))
     @PostMapping("/logout-all")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logoutAll(Authentication authentication) {

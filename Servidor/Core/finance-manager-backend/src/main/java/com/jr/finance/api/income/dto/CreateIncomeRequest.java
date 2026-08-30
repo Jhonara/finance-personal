@@ -32,8 +32,9 @@ public class CreateIncomeRequest {
 
     @NotNull(message = "El tipo de ingreso es obligatorio")
     @Schema(
-            description = "Tipo de ingreso.",
+            description = "Campo transitorio de compatibilidad para clasificar el ingreso. Se mantiene mientras evoluciona el contrato; use categoryId cuando aplique.",
             example = "SALARY",
+            deprecated = true,
             allowableValues = {
                     "SALARY",
                     "EXTRA"

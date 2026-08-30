@@ -41,9 +41,11 @@ legacy:
 
 springdoc:
   api-docs:
-    path: /api-docs
+    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:false}
 
   swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /swagger
     operationsSorter: method
     tagsSorter: alpha

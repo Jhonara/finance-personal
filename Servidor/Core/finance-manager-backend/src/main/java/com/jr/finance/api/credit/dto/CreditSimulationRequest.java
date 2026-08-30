@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -31,7 +32,7 @@ public class CreditSimulationRequest {
             example = "18.50"
     )
     @NotNull(message = "La tasa EA es obligatoria")
-    @Positive(message = "La tasa EA debe ser mayor que 0")
+    @PositiveOrZero(message = "La tasa EA no puede ser negativa")
     private BigDecimal annualRate;
 
     @Schema(

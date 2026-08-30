@@ -24,7 +24,7 @@ public class DashboardController {
 
     @Operation(
             summary = "Obtener dashboard mensual",
-            description = "Retorna un resumen financiero del mes seleccionado, incluyendo ingresos, gastos, balance, categorías principales, metas de ahorro, alertas, créditos y un resumen generado por IA."
+            description = "Retorna flujo operativo, activos, pasivos y patrimonio neto por moneda, además de cuentas, presupuestos, ahorro, créditos, alertas y transacciones recientes. aiSummary es un campo reservado y actualmente es null."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Dashboard obtenido correctamente"),

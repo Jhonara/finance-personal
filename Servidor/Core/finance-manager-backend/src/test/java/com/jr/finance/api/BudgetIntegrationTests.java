@@ -285,6 +285,8 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.totalIncome").value(0))
                 .andExpect(jsonPath("$.totalExpense").value(0))
                 .andExpect(jsonPath("$.netCashFlow").value(0))
+                .andExpect(jsonPath("$.assetsByCurrency").isEmpty())
+                .andExpect(jsonPath("$.liabilitiesByCurrency").isEmpty())
                 .andExpect(jsonPath("$.netWorthByCurrency").isEmpty());
 
         Credit first = credit(owner, "Vehicle", "30000000", "18.50", 60, LocalDate.of(2026, 8, 15), 15);
@@ -305,7 +307,9 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.totalIncome").value(0))
                 .andExpect(jsonPath("$.totalExpense").value(0))
                 .andExpect(jsonPath("$.netCashFlow").value(0))
-                .andExpect(jsonPath("$.netWorthByCurrency").isEmpty());
+                .andExpect(jsonPath("$.assetsByCurrency").isEmpty())
+                .andExpect(jsonPath("$.liabilitiesByCurrency.COP").value(38000000))
+                .andExpect(jsonPath("$.netWorthByCurrency.COP").value(-38000000));
 
         mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(other)))
                 .andExpect(status().isOk())

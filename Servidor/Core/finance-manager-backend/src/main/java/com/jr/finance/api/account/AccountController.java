@@ -28,7 +28,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
-@Tag(name = "Cuentas", description = "Operaciones para administrar cuentas financieras sin saldo calculado.")
+@Tag(name = "Accounts", description = "Operaciones para administrar cuentas financieras sin saldo calculado.")
 public class AccountController {
 
     private final AccountService accountService;

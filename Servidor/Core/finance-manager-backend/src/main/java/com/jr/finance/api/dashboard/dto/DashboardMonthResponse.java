@@ -38,6 +38,8 @@ public class DashboardMonthResponse {
     private BigDecimal balance;
     private BigDecimal netCashFlow;
     private java.util.Map<String, BigDecimal> netWorthByCurrency;
+    private java.util.Map<String, BigDecimal> assetsByCurrency;
+    private java.util.Map<String, BigDecimal> liabilitiesByCurrency;
     private List<DashboardAccountResponse> accounts;
     private DashboardBudgetSummary budgets;
 

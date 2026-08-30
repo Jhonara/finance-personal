@@ -23,7 +23,7 @@ import java.util.List;
 @RequestMapping("/api/v1/credits")
 @RequiredArgsConstructor
 @Tag(
-        name = "Simulación de Créditos",
+        name = "Credits",
         description = "Operaciones para simular créditos, analizar escenarios de pago y comparar abonos extraordinarios."
 )
 public class CreditSimulationController {
@@ -31,6 +31,8 @@ public class CreditSimulationController {
     private final CreditSimulationService creditSimulationService;
     private final CreditService creditService;
     private final CreditScenarioCompareService creditScenarioCompareService;
+    private final CreditSnapshotService creditSnapshotService;
+    private final CreditPaymentRepository creditPaymentRepository;
 
     @Operation(
             summary = "Simular un crédito libre",
@@ -76,10 +78,11 @@ public class CreditSimulationController {
         var credit = creditService.findByIdForUser(userId, id);
 
         CreditSimulationRequest req = new CreditSimulationRequest();
-        req.setPrincipal(credit.getPrincipal());
+        var snapshot = creditSnapshotService.snapshot(credit);
+        req.setPrincipal(snapshot.remainingBalance());
         req.setAnnualRate(credit.getAnnualRate());
-        req.setTermMonths(credit.getTermMonths());
-        req.setDisbursementDate(credit.getDisbursementDate());
+        req.setTermMonths(Math.max(1, credit.getTermMonths() - creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(id).size()));
+        req.setDisbursementDate(java.time.LocalDate.now());
         req.setPaymentDay(credit.getPaymentDay());
 
         if (overrides != null) {

@@ -6,6 +6,7 @@ import com.jr.finance.api.ledger.FinancialTransactionType;
 import com.jr.finance.api.transaction.dto.TransactionPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +22,11 @@ import java.time.LocalDate;
 @Validated
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/transactions")
+@Tag(name = "Transactions", description = "Historial unificado de operaciones financieras del ledger.")
 public class TransactionController {
     private final TransactionService service;
 
-    @Operation(summary = "Historial financiero unificado", description = "Vista paginada de operaciones lógicas del usuario autenticado.")
+    @Operation(summary = "Historial financiero unificado", description = "Vista paginada de operaciones lógicas. Use from/to o year/month, no ambos grupos de filtros; size tiene máximo 100.")
     @GetMapping
     public TransactionPageResponse list(
             @RequestParam(required = false) LocalDate from,

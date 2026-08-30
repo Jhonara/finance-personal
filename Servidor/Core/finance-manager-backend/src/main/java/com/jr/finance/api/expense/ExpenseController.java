@@ -24,7 +24,7 @@ import java.util.List;
 @RequestMapping("/api/v1/expenses")
 @RequiredArgsConstructor
 @Tag(
-        name = "Gastos",
+        name = "Expense",
         description = "Operaciones para registrar, consultar, comparar y eliminar gastos del usuario."
 )
 public class ExpenseController {

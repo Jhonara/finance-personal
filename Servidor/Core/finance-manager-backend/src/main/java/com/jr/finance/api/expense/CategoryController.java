@@ -23,7 +23,7 @@ import java.util.List;
 @RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
 @Tag(
-        name = "Categorías",
+        name = "Categories",
         description = "Operaciones para administrar las categorías de gastos del usuario."
 )
 public class CategoryController {
@@ -105,7 +105,7 @@ public class CategoryController {
             description = "Desactiva una categoría perteneciente al usuario autenticado; el historial se conserva."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Categoría eliminada correctamente"),
+            @ApiResponse(responseCode = "204", description = "Categoría desactivada lógicamente; su historial se conserva"),
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado"),
             @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
     })

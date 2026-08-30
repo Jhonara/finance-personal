@@ -10,6 +10,12 @@ spring:
   flyway:
     enabled: false
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
 jwt:
   secret: test-jwt-secret-for-isolated-context-tests-only
   expiration: 60000
