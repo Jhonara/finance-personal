@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+assets/
+scripts/
+src/api/generated/
+src/app/explore.tsx
+src/components/
+src/constants/
+src/hooks/
+src/global.css
