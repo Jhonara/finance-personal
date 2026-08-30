@@ -3,17 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      'node_modules/',
-      '.expo/',
-      'src/api/generated/',
-      'src/app/explore.tsx',
-      'src/components/',
-      'src/constants/',
-      'src/hooks/',
-      'scripts/',
-      'tools/',
-    ],
+    ignores: ['node_modules/', '.expo/', 'src/api/generated/', 'scripts/', 'tools/'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

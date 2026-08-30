@@ -3,8 +3,3 @@ node_modules/
 assets/
 scripts/
 src/api/generated/
-src/app/explore.tsx
-src/components/
-src/constants/
-src/hooks/
-src/global.css
