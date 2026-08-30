@@ -32,7 +32,7 @@ public class IncomeService {
         log.info("Creando ingreso para el usuario {}.", userId);
 
         var transaction = ledgerService.recordIncome(userId, req.getAccountId(),
-                new FinancialOperationCommand(req.getAmount(), req.getIncomeDate(), req.getDescription(), null, null),
+                new FinancialOperationCommand(req.getAmount(), req.getIncomeDate(), req.getDescription(), null, req.getCategoryId()),
                 req.getIncomeType());
         var entry = ledgerEntryRepository.findByFinancialTransactionId(transaction.getId()).orElseThrow();
 

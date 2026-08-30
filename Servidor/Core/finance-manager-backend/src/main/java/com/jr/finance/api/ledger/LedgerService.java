@@ -7,6 +7,7 @@ import com.jr.finance.api.common.exception.ConflictException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.expense.Category;
 import com.jr.finance.api.expense.CategoryRepository;
+import com.jr.finance.api.expense.CategoryType;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -132,7 +133,9 @@ public class LedgerService {
         if (command.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("El monto debe ser mayor que 0");
         }
-        Category category = resolveCategory(userId, command.categoryId());
+        CategoryType expectedCategoryType = type == FinancialTransactionType.INCOME
+                ? CategoryType.INCOME : CategoryType.EXPENSE;
+        Category category = resolveCategory(userId, command.categoryId(), expectedCategoryType);
         BigDecimal signedAmount = positive ? command.amount() : command.amount().negate();
         return persistSingleEntry(userId, accountId, type, command, signedAmount, category,
                 incomeType, paymentType, expenseType);
@@ -180,12 +183,19 @@ public class LedgerService {
                 .orElseThrow(() -> new NotFoundException("La cuenta no existe"));
     }
 
-    private Category resolveCategory(Long userId, Long categoryId) {
+    private Category resolveCategory(Long userId, Long categoryId, CategoryType expectedType) {
         if (categoryId == null) {
             return null;
         }
-        return categoryRepository.findByIdAndUserId(categoryId, userId)
+        Category category = categoryRepository.findByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new NotFoundException("La categoría no existe"));
+        if (category.getType() != expectedType) {
+            throw new BadRequestException("La categoría no corresponde al tipo de operación");
+        }
+        if (!category.isActive()) {
+            throw new BadRequestException("La categoría está inactiva");
+        }
+        return category;
     }
 
     private void validateCommand(FinancialOperationCommand command) {

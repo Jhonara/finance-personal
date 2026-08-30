@@ -37,6 +37,8 @@ public class IncomeMapper {
         response.setDescription(transaction.getDescription());
         response.setIncomeType(transaction.getIncomeType());
         response.setIncomeDate(transaction.getEffectiveDate());
+        response.setCategoryId(transaction.getCategory() == null ? null : transaction.getCategory().getId());
+        response.setCategoryName(transaction.getCategory() == null ? null : transaction.getCategory().getName());
         return response;
     }
 }

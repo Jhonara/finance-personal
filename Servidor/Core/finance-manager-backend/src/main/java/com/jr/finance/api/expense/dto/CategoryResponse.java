@@ -3,6 +3,9 @@ package com.jr.finance.api.expense.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import com.jr.finance.api.expense.CategoryType;
+
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -23,4 +26,10 @@ public class CategoryResponse {
             example = "Alimentación"
     )
     private String name;
+
+    private CategoryType type;
+    private boolean active;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Long version;
 }

@@ -7,15 +7,20 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import jakarta.persistence.UniqueConstraint;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "categories",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_category_user_name",
-                        columnNames = {"user_id", "name"}
+                        name = "uk_category_user_type_name",
+                        columnNames = {"user_id", "type", "name"}
                 )
         }
 )
@@ -45,6 +50,13 @@ public class Category {
     )
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private CategoryType type = CategoryType.EXPENSE;
+
+    @Column(nullable = false)
+    private boolean active = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @Schema(
@@ -52,4 +64,16 @@ public class Category {
             accessMode = Schema.AccessMode.READ_ONLY
     )
     private User user;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 }

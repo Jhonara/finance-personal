@@ -140,14 +140,14 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(10)
+                .hasSize(11)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
@@ -155,7 +155,30 @@ class PostgreSqlSchemaIntegrationTests {
                         "create financial transactions and ledger entries",
                         "add legacy operation metadata to financial transactions",
                         "enforce unique reversals and shared operation ids",
-                        "add legacy migration tracking", "create budgets", "create refresh tokens");
+                        "add legacy migration tracking", "create budgets", "create refresh tokens",
+                        "add category type and active");
+    }
+
+    @Test
+    void categoryV11EnforcesTypedUniquenessAndDefaults() {
+        Long userId = jdbcTemplate.queryForObject(
+                "insert into users (name, email, password) values (?, ?, ?) returning id",
+                Long.class, "Category V11", "category-v11-" + UUID.randomUUID() + "@test.local", "not-a-real-password");
+
+        Long expenseId = jdbcTemplate.queryForObject(
+                "insert into categories (name, user_id) values (?, ?) returning id", Long.class, "Other", userId);
+        Long incomeId = jdbcTemplate.queryForObject(
+                "insert into categories (name, user_id, type) values (?, ?, ?) returning id", Long.class, "Other", userId, "INCOME");
+
+        assertThat(expenseId).isNotEqualTo(incomeId);
+        assertThat(jdbcTemplate.queryForObject("select type = 'EXPENSE' and active and version = 0 from categories where id = ?",
+                Boolean.class, expenseId)).isTrue();
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "insert into categories (name, user_id, type) values (?, ?, ?)", "Other", userId, "EXPENSE"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "insert into categories (name, user_id, type) values (?, ?, ?)", "Invalid", userId, "OTHER"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
     @Test

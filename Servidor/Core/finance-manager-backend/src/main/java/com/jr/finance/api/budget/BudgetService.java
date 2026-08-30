@@ -7,6 +7,7 @@ import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.common.exception.ConflictException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.expense.CategoryRepository;
+import com.jr.finance.api.expense.CategoryType;
 import com.jr.finance.api.ledger.FinancialTransactionStatus;
 import com.jr.finance.api.ledger.FinancialTransactionType;
 import com.jr.finance.api.ledger.LedgerEntryRepository;
@@ -40,6 +41,12 @@ public class BudgetService {
         YearMonth period = FinancialPeriod.of(request.getYear(), request.getMonth());
         var category = categoryRepository.findByIdAndUserId(request.getCategoryId(), userId)
                 .orElseThrow(() -> new NotFoundException("La categoría no existe"));
+        if (category.getType() != CategoryType.EXPENSE) {
+            throw new com.jr.finance.api.common.exception.BadRequestException("La categoría del presupuesto debe ser de gasto");
+        }
+        if (!category.isActive()) {
+            throw new com.jr.finance.api.common.exception.BadRequestException("La categoría está inactiva");
+        }
         if (budgetRepository.existsByUserIdAndCategoryIdAndYearAndMonth(userId, category.getId(),
                 period.getYear(), period.getMonthValue())) {
             throw new ConflictException("Ya existe un presupuesto para esa categoría y período");

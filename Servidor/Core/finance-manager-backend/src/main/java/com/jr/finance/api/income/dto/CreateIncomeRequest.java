@@ -42,6 +42,9 @@ public class CreateIncomeRequest {
     )
     private String incomeType;
 
+    @Schema(description = "Categoría de ingreso opcional. Debe ser una categoría INCOME activa del usuario.", example = "3")
+    private Long categoryId;
+
     @NotNull(message = "La fecha del ingreso es obligatoria")
     @Schema(
             description = "Fecha en la que se recibió el ingreso.",

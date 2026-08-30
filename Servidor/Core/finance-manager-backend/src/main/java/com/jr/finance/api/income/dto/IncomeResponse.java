@@ -25,6 +25,9 @@ public class IncomeResponse {
     @Schema(description = "Tipo de ingreso.", example = "SALARY")
     private String incomeType;
 
+    private Long categoryId;
+    private String categoryName;
+
     @Schema(description = "Fecha del ingreso.", example = "2026-07-22")
     private LocalDate incomeDate;
 }
