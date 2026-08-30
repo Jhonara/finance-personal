@@ -2,9 +2,14 @@ package com.jr.finance.api.account;
 
 import com.jr.finance.api.account.dto.AccountResponse;
 import com.jr.finance.api.account.dto.CreateAccountRequest;
+import com.jr.finance.api.account.dto.CreateOpeningBalanceRequest;
+import com.jr.finance.api.account.dto.OpeningBalanceResponse;
 import com.jr.finance.api.account.dto.UpdateAccountRequest;
 import com.jr.finance.api.account.mapper.AccountMapper;
 import com.jr.finance.api.auth.UserPrincipal;
+import com.jr.finance.api.ledger.FinancialOperationCommand;
+import com.jr.finance.api.ledger.FinancialTransaction;
+import com.jr.finance.api.ledger.LedgerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -33,6 +38,7 @@ public class AccountController {
 
     private final AccountService accountService;
     private final AccountMapper accountMapper;
+    private final LedgerService ledgerService;
 
     @PostMapping(consumes = "application/json", produces = "application/json")
     @Operation(summary = "Crear una cuenta financiera")
@@ -60,6 +66,24 @@ public class AccountController {
     @ApiResponses(@ApiResponse(responseCode = "404", description = "Cuenta inexistente o ajena"))
     public AccountResponse get(@PathVariable Long id, Authentication authentication) {
         return accountMapper.toResponse(accountService.get(userId(authentication), id));
+    }
+
+    @PostMapping(value = "/{accountId}/opening-balance", consumes = "application/json", produces = "application/json")
+    @Operation(summary = "Registrar saldo inicial", description = "Crea el único OPENING_BALANCE original de una cuenta activa. Para corregirlo se debe revertir la operación existente; no se permiten saldos iniciales adicionales.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Saldo inicial registrado"),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida o cuenta inactiva"),
+            @ApiResponse(responseCode = "404", description = "Cuenta inexistente o ajena"),
+            @ApiResponse(responseCode = "409", description = "La cuenta ya tiene saldo inicial")
+    })
+    public ResponseEntity<OpeningBalanceResponse> createOpeningBalance(@PathVariable Long accountId,
+                                                                         @Valid @RequestBody CreateOpeningBalanceRequest request,
+                                                                         Authentication authentication) {
+        FinancialTransaction transaction = ledgerService.recordOpeningBalance(userId(authentication), accountId,
+                new FinancialOperationCommand(request.amount(), request.effectiveDate(), request.description(), null, null));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new OpeningBalanceResponse(
+                transaction.getId(), accountId, transaction.getType().name(), request.amount(), transaction.getCurrency(),
+                transaction.getEffectiveDate(), transaction.getDescription()));
     }
 
     @PatchMapping(value = "/{id}", consumes = "application/json", produces = "application/json")

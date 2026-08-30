@@ -33,6 +33,15 @@ public interface FinancialTransactionRepository extends JpaRepository<FinancialT
 
     boolean existsByReversalOfId(Long reversalOfId);
 
+    @Query("""
+            select case when count(transaction) > 0 then true else false end
+            from FinancialTransaction transaction
+            join LedgerEntry entry on entry.financialTransaction = transaction
+            where entry.account.id = :accountId
+              and transaction.type = com.jr.finance.api.ledger.FinancialTransactionType.OPENING_BALANCE
+            """)
+    boolean existsOpeningBalanceForAccountId(@Param("accountId") Long accountId);
+
     boolean existsByLegacySourceAndLegacyId(LegacyOperationSource legacySource, Long legacyId);
 
     Optional<FinancialTransaction> findByLegacySourceAndLegacyIdAndUserId(

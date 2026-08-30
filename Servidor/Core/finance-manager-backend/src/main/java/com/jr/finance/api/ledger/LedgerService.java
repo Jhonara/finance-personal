@@ -64,6 +64,14 @@ public class LedgerService {
         if (command.amount().compareTo(BigDecimal.ZERO) == 0) {
             throw new BadRequestException("El saldo de apertura no puede ser cero");
         }
+        Account account = accountRepository.findByIdAndUserIdForUpdate(accountId, userId)
+                .orElseThrow(() -> new NotFoundException("La cuenta no existe"));
+        if (!account.isActive()) {
+            throw new BadRequestException("La cuenta está inactiva");
+        }
+        if (financialTransactionRepository.existsOpeningBalanceForAccountId(accountId)) {
+            throw new ConflictException("La cuenta ya tiene un saldo de apertura");
+        }
         return persistSingleEntry(userId, accountId, FinancialTransactionType.OPENING_BALANCE, command,
                 command.amount(), null, null, null, null);
     }
