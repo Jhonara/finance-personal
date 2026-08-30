@@ -1,9 +1,11 @@
 import type { AxiosInstance } from 'axios';
 
+import type { components } from '@/api/generated/schema';
 import type { AuthTokens } from './session-types';
 
-export type LoginInput = { email: string; password: string };
-export type RegisterInput = LoginInput & { name: string };
+export type LoginInput = components['schemas']['LoginRequest'];
+export type RegisterInput = components['schemas']['RegisterRequest'];
+type AuthResponse = components['schemas']['AuthResponse'];
 
 export interface AuthApi {
   login(input: LoginInput): Promise<AuthTokens>;
@@ -16,13 +18,13 @@ export interface AuthApi {
 export function createAuthApi(http: AxiosInstance): AuthApi {
   return {
     async login(input) {
-      return (await http.post<AuthTokens>('/auth/login', input)).data;
+      return toAuthTokens((await http.post<AuthResponse>('/auth/login', input)).data);
     },
     async register(input) {
-      return (await http.post<AuthTokens>('/auth/register', input)).data;
+      return toAuthTokens((await http.post<AuthResponse>('/auth/register', input)).data);
     },
     async refresh(refreshToken) {
-      return (await http.post<AuthTokens>('/auth/refresh', { refreshToken })).data;
+      return toAuthTokens((await http.post<AuthResponse>('/auth/refresh', { refreshToken })).data);
     },
     async logout(refreshToken) {
       await http.post('/auth/logout', { refreshToken });
@@ -30,5 +32,17 @@ export function createAuthApi(http: AxiosInstance): AuthApi {
     async logoutAll(accessToken) {
       await http.post('/auth/logout-all', undefined, { headers: { Authorization: `Bearer ${accessToken}` } });
     },
+  };
+}
+
+function toAuthTokens(response: AuthResponse): AuthTokens {
+  if (typeof response.accessToken !== 'string' || typeof response.refreshToken !== 'string') {
+    throw new Error('La respuesta de autenticación no incluye una sesión válida.');
+  }
+  return {
+    accessToken: response.accessToken,
+    refreshToken: response.refreshToken,
+    tokenType: response.tokenType ?? 'Bearer',
+    expiresIn: response.expiresIn ?? 0,
   };
 }

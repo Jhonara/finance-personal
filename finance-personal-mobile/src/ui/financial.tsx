@@ -24,12 +24,14 @@ export function StatCard({
   supportingText,
   icon = 'wallet-outline',
   privacyHidden = false,
+  currency = 'COP',
 }: {
   label: string;
   value: number | string;
   supportingText?: string;
   icon?: keyof typeof Ionicons.glyphMap;
   privacyHidden?: boolean;
+  currency?: string;
 }) {
   return (
     <Card style={styles.stat}>
@@ -37,7 +39,7 @@ export function StatCard({
         <Text style={typography.label}>{label}</Text>
         <Ionicons name={icon} size={20} color={colors.primary} />
       </View>
-      <Text style={typography.moneyMedium}>{formatPrivateMoney(value, 'COP', privacyHidden)}</Text>
+      <Text style={typography.moneyMedium}>{formatPrivateMoney(value, currency, privacyHidden)}</Text>
       {supportingText && <Text style={typography.caption}>{supportingText}</Text>}
     </Card>
   );

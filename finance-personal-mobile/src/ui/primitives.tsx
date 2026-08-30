@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { type ComponentProps, type PropsWithChildren } from 'react';
+import { useState, type ComponentProps, type PropsWithChildren } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,11 +28,25 @@ export function Screen({
   padded = true,
   keyboard = false,
   style,
-}: PropsWithChildren<{ scroll?: boolean; padded?: boolean; keyboard?: boolean; style?: ViewStyle }>) {
+  refreshing,
+  onRefresh,
+}: PropsWithChildren<{
+  scroll?: boolean;
+  padded?: boolean;
+  keyboard?: boolean;
+  style?: ViewStyle;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}>) {
   const content = scroll ? (
     <ScrollView
       contentContainerStyle={[styles.scroll, padded && styles.padding, style]}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={colors.primary} />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>
@@ -131,6 +146,7 @@ export function Input({
   disabled,
   icon,
   style,
+  secureTextEntry,
   ...props
 }: TextInputProps & {
   label?: string;
@@ -139,6 +155,8 @@ export function Input({
   disabled?: boolean;
   icon?: IconName;
 }) {
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const isPassword = Boolean(secureTextEntry);
   return (
     <View style={styles.field}>
       <Text style={typography.label}>{label}</Text>
@@ -149,7 +167,21 @@ export function Input({
           placeholderTextColor={colors.textMuted}
           style={[typography.body, styles.input, style]}
           {...props}
+          secureTextEntry={isPassword && !passwordVisible}
         />
+        {isPassword && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            onPress={() => setPasswordVisible((visible) => !visible)}
+          >
+            <Ionicons
+              name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+              size={sizes.icon}
+              color={colors.textSecondary}
+            />
+          </Pressable>
+        )}
       </View>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.errorText}>
