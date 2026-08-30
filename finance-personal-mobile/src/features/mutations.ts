@@ -1,0 +1,13 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createAccount, createOpeningBalance, updateAccount } from './accounts/accounts-api';
+import { accountKeys } from './accounts/use-accounts';
+import { dashboardKeys } from './dashboard/use-dashboard-month';
+import { createExpense, createIncome, createTransfer } from './transactions/transactions-api';
+import { transactionKeys } from './transactions/use-transactions';
+const invalidateFinancial = (client: ReturnType<typeof useQueryClient>, accounts = true) => Promise.all([client.invalidateQueries({ queryKey: dashboardKeys.all }), client.invalidateQueries({ queryKey: transactionKeys.all }), ...(accounts ? [client.invalidateQueries({ queryKey: accountKeys.all })] : [])]);
+export const useExpenseMutation = () => { const client = useQueryClient(); return useMutation({ mutationFn: createExpense, onSuccess: () => invalidateFinancial(client) }); };
+export const useIncomeMutation = () => { const client = useQueryClient(); return useMutation({ mutationFn: createIncome, onSuccess: () => invalidateFinancial(client) }); };
+export const useTransferMutation = () => { const client = useQueryClient(); return useMutation({ mutationFn: createTransfer, onSuccess: () => invalidateFinancial(client) }); };
+export const useAccountMutation = () => { const client = useQueryClient(); return useMutation({ mutationFn: createAccount, onSuccess: () => invalidateFinancial(client) }); };
+export const useAccountUpdateMutation = () => { const client = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: Parameters<typeof updateAccount>[0] extends number ? { id: number; data: Parameters<typeof updateAccount>[1] } : never) => updateAccount(id, data), onSuccess: () => invalidateFinancial(client) }); };
+export const useOpeningBalanceMutation = () => { const client = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: number; data: Parameters<typeof createOpeningBalance>[1] }) => createOpeningBalance(id, data), onSuccess: () => invalidateFinancial(client) }); };

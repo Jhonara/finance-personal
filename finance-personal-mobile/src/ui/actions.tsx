@@ -20,15 +20,19 @@ export function QuickActionModal({
   visible,
   onClose,
   onExpense,
+  onIncome,
+  onTransfer,
 }: {
   visible: boolean;
   onClose: () => void;
   onExpense: () => void;
+  onIncome?: () => void;
+  onTransfer?: () => void;
 }) {
   const actions: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }> = [
     { label: 'Gasto', icon: 'arrow-up-outline', onPress: onExpense },
-    { label: 'Ingreso', icon: 'arrow-down-outline' },
-    { label: 'Transferencia', icon: 'swap-horizontal-outline' },
+    { label: 'Ingreso', icon: 'arrow-down-outline', onPress: onIncome },
+    { label: 'Transferencia', icon: 'swap-horizontal-outline', onPress: onTransfer },
   ];
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>

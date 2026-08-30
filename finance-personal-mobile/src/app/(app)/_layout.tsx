@@ -47,6 +47,10 @@ export default function AppLayout() {
       <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline')} />
       <Tabs.Screen name="more" options={options('Más', 'grid-outline')} />
       <Tabs.Screen name="new-expense" options={{ href: null }} />
+      <Tabs.Screen name="new-income" options={{ href: null }} />
+      <Tabs.Screen name="new-transfer" options={{ href: null }} />
+      <Tabs.Screen name="account-form" options={{ href: null }} />
+      <Tabs.Screen name="account-detail" options={{ href: null }} />
       <Tabs.Screen name="budgets" options={{ href: null }} />
     </Tabs>
   );

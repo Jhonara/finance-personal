@@ -3,12 +3,31 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { spacing } from '@/theme';
+import { useExpenseMutation } from '@/features/mutations';
+import { useAccounts } from '@/features/accounts/use-accounts';
 import { ScreenHeader } from '@/ui/headers';
 import { Button, DateField, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 
 export default function NewExpenseScreen() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const mutation = useExpenseMutation();
+  const accounts = useAccounts();
+  const submit = () => {
+    const accountId = accounts.data?.find((account) => account.active)?.id;
+    if (!accountId || !Number(amount)) return;
+    mutation.mutate(
+      {
+        amount: Number(amount),
+        accountId,
+        expenseDate: '2026-08-30',
+        paymentType: 'CASH',
+        expenseType: 'VARIABLE',
+        description,
+      },
+      { onSuccess: () => router.back() },
+    );
+  };
   return (
     <Screen scroll keyboard>
       <ScreenHeader
@@ -23,7 +42,9 @@ export default function NewExpenseScreen() {
         <SelectField label="Categoría" placeholder="Selecciona una categoría" />
         <DateField value="2026-08-30" />
         <Input label="Descripción" placeholder="Opcional" value={description} onChangeText={setDescription} />
-        <Button onPress={() => router.back()}>Guardar gasto</Button>
+        <Button loading={mutation.isPending} onPress={submit}>
+          Guardar gasto
+        </Button>
       </View>
     </Screen>
   );
