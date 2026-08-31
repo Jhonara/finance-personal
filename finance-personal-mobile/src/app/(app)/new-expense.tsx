@@ -6,11 +6,14 @@ import { spacing } from '@/theme';
 import { useExpenseMutation } from '@/features/mutations';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { ScreenHeader } from '@/ui/headers';
-import { Button, DateField, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
+import { Button, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
+import { FinancialDateField } from '@/ui/financial-date-field';
+import { localDateFromNative } from '@/utils/local-date';
 
 export default function NewExpenseScreen() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [expenseDate, setExpenseDate] = useState(() => localDateFromNative(new Date()));
   const mutation = useExpenseMutation();
   const accounts = useAccounts();
   const submit = () => {
@@ -20,7 +23,7 @@ export default function NewExpenseScreen() {
       {
         amount: Number(amount),
         accountId,
-        expenseDate: '2026-08-30',
+        expenseDate,
         paymentType: 'CASH',
         expenseType: 'VARIABLE',
         description,
@@ -40,7 +43,7 @@ export default function NewExpenseScreen() {
         <MoneyInput label="Monto" value={amount} onChangeText={setAmount} />
         <SelectField label="Cuenta" placeholder="Selecciona una cuenta" />
         <SelectField label="Categoría" placeholder="Selecciona una categoría" />
-        <DateField value="2026-08-30" />
+        <FinancialDateField label="Fecha" value={expenseDate} onChange={setExpenseDate} />
         <Input label="Descripción" placeholder="Opcional" value={description} onChangeText={setDescription} />
         <Button loading={mutation.isPending} onPress={submit}>
           Guardar gasto

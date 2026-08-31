@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider } from '@/auth/auth-provider';
 import { PrivacyProvider } from '@/privacy/privacy-provider';
+import { FeedbackProvider } from '@/feedback/feedback-provider';
 
 export default function RootLayout() {
   const [queryClient] = useState(
@@ -18,8 +19,10 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PrivacyProvider>
-          <StatusBar style="dark" />
-          <Slot />
+          <FeedbackProvider>
+            <StatusBar style="dark" />
+            <Slot />
+          </FeedbackProvider>
         </PrivacyProvider>
       </AuthProvider>
     </QueryClientProvider>

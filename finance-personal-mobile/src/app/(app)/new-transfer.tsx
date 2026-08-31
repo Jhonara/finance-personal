@@ -4,10 +4,13 @@ import { Button, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useTransferMutation } from '@/features/mutations';
+import { FinancialDateField } from '@/ui/financial-date-field';
+import { localDateFromNative } from '@/utils/local-date';
 export default function NewTransferScreen() {
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState<number>();
   const [destination, setDestination] = useState<number>();
+  const [effectiveDate, setEffectiveDate] = useState(() => localDateFromNative(new Date()));
   const accounts = useAccounts();
   const mutation = useTransferMutation();
   const active = accounts.data?.filter((a) => a.active) ?? [];
@@ -18,7 +21,7 @@ export default function NewTransferScreen() {
         sourceAccountId: source,
         destinationAccountId: destination,
         amount: Number(amount),
-        effectiveDate: new Date().toISOString().slice(0, 10),
+        effectiveDate,
       },
       { onSuccess: () => router.back() },
     );
@@ -43,6 +46,7 @@ export default function NewTransferScreen() {
         }
       />
       <MoneyInput value={amount} onChangeText={setAmount} />
+      <FinancialDateField label="Fecha" value={effectiveDate} onChange={setEffectiveDate} />
       <Button loading={mutation.isPending} onPress={submit}>
         Transferir
       </Button>

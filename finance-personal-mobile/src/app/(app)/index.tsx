@@ -226,6 +226,14 @@ export default function HomeScreen() {
           setQuickActions(false);
           router.push('/(app)/new-expense');
         }}
+        onIncome={() => {
+          setQuickActions(false);
+          router.push('/(app)/new-income');
+        }}
+        onTransfer={() => {
+          setQuickActions(false);
+          router.push('/(app)/new-transfer');
+        }}
       />
     </Screen>
   );
