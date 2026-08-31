@@ -1,18 +1,9 @@
 import type { components } from '@/api/generated/schema';
 import { api } from '@/auth/auth-provider';
+import type { TransactionFilters } from './filters';
 
 export type TransactionPage = components['schemas']['TransactionPageResponse'];
 export type Transaction = components['schemas']['TransactionResponse'];
-export type TransactionFilters = {
-  year?: number;
-  month?: number;
-  from?: string;
-  to?: string;
-  accountId?: number;
-  categoryId?: number;
-  type?: string;
-  status?: string;
-};
 export const getTransactionPage = async (page: number, filters: TransactionFilters = {}) =>
   (await api.get<TransactionPage>('/transactions', { params: { page, size: 20, ...filters } })).data;
 export const createExpense = async (data: components['schemas']['CreateExpenseRequest']) =>

@@ -3,6 +3,8 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { useTransactions } from '@/features/transactions/use-transactions';
+import { filterCount, type TransactionFilters } from '@/features/transactions/filters';
+import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
 import { TransactionRow } from '@/ui/financial';
@@ -13,8 +15,10 @@ import { toTransaction } from '@/features/dashboard/dashboard-adapter';
 
 export default function TransactionsScreen() {
   const [quickActions, setQuickActions] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<TransactionFilters>({});
   const { hidden } = usePrivacy();
-  const transactions = useTransactions();
+  const transactions = useTransactions(filters);
   const items = transactions.data?.pages.flatMap((page) => page.content ?? []) ?? [];
   if (transactions.isPending)
     return (
@@ -34,6 +38,9 @@ export default function TransactionsScreen() {
   return (
     <Screen scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
       <ScreenHeader title="Movimientos" subtitle="Historial" />
+      <Pressable accessibilityRole="button" accessibilityLabel="Filtros" onPress={() => setFiltersOpen(true)}>
+        <Text>Filtros{filterCount(filters) ? ` (${filterCount(filters)})` : ''}</Text>
+      </Pressable>
       {items.length ? (
         <View>
           {items.map((transaction) => (
@@ -50,6 +57,13 @@ export default function TransactionsScreen() {
           )}
           {transactions.isFetchingNextPage && <ActivityIndicator />}
         </View>
+      ) : filterCount(filters) ? (
+        <EmptyState
+          title="No encontramos movimientos con estos filtros."
+          description="Prueba ajustando los criterios de búsqueda."
+          actionLabel="Limpiar filtros"
+          onAction={() => setFilters({})}
+        />
       ) : (
         <EmptyState
           title="Aún no tienes movimientos"
@@ -73,6 +87,19 @@ export default function TransactionsScreen() {
         onTransfer={() => {
           setQuickActions(false);
           router.push('/(app)/new-transfer');
+        }}
+      />
+      <TransactionFiltersModal
+        visible={filtersOpen}
+        filters={filters}
+        onClose={() => setFiltersOpen(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setFiltersOpen(false);
+        }}
+        onClear={() => {
+          setFilters({});
+          setFiltersOpen(false);
         }}
       />
     </Screen>

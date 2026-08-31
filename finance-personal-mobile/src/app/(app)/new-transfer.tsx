@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useTransferMutation } from '@/features/mutations';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { localDateFromNative } from '@/utils/local-date';
+import { useFeedback } from '@/feedback/feedback-provider';
+import { isInsufficientBalanceError } from '@/features/transactions/transfer-errors';
+import { financialErrorMessage, unavailableResource } from '@/features/transactions/form-errors';
+import { accountKeys } from '@/features/accounts/use-accounts';
 export default function NewTransferScreen() {
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState<number>();
@@ -13,6 +18,8 @@ export default function NewTransferScreen() {
   const [effectiveDate, setEffectiveDate] = useState(() => localDateFromNative(new Date()));
   const accounts = useAccounts();
   const mutation = useTransferMutation();
+  const feedback = useFeedback();
+  const client = useQueryClient();
   const active = accounts.data?.filter((a) => a.active) ?? [];
   const submit = () => {
     if (!source || !destination || source === destination || !Number(amount)) return;
@@ -23,7 +30,26 @@ export default function NewTransferScreen() {
         amount: Number(amount),
         effectiveDate,
       },
-      { onSuccess: () => router.back() },
+      {
+        onSuccess: () => {
+          feedback.show('Transferencia realizada.');
+          router.back();
+        },
+        onError: (error) => {
+          if (isInsufficientBalanceError(error)) {
+            feedback.show('Saldo insuficiente para realizar la transferencia.');
+            return;
+          }
+          const resource = unavailableResource(error);
+          if (resource === 'account') {
+            feedback.show('La cuenta seleccionada ya no está disponible.');
+            void client.invalidateQueries({ queryKey: accountKeys.all });
+            return;
+          }
+          const message = financialErrorMessage(error);
+          if (message) feedback.show(message);
+        },
+      },
     );
   };
   return (

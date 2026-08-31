@@ -1,2 +1,37 @@
-import DateTimePicker from '@react-native-community/datetimepicker'; import {useState} from 'react'; import {Pressable,Text,View} from 'react-native'; import {nativeFromLocalDate,localDateFromNative} from '@/utils/local-date';
-export function FinancialDateField({label,value,onChange,error}:{label:string;value:string;onChange(v:string):void;error?:string}){const [open,setOpen]=useState(false);return <View><Text>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={label} onPress={()=>setOpen(true)}><Text>{value}</Text></Pressable>{open&&<DateTimePicker value={nativeFromLocalDate(value)} mode="date" onChange={(event,date)=>{setOpen(false);if(event.type==='set'&&date)onChange(localDateFromNative(date))}}/>}{error&&<Text>{error}</Text>}</View>}
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
+import { nativeFromLocalDate, localDateFromNative } from '@/utils/local-date';
+export function FinancialDateField({
+  label,
+  value,
+  onChange,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange(v: string): void;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const pickerValue = value || localDateFromNative(new Date());
+  return (
+    <View>
+      <Text>{label}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => setOpen(true)}>
+        <Text>{value || 'Selecciona una fecha'}</Text>
+      </Pressable>
+      {open && (
+        <DateTimePicker
+          value={nativeFromLocalDate(pickerValue)}
+          mode="date"
+          onChange={(event, date) => {
+            setOpen(false);
+            if (event.type === 'set' && date) onChange(localDateFromNative(date));
+          }}
+        />
+      )}
+      {error && <Text>{error}</Text>}
+    </View>
+  );
+}
