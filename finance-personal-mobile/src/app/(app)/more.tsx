@@ -15,9 +15,13 @@ export default function MoreScreen() {
         label="Presupuestos"
         onPress={() => router.push('/(app)/budgets')}
       />
-      <MoreListItem icon="ribbon-outline" label="Ahorros" />
-      <MoreListItem icon="card-outline" label="Créditos" />
-      <MoreListItem icon="notifications-outline" label="Alertas" />
+      <MoreListItem icon="ribbon-outline" label="Ahorros" onPress={() => router.push('/(app)/savings')} />
+      <MoreListItem icon="card-outline" label="Créditos" onPress={() => router.push('/(app)/credits')} />
+      <MoreListItem
+        icon="notifications-outline"
+        label="Alertas"
+        onPress={() => router.push('/(app)/alerts')}
+      />
       <SectionHeader title="Cuenta" />
       <MoreListItem icon="person-outline" label="Perfil" />
       <MoreListItem icon="settings-outline" label="Ajustes" />

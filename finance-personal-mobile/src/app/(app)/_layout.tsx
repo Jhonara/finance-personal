@@ -52,6 +52,14 @@ export default function AppLayout() {
       <Tabs.Screen name="account-form" options={{ href: null }} />
       <Tabs.Screen name="account-detail" options={{ href: null }} />
       <Tabs.Screen name="budgets" options={{ href: null }} />
+      <Tabs.Screen name="alerts" options={{ href: null }} />
+      <Tabs.Screen name="savings" options={{ href: null }} />
+      <Tabs.Screen name="credits" options={{ href: null }} />
+      <Tabs.Screen name="budget-form" options={{ href: null }} />
+      <Tabs.Screen name="saving-form" options={{ href: null }} />
+      <Tabs.Screen name="saving-detail" options={{ href: null }} />
+      <Tabs.Screen name="credit-form" options={{ href: null }} />
+      <Tabs.Screen name="credit-detail" options={{ href: null }} />
     </Tabs>
   );
 }
