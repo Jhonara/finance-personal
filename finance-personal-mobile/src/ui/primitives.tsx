@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
-import { isButtonDisabled, preserveMoneyInput } from './presentation';
+import { formatMoneyInput, isButtonDisabled, preserveMoneyInput } from './presentation';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -212,7 +212,7 @@ export function MoneyInput({
         <TextInput
           accessibilityLabel={props.label ?? 'Monto'}
           keyboardType="decimal-pad"
-          value={value}
+          value={formatMoneyInput(value)}
           onChangeText={(next) => onChangeText(preserveMoneyInput(next))}
           placeholderTextColor={colors.textMuted}
           style={[typography.moneyLarge, styles.moneyInput]}

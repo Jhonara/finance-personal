@@ -8,6 +8,8 @@ const invalidateFinancial = (client: ReturnType<typeof useQueryClient>, accounts
   Promise.all([
     client.invalidateQueries({ queryKey: dashboardKeys.all }),
     client.invalidateQueries({ queryKey: transactionKeys.all }),
+    client.invalidateQueries({ queryKey: ['budgets'] }),
+    client.invalidateQueries({ queryKey: ['alerts'] }),
     ...(accounts ? [client.invalidateQueries({ queryKey: accountKeys.all })] : []),
   ]);
 export const useExpenseMutation = () => {
@@ -36,7 +38,11 @@ export const useTransferMutation = () => {
 };
 export const useAccountMutation = () => {
   const client = useQueryClient();
-  return useMutation({ mutationFn: createAccount, onSuccess: () => invalidateFinancial(client) });
+  return useMutation({
+    mutationFn: createAccount,
+    retry: false,
+    onSuccess: () => invalidateFinancial(client),
+  });
 };
 export const useAccountUpdateMutation = () => {
   const client = useQueryClient();
@@ -47,6 +53,7 @@ export const useAccountUpdateMutation = () => {
     }: Parameters<typeof updateAccount>[0] extends number
       ? { id: number; data: Parameters<typeof updateAccount>[1] }
       : never) => updateAccount(id, data),
+    retry: false,
     onSuccess: () => invalidateFinancial(client),
   });
 };

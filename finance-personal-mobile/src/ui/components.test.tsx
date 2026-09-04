@@ -63,7 +63,7 @@ describe('Finance Calm components', () => {
       tree = create(<MoneyInput value="" onChangeText={(value) => changes.push(value)} />);
     });
     tree!.root.find((node) => node.props.accessibilityLabel === 'Monto').props.onChangeText('$ 1.250,50abc');
-    expect(changes).toEqual(['1.250,50']);
+    expect(changes).toEqual(['1250.50']);
   });
 
   it('makes an inactive account explicit', async () => {

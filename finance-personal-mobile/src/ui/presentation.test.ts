@@ -35,7 +35,7 @@ describe('Finance Calm presentation helpers', () => {
   });
 
   it('keeps money input as a string while filtering invalid characters', () => {
-    expect(preserveMoneyInput('$ 1.250,50abc')).toBe('1.250,50');
+    expect(preserveMoneyInput('$ 1.250,50abc')).toBe('1250.50');
   });
 
   it('represents transfers independently of sign color assumptions', () => {

@@ -37,9 +37,9 @@ export default function AppLayout() {
           borderTopColor: colors.border,
           backgroundColor: colors.surface,
         },
-        tabBarItemStyle: { borderRadius: radius.pill, marginVertical: spacing.xs },
+        tabBarItemStyle: { borderRadius: radius.pill, marginVertical: spacing.xs, paddingHorizontal: 2 },
         tabBarActiveBackgroundColor: colors.primarySoft,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: spacing.xs },
       }}
     >
       <Tabs.Screen name="index" options={options('Inicio', 'home-outline')} />
@@ -51,6 +51,8 @@ export default function AppLayout() {
       <Tabs.Screen name="new-transfer" options={{ href: null }} />
       <Tabs.Screen name="account-form" options={{ href: null }} />
       <Tabs.Screen name="account-detail" options={{ href: null }} />
+      <Tabs.Screen name="categories" options={{ href: null }} />
+      <Tabs.Screen name="category-form" options={{ href: null }} />
       <Tabs.Screen name="budgets" options={{ href: null }} />
       <Tabs.Screen name="alerts" options={{ href: null }} />
       <Tabs.Screen name="savings" options={{ href: null }} />

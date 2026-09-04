@@ -138,6 +138,11 @@ export default function NewIncomeScreen() {
           .filter((x) => x.id !== undefined)
           .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría' }))}
         onClose={() => setSelector(null)}
+        emptyActionLabel="Crear categoría"
+        onEmptyAction={() => {
+          setSelector(null);
+          router.push({ pathname: '/(app)/category-form', params: { type: 'INCOME' } });
+        }}
         onSelect={(id) => form.setValue('categoryId', id)}
       />
     </Screen>

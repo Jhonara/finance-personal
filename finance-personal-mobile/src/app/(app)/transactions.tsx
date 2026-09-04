@@ -23,7 +23,8 @@ export default function TransactionsScreen() {
   if (transactions.isPending)
     return (
       <Screen scroll>
-        <ScreenHeader title="Movimientos" /> <SkeletonRow />
+        <ScreenHeader title="Movimientos" />
+        <SkeletonRow />
         <SkeletonRow />
         <SkeletonRow />
       </Screen>

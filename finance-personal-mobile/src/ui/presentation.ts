@@ -34,5 +34,20 @@ export function isButtonDisabled(disabled = false, loading = false): boolean {
   return disabled || loading;
 }
 export function preserveMoneyInput(value: string): string {
-  return value.replace(/[^0-9.,]/g, '');
+  const negative = value.trim().startsWith('-') ? '-' : '';
+  const normalized = value
+    .replace(/[^0-9.,]/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  const [integer = '', decimal] = normalized.split('.');
+  return `${negative}${integer}${decimal === undefined ? '' : `.${decimal}`}`;
+}
+
+export function formatMoneyInput(value: string): string {
+  if (!value) return '';
+  const [integer = '', decimal] = value.split('.');
+  const negative = integer.startsWith('-') ? '-' : '';
+  const digits = (negative ? integer.slice(1) : integer) || '0';
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${negative}${grouped}${decimal === undefined ? '' : `,${decimal}`}`;
 }

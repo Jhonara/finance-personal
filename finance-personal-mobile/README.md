@@ -1,6 +1,6 @@
 # Finance Personal Mobile
 
-Cliente móvil técnico para Finance Personal, construido con Expo, React Native y TypeScript. Esta fase establece la base de integración; no contiene diseño visual final ni flujos financieros completos.
+Cliente móvil de Finance Personal, construido con Expo, React Native y TypeScript. Incluye autenticación, dashboard, cuentas, operaciones, historial, presupuestos, alertas, ahorros y créditos conectados a la API oficial.
 
 ## Requisitos
 
@@ -53,6 +53,7 @@ npm run lint
 npm run format:check
 npm test
 npx expo config --type public
+npx expo-doctor
 ```
 
-Las pruebas unitarias cubren almacenamiento seguro, ciclo de sesión, refresh single-flight, el contrato de error y la política de reintentos. Las pantallas de Dashboard y transacciones son placeholders técnicos para comprobar navegación y conectividad autenticada.
+Las pruebas cubren almacenamiento seguro, ciclo de sesión, refresh single-flight, contratos de error, filtros, fechas y reglas de presentación financiera. En Windows, la validación iOS requiere un dispositivo físico, Mac o EAS; Android puede iniciarse mediante Expo Go o un emulador configurado.

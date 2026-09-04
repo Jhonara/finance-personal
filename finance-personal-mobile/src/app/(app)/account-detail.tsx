@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useAccountUpdateMutation, useOpeningBalanceMutation } from '@/features/mutations';
 import { usePrivacy } from '@/privacy/privacy-provider';
@@ -8,9 +8,12 @@ import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { Button, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { accountConflict, type AccountConflict } from '@/features/accounts/account-conflicts';
+import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
+import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 export default function AccountDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const accountsQuery = useAccounts();
+  const dashboard = useDashboardMonth(currentDashboardPeriod());
   const account = accountsQuery.data?.find((a) => a.id === Number(id));
   const update = useAccountUpdateMutation();
   const opening = useOpeningBalanceMutation();
@@ -19,6 +22,7 @@ export default function AccountDetail() {
   const [confirm, setConfirm] = useState(false);
   const [conflict, setConflict] = useState<AccountConflict>(null);
   const { hidden } = usePrivacy();
+  const balance = dashboard.data?.accounts?.find((item) => item.id === account?.id)?.balance ?? 0;
   if (!account)
     return (
       <Screen>
@@ -52,7 +56,7 @@ export default function AccountDetail() {
       <Text>
         {account.type} · {account.currency}
       </Text>
-      <Text>{formatPrivateMoney(0, account.currency ?? 'COP', hidden)}</Text>
+      <Text>{formatPrivateMoney(balance, account.currency ?? 'COP', hidden)}</Text>
       <Input label="Nombre" value={name || account.name || ''} onChangeText={setName} />
       <Button onPress={save} loading={update.isPending}>
         Guardar cambios
@@ -70,7 +74,10 @@ export default function AccountDetail() {
               data: { amount: Number(amount), effectiveDate: new Date().toISOString().slice(0, 10) },
             },
             {
-              onSuccess: () => router.back(),
+              onSuccess: () => {
+                void accountsQuery.refetch();
+                void dashboard.refetch();
+              },
               onError: (error) => setConflict(accountConflict(error, 'openingBalance')),
             },
           )
@@ -79,7 +86,7 @@ export default function AccountDetail() {
         Registrar saldo inicial
       </Button>
       <Modal transparent visible={confirm}>
-        <View>
+        <View style={styles.modal}>
           <Text>¿Desactivar esta cuenta?</Text>
           <Button
             onPress={() => {
@@ -95,7 +102,7 @@ export default function AccountDetail() {
         </View>
       </Modal>
       <Modal transparent visible={conflict !== null}>
-        <View>
+        <View style={styles.modal}>
           <Text>
             {conflict === 'VERSION'
               ? 'Esta cuenta cambió desde que la abriste.'
@@ -124,3 +131,13 @@ export default function AccountDetail() {
     </Screen>
   );
 }
+const styles = StyleSheet.create({
+  modal: {
+    marginTop: 96,
+    marginHorizontal: 20,
+    padding: 20,
+    gap: 12,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+  },
+});
