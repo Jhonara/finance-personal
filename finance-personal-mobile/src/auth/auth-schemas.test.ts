@@ -11,11 +11,23 @@ describe('auth forms', () => {
 
   it('requires the backend-compatible registration fields', () => {
     expect(
-      registerSchema.safeParse({ name: 'Ana', email: 'ana@example.com', password: '12345678' }).success,
+      registerSchema.safeParse({
+        name: 'Ana',
+        email: 'ana@example.com',
+        confirmEmail: 'ana@example.com',
+        password: '12345678',
+        confirmPassword: '12345678',
+      }).success,
     ).toBe(true);
-    expect(registerSchema.safeParse({ name: '', email: 'ana@example.com', password: '123' }).success).toBe(
-      false,
-    );
+    expect(
+      registerSchema.safeParse({
+        name: '',
+        email: 'ana@example.com',
+        confirmEmail: 'otra@example.com',
+        password: '123',
+        confirmPassword: 'otra',
+      }).success,
+    ).toBe(false);
   });
 
   it('maps backend field errors to the form and presents rate limits safely', () => {
