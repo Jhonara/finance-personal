@@ -44,8 +44,9 @@ vi.mock('react-native-safe-area-context', () => ({
 }));
 
 import { AccountCard, TransactionRow } from './financial';
-import { ErrorState } from './states';
+import { EmptyState, ErrorState } from './states';
 import { Button, MoneyInput } from './primitives';
+import { colors } from '@/theme';
 
 describe('Finance Calm components', () => {
   it('disables Button when loading', async () => {
@@ -96,5 +97,39 @@ describe('Finance Calm components', () => {
     });
     tree!.root.findAll((node) => node.props.accessibilityLabel === 'Reintentar')[0]!.props.onPress();
     expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it.each(['Crear cuenta', 'Crear presupuesto', 'Registrar movimiento'])(
+    'renders the %s empty-state CTA as a real button action',
+    async (actionLabel) => {
+      const action = vi.fn();
+      let tree: ReturnType<typeof create>;
+      await act(async () => {
+        tree = create(<EmptyState title="Vacío" description="Sin datos" actionLabel={actionLabel} onAction={action} />);
+      });
+      const button = tree!.root.find(
+        (node) => node.props.accessibilityLabel === actionLabel && node.props.accessibilityRole === 'button',
+      );
+      expect(button.props.accessibilityRole).toBe('button');
+      button.props.onPress();
+      expect(action).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    ['Crear cuenta', 'primary', colors.primarySoft],
+    ['Crear presupuesto', 'warning', colors.warningSoft],
+    ['Registrar movimiento', 'info', colors.infoSoft],
+  ] as const)('renders %s as a compact tonal CTA', async (actionLabel, tone, backgroundColor) => {
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<EmptyState title="Vacío" description="Sin datos" actionLabel={actionLabel} tone={tone} />);
+    });
+    const button = tree!.root.find(
+      (node) => node.props.accessibilityLabel === actionLabel && node.props.accessibilityRole === 'button',
+    );
+    const styles = button.props.style({ pressed: false }) as Array<Record<string, unknown> | false>;
+    expect(styles).toContainEqual(expect.objectContaining({ minHeight: 44 }));
+    expect(styles).toContainEqual(expect.objectContaining({ backgroundColor }));
   });
 });

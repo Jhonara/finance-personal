@@ -562,6 +562,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar el perfil actual
+         * @description Obtiene únicamente el usuario identificado por el Bearer JWT.
+         */
+        get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/incomes/month": {
         parameters: {
             query?: never;
@@ -1620,6 +1640,13 @@ export interface components {
             destinationAccountName?: string;
             /** Format: int64 */
             reversalOfId?: number;
+        };
+        /** @description Perfil seguro del usuario autenticado actual. */
+        CurrentUserResponse: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            email?: string;
         };
         /** @description Resumen de los gastos registrados durante un período determinado. */
         MonthlySummaryResponse: {
@@ -3573,6 +3600,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": number;
+                };
+            };
+        };
+    };
+    getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil obtenido correctamente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Usuario no autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
                 };
             };
         };

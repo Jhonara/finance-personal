@@ -72,12 +72,16 @@ export function Screen({
 export function Button({
   children,
   variant = 'primary',
+  size = 'regular',
+  tone = 'primary',
   loading = false,
   disabled = false,
   onPress,
   accessibilityLabel,
 }: PropsWithChildren<{
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'regular' | 'compact';
+  tone?: 'primary' | 'warning' | 'info';
   loading?: boolean;
   disabled?: boolean;
   onPress?: () => void;
@@ -93,6 +97,8 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         styles[`button_${variant}`],
+        variant === 'secondary' && secondaryToneStyles[tone],
+        size === 'compact' && styles.buttonCompact,
         (pressed || blocked) && styles.buttonPressed,
         blocked && styles.buttonDisabled,
       ]}
@@ -102,7 +108,9 @@ export function Button({
           color={variant === 'primary' || variant === 'danger' ? colors.surface : colors.primary}
         />
       ) : (
-        <Text style={[typography.button, styles[`buttonText_${variant}`]]}>{children}</Text>
+        <Text style={[typography.button, styles[`buttonText_${variant}`], variant === 'secondary' && secondaryToneTextStyles[tone]]}>
+          {children}
+        </Text>
       )}
     </Pressable>
   );
@@ -274,7 +282,8 @@ const styles = StyleSheet.create({
   button_secondary: { backgroundColor: colors.primarySoft },
   button_ghost: { backgroundColor: 'transparent' },
   button_danger: { backgroundColor: colors.danger },
-  buttonPressed: { opacity: 0.84 },
+  buttonCompact: { minHeight: 44, paddingHorizontal: spacing.lg },
+  buttonPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   buttonDisabled: { opacity: 0.48 },
   buttonText_primary: { color: colors.surface },
   buttonText_secondary: { color: colors.primary },
@@ -328,3 +337,15 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
 });
+
+const secondaryToneStyles = {
+  primary: { backgroundColor: colors.primarySoft },
+  warning: { backgroundColor: colors.warningSoft },
+  info: { backgroundColor: colors.infoSoft },
+} as const;
+
+const secondaryToneTextStyles = {
+  primary: { color: colors.primary },
+  warning: { color: colors.warning },
+  info: { color: colors.info },
+} as const;

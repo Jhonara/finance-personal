@@ -25,6 +25,8 @@ class OpenApiContractIntegrationTests {
                 .andExpect(jsonPath("$.components.securitySchemes.BearerAuth.type").value("http"))
                 .andExpect(jsonPath("$.components.securitySchemes.BearerAuth.scheme").value("bearer"))
                 .andExpect(jsonPath("$.paths['/api/v1/auth/login']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/me']").exists())
+                .andExpect(jsonPath("$.components.schemas.CurrentUserResponse").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/accounts']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/transactions']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/credits']").exists())

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import {
   currentDashboardPeriod,
@@ -15,23 +15,40 @@ import {
   toTransaction,
 } from '@/features/dashboard/dashboard-adapter';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
+import { dashboardGreeting } from '@/features/dashboard/dashboard-greeting';
+import { useCurrentUser } from '@/features/profile/use-current-user';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { colors, spacing, typography } from '@/theme';
 import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
 import { AccountCard, AlertCard, BudgetProgress, StatCard, TransactionRow } from '@/ui/financial';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
-import { IconButton, Screen } from '@/ui/primitives';
+import { Button, IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
 
 export default function HomeScreen() {
   const [period, setPeriod] = useState(currentDashboardPeriod);
   const [quickActions, setQuickActions] = useState(false);
+  const greetingEntrance = useRef(new Animated.Value(0)).current;
+  const summaryEntrance = useRef(new Animated.Value(0)).current;
+  const flowEntrance = useRef(new Animated.Value(0)).current;
+  const fabEntrance = useRef(new Animated.Value(0)).current;
   const { hidden, toggle } = usePrivacy();
   const dashboard = useDashboardMonth(period);
+  const currentUser = useCurrentUser();
+  const greeting = dashboardGreeting(new Date(), currentUser.data?.name);
+  useEffect(() => {
+    [greetingEntrance, summaryEntrance, flowEntrance, fabEntrance].forEach((value) => value.setValue(0));
+    Animated.stagger(65, [
+      Animated.timing(greetingEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(summaryEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(flowEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(fabEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [fabEntrance, flowEntrance, greetingEntrance, period, summaryEntrance]);
   if (dashboard.isPending)
     return (
       <Screen scroll>
-        <ScreenHeader title="Buen día" subtitle={formatDashboardPeriod(period)} />
+        <ScreenHeader title={greeting} subtitle="Tu resumen financiero" />
         <SkeletonCard />
         <View style={styles.stats}>
           <SkeletonCard />
@@ -45,7 +62,7 @@ export default function HomeScreen() {
   if (dashboard.isError)
     return (
       <Screen>
-        <ScreenHeader title="Buen día" subtitle={formatDashboardPeriod(period)} />
+        <ScreenHeader title={greeting} subtitle="Tu resumen financiero" />
         <ErrorState onRetry={() => void dashboard.refetch()} />
       </Screen>
     );
@@ -57,168 +74,215 @@ export default function HomeScreen() {
   const liabilities = currencyEntries(data.liabilitiesByCurrency);
   const budgets = data.budgets?.items ?? [];
   const recent = data.recentTransactions ?? [];
+  const hasAccounts = accounts.length > 0;
   return (
     <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
-      <ScreenHeader
-        title="Buen día"
-        subtitle="Tu resumen financiero"
-        rightAction={
-          <IconButton
-            name={hidden ? 'eye-off-outline' : 'eye-outline'}
-            accessibilityLabel={hidden ? 'Mostrar importes' : 'Ocultar importes'}
-            onPress={() => void toggle()}
-          />
-        }
-      />
+      <Animated.View style={fadeSlide(greetingEntrance, 10)}>
+        <ScreenHeader
+          title={greeting}
+          titleNumberOfLines={2}
+          subtitle="Tu resumen financiero"
+          rightAction={
+            <IconButton
+              name={hidden ? 'eye-off-outline' : 'eye-outline'}
+              accessibilityLabel={hidden ? 'Mostrar importes' : 'Ocultar importes'}
+              onPress={() => void toggle()}
+            />
+          }
+        />
+      </Animated.View>
       <View style={styles.period}>
-        <Pressable
-          accessibilityRole="button"
+        <IconButton
+          name="chevron-back"
           accessibilityLabel="Mes anterior"
           onPress={() => setPeriod((value) => shiftDashboardPeriod(value, -1))}
-        >
-          <Text style={styles.periodAction}>‹</Text>
-        </Pressable>
+          tone="primary"
+        />
         <Text style={typography.cardTitle}>{formatDashboardPeriod(period)}</Text>
-        <Pressable
-          accessibilityRole="button"
+        <IconButton
+          name="chevron-forward"
           accessibilityLabel="Mes siguiente"
           onPress={() => setPeriod((value) => shiftDashboardPeriod(value, 1))}
-        >
-          <Text style={styles.periodAction}>›</Text>
-        </Pressable>
-      </View>
-      {netWorth.map((entry) => (
-        <StatCard
-          key={entry.currency}
-          label="Patrimonio neto"
-          value={entry.amount}
-          currency={entry.currency}
-          supportingText={`Patrimonio en ${entry.currency}`}
-          privacyHidden={hidden}
+          tone="primary"
         />
-      ))}
-      <View style={styles.stats}>
-        {assets.map((entry) => (
+      </View>
+      {!hasAccounts && (
+        <Animated.View style={[styles.onboarding, fadeSlide(summaryEntrance, 8)]}>
+          <Text style={typography.sectionTitle}>Empieza organizando tu dinero</Text>
+          <Text style={typography.bodySecondary}>
+            Crea tu primera cuenta y registra el saldo que tienes actualmente.
+          </Text>
+          <Button accessibilityLabel="Crear mi primera cuenta" onPress={() => router.push('/(app)/account-form')}>
+            Crear mi primera cuenta
+          </Button>
+        </Animated.View>
+      )}
+      <Animated.View
+        style={fadeSlide(summaryEntrance, 8, -8)}
+      >
+        {netWorth.map((entry) => (
           <StatCard
-            key={`assets-${entry.currency}`}
-            label="Activos"
+            key={entry.currency}
+            label="Patrimonio neto"
             value={entry.amount}
             currency={entry.currency}
-            supportingText={entry.currency}
+            supportingText={`Patrimonio en ${entry.currency}`}
             privacyHidden={hidden}
+            tone="primary"
           />
         ))}
-        {liabilities.map((entry) => (
-          <StatCard
-            key={`liabilities-${entry.currency}`}
-            label="Pasivos"
-            value={entry.amount}
-            currency={entry.currency}
-            supportingText={entry.currency}
-            privacyHidden={hidden}
-          />
-        ))}
-      </View>
-      <View style={styles.stats}>
-        <StatCard
-          label="Ingresos"
-          value={data.totalIncome ?? 0}
-          currency={currency}
-          supportingText="Este mes"
-          privacyHidden={hidden}
-        />
-        <StatCard
-          label="Gastos"
-          value={data.totalExpense ?? 0}
-          currency={currency}
-          supportingText="Este mes"
-          privacyHidden={hidden}
-        />
-        <StatCard
-          label="Flujo neto"
-          value={data.netCashFlow ?? data.balance ?? 0}
-          currency={currency}
-          supportingText="Este mes"
-          privacyHidden={hidden}
-        />
-      </View>
-      <SectionHeader
-        title="Cuentas"
-        actionLabel="Ver todas"
-        onAction={() => router.push('/(app)/accounts')}
-      />
-      {accounts.length ? (
-        <View style={styles.list}>
-          {accounts.slice(0, 3).map((account) => (
-            <AccountCard
-              key={account.id}
-              name={account.name ?? 'Cuenta'}
-              typeLabel={account.type ?? 'Cuenta'}
-              currency={account.currency ?? currency}
-              balance={account.balance ?? 0}
-              active
+        <Animated.View style={fadeSlide(flowEntrance, 6, -6)}>
+        <View style={styles.stats}>
+          {assets.map((entry) => (
+            <StatCard
+              key={`assets-${entry.currency}`}
+              label="Activos"
+              value={entry.amount}
+              currency={entry.currency}
+              supportingText={entry.currency}
+              privacyHidden={hidden}
+            />
+          ))}
+          {liabilities.map((entry) => (
+            <StatCard
+              key={`liabilities-${entry.currency}`}
+              label="Pasivos"
+              value={entry.amount}
+              currency={entry.currency}
+              supportingText={entry.currency}
               privacyHidden={hidden}
             />
           ))}
         </View>
-      ) : (
-        <EmptyState
-          title="Aún no tienes cuentas"
-          description="Crea tu primera cuenta para empezar a organizar tu dinero."
-          actionLabel="Ir a cuentas"
-          onAction={() => router.push('/(app)/accounts')}
-        />
-      )}
-      <SectionHeader
-        title="Presupuesto mensual"
-        actionLabel="Ver detalle"
-        onAction={() => router.push('/(app)/budgets')}
-      />
-      {budgets.length ? (
-        <View style={styles.list}>
-          {budgets.slice(0, 2).map((budget) => (
-            <BudgetProgress key={budget.id} {...toBudget(budget)} privacyHidden={hidden} />
-          ))}
+        <View style={styles.stats}>
+          <StatCard
+            label="Ingresos"
+            value={data.totalIncome ?? 0}
+            currency={currency}
+            supportingText="Este mes"
+            privacyHidden={hidden}
+            icon="arrow-down-outline"
+            tone="income"
+          />
+          <StatCard
+            label="Gastos"
+            value={data.totalExpense ?? 0}
+            currency={currency}
+            supportingText="Este mes"
+            privacyHidden={hidden}
+            icon="arrow-up-outline"
+            tone="expense"
+          />
+          <StatCard
+            label="Flujo neto"
+            value={data.netCashFlow ?? data.balance ?? 0}
+            currency={currency}
+            supportingText="Este mes"
+            privacyHidden={hidden}
+            icon="swap-horizontal-outline"
+            tone="info"
+          />
         </View>
-      ) : (
-        <EmptyState
-          title="Sin presupuestos"
-          description="Define un presupuesto para controlar mejor tus gastos."
-          actionLabel="Ver presupuestos"
+        </Animated.View>
+        <SectionHeader
+          title="Cuentas"
+          actionLabel={hasAccounts ? 'Ver todas' : 'Crear cuenta'}
+          onAction={() => router.push(hasAccounts ? '/(app)/accounts' : '/(app)/account-form')}
+        />
+        {accounts.length ? (
+          <View style={styles.list}>
+            {accounts.slice(0, 3).map((account) => (
+              <AccountCard
+                key={account.id}
+                name={account.name ?? 'Cuenta'}
+                typeLabel={account.type ?? 'Cuenta'}
+                currency={account.currency ?? currency}
+                balance={account.balance ?? 0}
+                active
+                privacyHidden={hidden}
+              />
+            ))}
+          </View>
+        ) : (
+          <EmptyState
+            title="Sin cuentas todavía"
+            description="Crea una cuenta para registrar tus movimientos."
+            actionLabel="Crear cuenta"
+            onAction={() => router.push('/(app)/account-form')}
+            tone="primary"
+          />
+        )}
+        <SectionHeader
+          title="Presupuesto mensual"
+          actionLabel="Ver detalle"
           onAction={() => router.push('/(app)/budgets')}
         />
-      )}
-      <SectionHeader
-        title="Movimientos recientes"
-        actionLabel="Ver todos"
-        onAction={() => router.push('/(app)/transactions')}
-      />
-      {recent.length ? (
-        <View style={styles.list}>
-          {recent.map((transaction) => (
-            <TransactionRow
-              key={transaction.transactionId}
-              {...toTransaction(transaction)}
-              privacyHidden={hidden}
-            />
-          ))}
-        </View>
-      ) : (
-        <EmptyState title="Sin movimientos" description="Aún no tienes movimientos registrados." />
-      )}
-      {data.alerts?.filter((alert) => alert.code !== 'ALL_GOOD').length ? (
-        <>
-          <SectionHeader title="Atención" />
+        {budgets.length ? (
           <View style={styles.list}>
-            {data.alerts
-              .filter((alert) => alert.code !== 'ALL_GOOD')
-              .map((alert, index) => (
-                <AlertCard key={`${alert.code}-${index}`} {...alertPresentation(alert)} />
-              ))}
+            {budgets.slice(0, 2).map((budget) => (
+              <BudgetProgress key={budget.id} {...toBudget(budget)} privacyHidden={hidden} />
+            ))}
           </View>
-        </>
-      ) : null}
-      <FloatingActionButton onPress={() => setQuickActions(true)} />
+        ) : (
+          <EmptyState
+            title="Sin presupuesto este mes"
+            description="Define un límite para tus gastos."
+            actionLabel="Crear presupuesto"
+            onAction={() => router.push('/(app)/budgets')}
+            tone="warning"
+          />
+        )}
+        <SectionHeader
+          title="Movimientos recientes"
+          actionLabel="Ver todos"
+          onAction={() => router.push('/(app)/transactions')}
+        />
+        {recent.length ? (
+          <View style={styles.list}>
+            {recent.map((transaction) => (
+              <TransactionRow
+                key={transaction.transactionId}
+                {...toTransaction(transaction)}
+                privacyHidden={hidden}
+              />
+            ))}
+          </View>
+        ) : (
+          <EmptyState
+            title="Sin movimientos"
+            description="Registra tu primer movimiento."
+            actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
+            onAction={() => (hasAccounts ? setQuickActions(true) : router.push('/(app)/account-form'))}
+            tone="info"
+          />
+        )}
+        {data.alerts?.filter((alert) => alert.code !== 'ALL_GOOD').length ? (
+          <>
+            <SectionHeader title="Atención" />
+            <View style={styles.list}>
+              {data.alerts
+                .filter((alert) => alert.code !== 'ALL_GOOD')
+                .map((alert, index) => (
+                  <AlertCard key={`${alert.code}-${index}`} {...alertPresentation(alert)} />
+                ))}
+            </View>
+          </>
+        ) : null}
+      </Animated.View>
+      <Animated.View
+        pointerEvents="box-none"
+        style={[
+          styles.fabAnimation,
+          {
+            opacity: fabEntrance,
+            transform: [{ scale: fabEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
+          },
+        ]}
+      >
+        <FloatingActionButton
+          onPress={() => (hasAccounts ? setQuickActions(true) : router.push('/(app)/account-form'))}
+        />
+      </Animated.View>
       <QuickActionModal
         visible={quickActions}
         onClose={() => setQuickActions(false)}
@@ -242,11 +306,31 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
   list: { gap: spacing.sm },
+  onboarding: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: 16,
+    backgroundColor: colors.primarySoft,
+  },
   period: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
+    padding: spacing.xs,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSecondary,
   },
-  periodAction: { ...typography.screenTitle, color: colors.primary, paddingHorizontal: spacing.lg },
+  fabAnimation: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
 });
+
+function fadeSlide(value: Animated.Value, fromY: number, fromX = 0) {
+  return {
+    opacity: value,
+    transform: [
+      { translateY: value.interpolate({ inputRange: [0, 1], outputRange: [fromY, 0] }) },
+      { translateX: value.interpolate({ inputRange: [0, 1], outputRange: [fromX, 0] }) },
+    ],
+  };
+}

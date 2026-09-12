@@ -23,6 +23,7 @@ export function StatCard({
   value,
   supportingText,
   icon = 'wallet-outline',
+  tone = 'neutral',
   privacyHidden = false,
   currency = 'COP',
 }: {
@@ -30,14 +31,18 @@ export function StatCard({
   value: number | string;
   supportingText?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  tone?: 'primary' | 'income' | 'expense' | 'info' | 'neutral';
   privacyHidden?: boolean;
   currency?: string;
 }) {
+  const presentation = statTone[tone];
   return (
-    <Card style={styles.stat}>
+    <Card style={[styles.stat, { backgroundColor: presentation.backgroundColor, borderColor: presentation.borderColor }]}>
       <View style={styles.row}>
         <Text style={typography.label}>{label}</Text>
-        <Ionicons name={icon} size={20} color={colors.primary} />
+        <View style={[styles.statIcon, { backgroundColor: presentation.badgeColor }]}>
+          <Ionicons name={icon} size={18} color={presentation.color} />
+        </View>
       </View>
       <Text style={typography.moneyMedium}>{formatPrivateMoney(value, currency, privacyHidden)}</Text>
       {supportingText && <Text style={typography.caption}>{supportingText}</Text>}
@@ -62,6 +67,8 @@ export function AccountCard({
   privacyHidden?: boolean;
   onPress?: () => void;
 }) {
+  const accountIcon = accountTypeIcon(typeLabel);
+  const friendlyType = accountTypeLabel(typeLabel);
   return (
     <Pressable
       accessibilityRole="button"
@@ -70,12 +77,17 @@ export function AccountCard({
       style={({ pressed }) => [pressed && styles.pressed]}
     >
       <Card style={[styles.account, !active && styles.inactive]}>
-        <View>
-          <Text style={typography.cardTitle}>{name}</Text>
-          <Text style={typography.caption}>
-            {typeLabel} · {currency}
-            {!active ? ' · Inactiva' : ''}
-          </Text>
+        <View style={styles.accountLeading}>
+          <View style={styles.accountIcon}>
+            <Ionicons name={accountIcon} size={18} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={typography.cardTitle}>{name}</Text>
+            <Text style={typography.caption}>
+              {friendlyType} · {currency}
+              {!active ? ' · Inactiva' : ''}
+            </Text>
+          </View>
         </View>
         <Text style={typography.moneySmall}>{formatPrivateMoney(balance, currency, privacyHidden)}</Text>
       </Card>
@@ -205,6 +217,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   grow: { flex: 1, gap: spacing.xs },
   stat: { flex: 1, minWidth: 150, padding: spacing.lg, gap: spacing.sm },
+  statIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
   account: {
     padding: spacing.lg,
     flexDirection: 'row',
@@ -213,6 +226,8 @@ const styles = StyleSheet.create({
   },
   inactive: { opacity: 0.62 },
   pressed: { opacity: 0.75 },
+  accountLeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  accountIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySoft },
   transaction: {
     minHeight: 68,
     flexDirection: 'row',
@@ -244,3 +259,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary,
   },
 });
+
+const statTone = {
+  primary: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoft, badgeColor: colors.surface, color: colors.primary },
+  income: { backgroundColor: colors.successSoft, borderColor: colors.successSoft, badgeColor: colors.surface, color: colors.success },
+  expense: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerSoft, badgeColor: colors.surface, color: colors.danger },
+  info: { backgroundColor: colors.infoSoft, borderColor: colors.infoSoft, badgeColor: colors.surface, color: colors.info },
+  neutral: { backgroundColor: colors.surface, borderColor: colors.border, badgeColor: colors.primarySoft, color: colors.primary },
+} as const;
+
+function accountTypeIcon(type: string): keyof typeof Ionicons.glyphMap {
+  switch (type) {
+    case 'CASH':
+      return 'cash-outline';
+    case 'BANK':
+      return 'business-outline';
+    case 'DIGITAL_WALLET':
+      return 'phone-portrait-outline';
+    case 'SAVINGS':
+      return 'archive-outline';
+    case 'INVESTMENT':
+      return 'trending-up-outline';
+    default:
+      return 'wallet-outline';
+  }
+}
+
+function accountTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    CASH: 'Efectivo',
+    BANK: 'Banco',
+    DIGITAL_WALLET: 'Billetera digital',
+    SAVINGS: 'Ahorros',
+    INVESTMENT: 'Inversión',
+    OTHER: 'Otra cuenta',
+  };
+  return labels[type] ?? type;
+}

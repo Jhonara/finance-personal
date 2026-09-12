@@ -175,6 +175,28 @@ class SecurityIntegrationTests {
     }
 
     @Test
+    void currentUserEndpointReturnsOnlyTheAuthenticatedUsersSafeProfile() throws Exception {
+        User userA = createUser("a@example.com", "password123", "USER");
+        userA.setName("Ana");
+        userA = userRepository.save(userA);
+        User userB = createUser("b@example.com", "password123", "USER");
+        userB.setName("Bruno");
+        userRepository.save(userB);
+
+        mockMvc.perform(get("/api/v1/me").header("Authorization", bearer(userA)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userA.getId()))
+                .andExpect(jsonPath("$.name").value("Ana"))
+                .andExpect(jsonPath("$.email").value("a@example.com"))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(content().string(not(containsString("Bruno"))));
+
+        mockMvc.perform(get("/api/v1/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
     void userCannotCreateExpenseWithAnotherUsersCategory() throws Exception {
         User userA = createUser("a@example.com", "password123", "USER");
         User userB = createUser("b@example.com", "password123", "USER");

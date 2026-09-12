@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import axios from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { createApiClient, type ApiSessionDelegate } from '@/api/client';
 import { environment } from '@/config/environment';
@@ -7,6 +8,7 @@ import { createAuthApi, type LoginInput, type RegisterInput } from './auth-api';
 import { SessionManager } from './session-manager';
 import type { SessionState } from './session-types';
 import { secureSessionStorage } from '@/storage/secure-session-storage';
+import { removeCurrentUserCache } from '@/features/profile/profile-cache';
 
 type AuthContextValue = {
   state: SessionState;
@@ -25,6 +27,7 @@ export const api = createApiClient(environment.apiBaseUrl, sessionManager satisf
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<SessionState>({ status: 'bootstrapping' });
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     void sessionManager.bootstrap().then(setState);
@@ -34,21 +37,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       state,
       async login(input) {
+        removeCurrentUserCache(queryClient);
         setState(await sessionManager.login(input));
       },
       async register(input) {
+        removeCurrentUserCache(queryClient);
         setState(await sessionManager.register(input));
       },
       async logout() {
-        await sessionManager.logout();
-        setState({ status: 'unauthenticated' });
+        try {
+          await sessionManager.logout();
+        } finally {
+          removeCurrentUserCache(queryClient);
+          setState({ status: 'unauthenticated' });
+        }
       },
       async logoutAll() {
-        await sessionManager.logoutAll();
-        setState({ status: 'unauthenticated' });
+        try {
+          await sessionManager.logoutAll();
+        } finally {
+          removeCurrentUserCache(queryClient);
+          setState({ status: 'unauthenticated' });
+        }
       },
     }),
-    [state],
+    [queryClient, state],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

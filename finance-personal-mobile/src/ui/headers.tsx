@@ -11,18 +11,20 @@ export function ScreenHeader({
   back,
   onBack,
   rightAction,
+  titleNumberOfLines,
 }: {
   title: string;
   subtitle?: string;
   back?: boolean;
   onBack?: () => void;
   rightAction?: ReactNode;
+  titleNumberOfLines?: number;
 }) {
   return (
     <View style={styles.header}>
       {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={onBack} /> : null}
       <View style={styles.grow}>
-        <Text style={typography.screenTitle}>{title}</Text>
+        <Text numberOfLines={titleNumberOfLines} style={[typography.screenTitle, styles.title]}>{title}</Text>
         {subtitle && <Text style={typography.bodySecondary}>{subtitle}</Text>}
       </View>
       {rightAction}
@@ -77,6 +79,7 @@ export function MoreListItem({
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   grow: { flex: 1 },
+  title: { flexShrink: 1 },
   section: {
     flexDirection: 'row',
     alignItems: 'center',
