@@ -26,6 +26,7 @@ vi.mock('react-native', () => {
   return {
     ActivityIndicator: primitive('ActivityIndicator'),
     KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
+    Modal: primitive('Modal'),
     Pressable: primitive('Pressable'),
     ScrollView: primitive('ScrollView'),
     Text: primitive('Text'),
@@ -45,7 +46,9 @@ vi.mock('react-native-safe-area-context', () => ({
 
 import { AccountCard, TransactionRow } from './financial';
 import { EmptyState, ErrorState } from './states';
-import { Button, MoneyInput } from './primitives';
+import { FloatingActionButton } from './actions';
+import { ModalSelector } from './modal-selector';
+import { Button, Card, MoneyInput } from './primitives';
 import { colors } from '@/theme';
 
 describe('Finance Calm components', () => {
@@ -55,6 +58,36 @@ describe('Finance Calm components', () => {
       tree = create(<Button loading>Guardar</Button>);
     });
     expect(tree!.root.find((node) => node.props.accessibilityRole === 'button').props.disabled).toBe(true);
+  });
+
+  it.each([
+    ['primary', colors.primaryStrong],
+    ['secondary', colors.primarySoft],
+    ['outline', colors.surface],
+    ['danger', colors.danger],
+  ] as const)('renders the %s Button variant with a semantic surface', async (variant, backgroundColor) => {
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<Button variant={variant}>Acción</Button>);
+    });
+    const button = tree!.root.find((node) => node.props.accessibilityRole === 'button');
+    const styles = button.props.style({ pressed: false }) as Array<Record<string, unknown> | false>;
+    expect(styles).toContainEqual(expect.objectContaining({ backgroundColor }));
+  });
+
+  it('applies a semantic Card tone', async () => {
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<Card tone="warning">Contenido</Card>);
+    });
+    const card = tree!.root.find(
+      (node) =>
+        Array.isArray(node.props.style) &&
+        node.props.style.some(
+          (style: Record<string, unknown>) => style?.backgroundColor === colors.warningSoft,
+        ),
+    );
+    expect(card.props.style).toContainEqual(expect.objectContaining({ backgroundColor: colors.warningSoft }));
   });
 
   it('keeps MoneyInput values as strings', async () => {
@@ -105,7 +138,9 @@ describe('Finance Calm components', () => {
       const action = vi.fn();
       let tree: ReturnType<typeof create>;
       await act(async () => {
-        tree = create(<EmptyState title="Vacío" description="Sin datos" actionLabel={actionLabel} onAction={action} />);
+        tree = create(
+          <EmptyState title="Vacío" description="Sin datos" actionLabel={actionLabel} onAction={action} />,
+        );
       });
       const button = tree!.root.find(
         (node) => node.props.accessibilityLabel === actionLabel && node.props.accessibilityRole === 'button',
@@ -123,7 +158,9 @@ describe('Finance Calm components', () => {
   ] as const)('renders %s as a compact tonal CTA', async (actionLabel, tone, backgroundColor) => {
     let tree: ReturnType<typeof create>;
     await act(async () => {
-      tree = create(<EmptyState title="Vacío" description="Sin datos" actionLabel={actionLabel} tone={tone} />);
+      tree = create(
+        <EmptyState title="Vacío" description="Sin datos" actionLabel={actionLabel} tone={tone} />,
+      );
     });
     const button = tree!.root.find(
       (node) => node.props.accessibilityLabel === actionLabel && node.props.accessibilityRole === 'button',
@@ -131,5 +168,32 @@ describe('Finance Calm components', () => {
     const styles = button.props.style({ pressed: false }) as Array<Record<string, unknown> | false>;
     expect(styles).toContainEqual(expect.objectContaining({ minHeight: 44 }));
     expect(styles).toContainEqual(expect.objectContaining({ backgroundColor }));
+  });
+
+  it('keeps the FAB a labelled touch target', async () => {
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<FloatingActionButton onPress={() => undefined} />);
+    });
+    expect(
+      tree!.root.find((node) => node.props.accessibilityLabel === 'Nuevo movimiento').props.accessibilityRole,
+    ).toBe('button');
+  });
+
+  it('marks the selected ModalSelector option', async () => {
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <ModalSelector
+          visible
+          label="Cuenta"
+          selectedId={2}
+          options={[{ id: 2, label: 'Principal' }]}
+          onClose={() => undefined}
+          onSelect={() => undefined}
+        />,
+      );
+    });
+    expect(tree!.root.findAll((node) => node.props.name === 'checkmark-circle').length).toBeGreaterThan(0);
   });
 });

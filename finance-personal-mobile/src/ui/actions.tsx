@@ -22,17 +22,47 @@ export function QuickActionModal({
   onExpense,
   onIncome,
   onTransfer,
+  canTransfer = true,
 }: {
   visible: boolean;
   onClose: () => void;
   onExpense: () => void;
   onIncome?: () => void;
   onTransfer?: () => void;
+  canTransfer?: boolean;
 }) {
-  const actions: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }> = [
-    { label: 'Gasto', icon: 'arrow-up-outline', onPress: onExpense },
-    { label: 'Ingreso', icon: 'arrow-down-outline', onPress: onIncome },
-    { label: 'Transferencia', icon: 'swap-horizontal-outline', onPress: onTransfer },
+  const actions: Array<{
+    label: string;
+    description: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    tone: 'income' | 'expense' | 'info';
+    onPress?: () => void;
+    disabled?: boolean;
+  }> = [
+    {
+      label: 'Gasto',
+      description: 'Registra una compra o salida de dinero.',
+      icon: 'arrow-up-outline',
+      tone: 'expense',
+      onPress: onExpense,
+    },
+    {
+      label: 'Ingreso',
+      description: 'Registra dinero que recibiste.',
+      icon: 'arrow-down-outline',
+      tone: 'income',
+      onPress: onIncome,
+    },
+    {
+      label: 'Transferencia',
+      description: canTransfer
+        ? 'Mueve dinero entre tus cuentas.'
+        : 'Necesitas al menos dos cuentas de la misma moneda.',
+      icon: 'swap-horizontal-outline',
+      tone: 'info',
+      onPress: onTransfer,
+      disabled: !canTransfer,
+    },
   ];
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
@@ -50,11 +80,22 @@ export function QuickActionModal({
               key={action.label}
               accessibilityRole="button"
               accessibilityLabel={action.label}
+              disabled={action.disabled}
               onPress={action.onPress ?? onClose}
-              style={styles.action}
+              style={({ pressed }) => [
+                styles.action,
+                action.disabled && styles.actionDisabled,
+                pressed && styles.actionPressed,
+              ]}
             >
-              <Ionicons name={action.icon} size={22} color={colors.primary} />
-              <Text style={typography.body}>{action.label}</Text>
+              <View style={[styles.actionIcon, actionTone[action.tone].background]}>
+                <Ionicons name={action.icon} size={22} color={actionTone[action.tone].color} />
+              </View>
+              <View style={styles.actionCopy}>
+                <Text style={typography.cardTitle}>{action.label}</Text>
+                <Text style={typography.caption}>{action.description}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </Pressable>
           ))}
         </Pressable>
@@ -76,7 +117,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     ...shadows.floating,
   },
-  pressed: { opacity: 0.82 },
+  pressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(30,42,49,0.28)' },
   sheet: {
     gap: spacing.md,
@@ -93,5 +134,28 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.border,
   },
-  action: { minHeight: sizes.touchTarget, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  action: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.medium,
+  },
+  actionPressed: { backgroundColor: colors.surfaceSecondary, transform: [{ scale: 0.98 }] },
+  actionDisabled: { opacity: 0.55 },
+  actionIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  actionCopy: { flex: 1, gap: spacing.xs },
 });
+
+const actionTone = {
+  income: { background: { backgroundColor: colors.successSoft }, color: colors.success },
+  expense: { background: { backgroundColor: colors.dangerSoft }, color: colors.danger },
+  info: { background: { backgroundColor: colors.infoSoft }, color: colors.info },
+} as const;

@@ -25,7 +25,11 @@ describe('current user profile', () => {
 
   it('removes the previous profile on session cleanup', () => {
     const queryClient = new QueryClient();
-    queryClient.setQueryData(currentUserKeys.current(), { id: 1, name: 'Previous user', email: 'old@finance.com' });
+    queryClient.setQueryData(currentUserKeys.current(), {
+      id: 1,
+      name: 'Previous user',
+      email: 'old@finance.com',
+    });
 
     removeCurrentUserCache(queryClient);
 

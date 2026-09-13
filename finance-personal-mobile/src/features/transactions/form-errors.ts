@@ -5,7 +5,7 @@ export type FinancialResource = 'account' | 'category';
 export function financialErrorMessage(error: unknown, resource?: FinancialResource): string | undefined {
   const apiError = toApiError(error);
   if (apiError.status === null)
-    return 'No pudimos completar la operación. Revisa tu conexión e inténtalo nuevamente.';
+    return 'No pudimos confirmar la operación. Revisa tus movimientos antes de intentarlo de nuevo.';
   if (apiError.status === 404 && resource === 'account')
     return 'La cuenta seleccionada ya no está disponible.';
   if (apiError.status === 404 && resource === 'category')

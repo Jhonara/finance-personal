@@ -5,13 +5,17 @@ import { useCreateBudget, useUpdateBudget } from '@/features/secondary/use-secon
 import { useFeedback } from '@/feedback/feedback-provider';
 import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { ModalSelector } from '@/ui/modal-selector';
+import { QuickCategoryModal } from '@/ui/quick-category-modal';
 import { Button, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
+import { Text } from 'react-native';
+import { colors, spacing, typography } from '@/theme';
 export default function BudgetForm() {
   const [amount, setAmount] = useState('');
   const { id, version, limit } = useLocalSearchParams<{ id?: string; version?: string; limit?: string }>();
   const [category, setCategory] = useState<number>();
   const [open, setOpen] = useState(false);
+  const [quickCategory, setQuickCategory] = useState(false);
   const categories = useCategories('EXPENSE');
   const mutation = useCreateBudget();
   const update = useUpdateBudget();
@@ -25,6 +29,9 @@ export default function BudgetForm() {
         value={categories.data?.find((x) => x.id === category)?.name}
         onPress={() => setOpen(true)}
       />
+      {!categories.isPending && !(categories.data ?? []).length ? (
+        <Text style={styles.guidance}>Crea una categoría de gasto antes de definir un presupuesto.</Text>
+      ) : null}
       <MoneyInput label="Límite mensual" value={amount || limit || ''} onChangeText={setAmount} />
       <Button
         loading={mutation.isPending || update.isPending}
@@ -46,7 +53,7 @@ export default function BudgetForm() {
               { categoryId: category, year: period.year, month: period.month, limitAmount: Number(amount) },
               {
                 onSuccess: () => {
-                  feedback.show('Presupuesto creado.');
+                  feedback.show('¡Buen comienzo! Tu presupuesto ya está listo.', 'success');
                   router.back();
                 },
               },
@@ -64,7 +71,23 @@ export default function BudgetForm() {
           .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría' }))}
         onClose={() => setOpen(false)}
         onSelect={setCategory}
+        emptyActionLabel="Crear categoría de gasto"
+        onEmptyAction={() => {
+          setOpen(false);
+          setQuickCategory(true);
+        }}
+      />
+      <QuickCategoryModal
+        visible={quickCategory}
+        type="EXPENSE"
+        onClose={() => setQuickCategory(false)}
+        onCreated={(categoryId) => {
+          setCategory(categoryId);
+          setQuickCategory(false);
+        }}
       />
     </Screen>
   );
 }
+
+const styles = { guidance: { ...typography.caption, marginTop: -spacing.md, color: colors.warning } };

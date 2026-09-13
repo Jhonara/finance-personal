@@ -15,7 +15,7 @@ export function EmptyState({
   description: string;
   actionLabel?: string;
   onAction?: () => void;
-  tone?: 'primary' | 'warning' | 'info' | 'neutral';
+  tone?: 'primary' | 'warning' | 'info' | 'success' | 'neutral';
 }) {
   const presentation = emptyTone[tone];
   return (
@@ -41,10 +41,36 @@ export function EmptyState({
 }
 
 const emptyTone = {
-  primary: { backgroundColor: colors.primarySoft, color: colors.primary, icon: 'wallet-outline', buttonTone: 'primary' },
-  warning: { backgroundColor: colors.warningSoft, color: colors.warning, icon: 'pie-chart-outline', buttonTone: 'warning' },
-  info: { backgroundColor: colors.infoSoft, color: colors.info, icon: 'swap-horizontal-outline', buttonTone: 'info' },
-  neutral: { backgroundColor: colors.surfaceSecondary, color: colors.primary, icon: 'sparkles-outline', buttonTone: 'primary' },
+  primary: {
+    backgroundColor: colors.primarySoft,
+    color: colors.primary,
+    icon: 'wallet-outline',
+    buttonTone: 'primary',
+  },
+  warning: {
+    backgroundColor: colors.warningSoft,
+    color: colors.warning,
+    icon: 'pie-chart-outline',
+    buttonTone: 'warning',
+  },
+  info: {
+    backgroundColor: colors.infoSoft,
+    color: colors.info,
+    icon: 'swap-horizontal-outline',
+    buttonTone: 'info',
+  },
+  success: {
+    backgroundColor: colors.successSoft,
+    color: colors.success,
+    icon: 'checkmark-circle-outline',
+    buttonTone: 'success',
+  },
+  neutral: {
+    backgroundColor: colors.surfaceSecondary,
+    color: colors.primary,
+    icon: 'sparkles-outline',
+    buttonTone: 'primary',
+  },
 } as const;
 
 export function ErrorState({

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { applyApiFieldErrors } from '@/auth/form-errors';
 import { accountKeys, useAccounts } from '@/features/accounts/use-accounts';
 import { useCategories } from '@/features/categories/use-categories';
@@ -11,9 +11,11 @@ import { financialErrorMessage, unavailableResource } from '@/features/transacti
 import { useFeedback } from '@/feedback/feedback-provider';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
+import { QuickCategoryModal } from '@/ui/quick-category-modal';
 import { Button, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { localDateFromNative } from '@/utils/local-date';
+import { colors, radius, spacing, typography } from '@/theme';
 type Form = {
   amount: string;
   accountId?: number;
@@ -25,7 +27,7 @@ export default function NewIncomeScreen() {
   const form = useForm<Form>({
     defaultValues: { amount: '', incomeDate: localDateFromNative(new Date()), description: '' },
   });
-  const [selector, setSelector] = useState<'account' | 'category' | null>(null);
+  const [selector, setSelector] = useState<'account' | 'category' | 'quickCategory' | null>(null);
   const accounts = useAccounts();
   const categories = useCategories('INCOME');
   const mutation = useIncomeMutation();
@@ -48,7 +50,7 @@ export default function NewIncomeScreen() {
       },
       {
         onSuccess: () => {
-          feedback.show('Ingreso registrado.');
+          feedback.show('Ingreso registrado.', 'success');
           router.back();
         },
         onError: (error) => {
@@ -63,7 +65,7 @@ export default function NewIncomeScreen() {
             form.setValue('categoryId', undefined);
             void categories.refetch();
           }
-          if (message) feedback.show(message);
+          if (message) feedback.show(message, 'error');
         },
       },
     );
@@ -72,7 +74,18 @@ export default function NewIncomeScreen() {
   const category = categories.data?.find((x) => x.id === form.watch('categoryId'));
   return (
     <Screen scroll keyboard>
-      <ScreenHeader title="Nuevo ingreso" back onBack={() => router.back()} />
+      <ScreenHeader
+        title="Nuevo ingreso"
+        subtitle="Registra dinero que recibiste"
+        back
+        onBack={() => router.back()}
+      />
+      <View style={styles.help}>
+        <Text style={typography.cardTitle}>Registra lo que recibiste</Text>
+        <Text style={typography.bodySecondary}>
+          Asigna el ingreso a una cuenta para que tu saldo se mantenga actualizado.
+        </Text>
+      </View>
       <Controller
         control={form.control}
         name="amount"
@@ -86,6 +99,9 @@ export default function NewIncomeScreen() {
         onPress={() => setSelector('account')}
       />
       {form.formState.errors.accountId?.message && <Text>{form.formState.errors.accountId.message}</Text>}
+      {!accounts.isPending && !(accounts.data ?? []).some((item) => item.active) ? (
+        <Text style={styles.guidance}>Primero crea una cuenta para registrar tus movimientos.</Text>
+      ) : null}
       <SelectField
         label="Categoría"
         value={category?.name}
@@ -98,7 +114,7 @@ export default function NewIncomeScreen() {
         render={({ field }) => (
           <Input
             label="Descripción"
-            placeholder="Opcional"
+            placeholder="Ej. Nómina septiembre, freelance"
             value={field.value}
             onChangeText={field.onChange}
             error={form.formState.errors.description?.message}
@@ -118,7 +134,7 @@ export default function NewIncomeScreen() {
         )}
       />
       <Button loading={mutation.isPending} disabled={mutation.isPending} onPress={submit}>
-        Guardar ingreso
+        Registrar ingreso
       </Button>
       <ModalSelector
         visible={selector === 'account'}
@@ -126,7 +142,13 @@ export default function NewIncomeScreen() {
         loading={accounts.isPending}
         options={(accounts.data ?? [])
           .filter((x) => x.active && x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Cuenta' }))}
+          .map((x) => ({
+            id: x.id!,
+            label: x.name ?? 'Cuenta',
+            subtitle: `${x.type ?? 'Cuenta'} · ${x.currency ?? 'COP'}`,
+            icon: 'wallet-outline',
+          }))}
+        selectedId={form.watch('accountId')}
         onClose={() => setSelector(null)}
         onSelect={(id) => form.setValue('accountId', id)}
       />
@@ -136,15 +158,36 @@ export default function NewIncomeScreen() {
         loading={categories.isPending}
         options={(categories.data ?? [])
           .filter((x) => x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría' }))}
+          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría', icon: 'pricetag-outline' }))}
+        selectedId={form.watch('categoryId')}
         onClose={() => setSelector(null)}
         emptyActionLabel="Crear categoría"
         onEmptyAction={() => {
-          setSelector(null);
-          router.push({ pathname: '/(app)/category-form', params: { type: 'INCOME' } });
+          setSelector('quickCategory');
         }}
         onSelect={(id) => form.setValue('categoryId', id)}
+      />
+      <QuickCategoryModal
+        visible={selector === 'quickCategory'}
+        type="INCOME"
+        onClose={() => setSelector(null)}
+        onCreated={(id) => {
+          form.setValue('categoryId', id);
+          setSelector(null);
+        }}
       />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  help: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.large,
+    backgroundColor: colors.successSoft,
+  },
+  guidance: { ...typography.caption, marginTop: -spacing.md, color: colors.warning },
+});

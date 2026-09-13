@@ -2,12 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Slot } from 'expo-router';
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 
 import { AuthProvider } from '@/auth/auth-provider';
 import { PrivacyProvider } from '@/privacy/privacy-provider';
 import { FeedbackProvider } from '@/feedback/feedback-provider';
 
 export default function RootLayout() {
+  useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
   const [queryClient] = useState(
     () =>
       new QueryClient({

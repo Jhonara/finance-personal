@@ -3,7 +3,7 @@ import { ActivityIndicator, View, type ColorValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAuth } from '@/auth/auth-provider';
-import { colors, radius, sizes, spacing } from '@/theme';
+import { colors, radius, sizes, spacing, typography } from '@/theme';
 
 export default function AppLayout() {
   const { state } = useAuth();
@@ -39,7 +39,12 @@ export default function AppLayout() {
         },
         tabBarItemStyle: { borderRadius: radius.pill, marginVertical: spacing.xs, paddingHorizontal: 2 },
         tabBarActiveBackgroundColor: colors.primarySoft,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: spacing.xs },
+        tabBarLabelStyle: {
+          ...typography.caption,
+          fontSize: 10,
+          fontWeight: '600',
+          marginBottom: spacing.xs,
+        },
       }}
     >
       <Tabs.Screen name="index" options={options('Inicio', 'home-outline')} />

@@ -24,7 +24,9 @@ export function ScreenHeader({
     <View style={styles.header}>
       {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={onBack} /> : null}
       <View style={styles.grow}>
-        <Text numberOfLines={titleNumberOfLines} style={[typography.screenTitle, styles.title]}>{title}</Text>
+        <Text numberOfLines={titleNumberOfLines} style={[typography.screenTitle, styles.title]}>
+          {title}
+        </Text>
         {subtitle && <Text style={typography.bodySecondary}>{subtitle}</Text>}
       </View>
       {rightAction}
@@ -45,7 +47,12 @@ export function SectionHeader({
     <View style={styles.section}>
       <Text style={typography.sectionTitle}>{title}</Text>
       {actionLabel && (
-        <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          onPress={onAction}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
           <Text style={styles.action}>{actionLabel}</Text>
         </Pressable>
       )}
@@ -96,5 +103,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
 });

@@ -17,17 +17,27 @@ import {
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { dashboardGreeting } from '@/features/dashboard/dashboard-greeting';
 import { useCurrentUser } from '@/features/profile/use-current-user';
+import { useOpeningBalanceExists } from '@/features/onboarding/use-opening-balance-exists';
+import { useFirstOrdinaryMovementExists } from '@/features/onboarding/use-first-ordinary-movement-exists';
+import { createSetupSteps, setupProgress, type SetupStepId } from '@/features/onboarding/first-run-progress';
+import { firstRunStorage } from '@/features/onboarding/first-run-storage';
 import { usePrivacy } from '@/privacy/privacy-provider';
+import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, spacing, typography } from '@/theme';
 import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
 import { AccountCard, AlertCard, BudgetProgress, StatCard, TransactionRow } from '@/ui/financial';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
-import { Button, IconButton, Screen } from '@/ui/primitives';
+import { IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
+import { FirstRunFabHint, FirstRunGuide } from '@/ui/first-run-guide';
+import { GuidedSetupCard } from '@/ui/guided-setup-card';
+import { BrandSurface } from '@/ui/brand-surface';
 
 export default function HomeScreen() {
   const [period, setPeriod] = useState(currentDashboardPeriod);
   const [quickActions, setQuickActions] = useState(false);
+  const [showFabHint, setShowFabHint] = useState(false);
+  const [showGuidedSetup, setShowGuidedSetup] = useState(true);
   const greetingEntrance = useRef(new Animated.Value(0)).current;
   const summaryEntrance = useRef(new Animated.Value(0)).current;
   const flowEntrance = useRef(new Animated.Value(0)).current;
@@ -35,14 +45,69 @@ export default function HomeScreen() {
   const { hidden, toggle } = usePrivacy();
   const dashboard = useDashboardMonth(period);
   const currentUser = useCurrentUser();
+  const openingBalanceExists = useOpeningBalanceExists(
+    Boolean(dashboard.data?.accounts?.some((account) => account.active)),
+  );
+  const firstOrdinaryMovement = useFirstOrdinaryMovementExists(
+    Boolean(dashboard.data?.accounts?.some((account) => account.active)),
+  );
+  const dashboardAccounts = dashboard.data?.accounts?.filter((account) => account.active) ?? [];
+  const setupSteps = createSetupSteps({
+    accountCount: dashboardAccounts.length,
+    budgetCount: dashboard.data?.budgets?.items?.length ?? 0,
+    openingBalanceRegistered: openingBalanceExists.data ?? false,
+    firstMovementRegistered: firstOrdinaryMovement.data,
+    recentTransactions: dashboard.data?.recentTransactions ?? [],
+  });
+  const setup = setupProgress(setupSteps);
+  const hasGuidedMovement = setupSteps.some((step) => step.id === 'movement' && step.completed);
   const greeting = dashboardGreeting(new Date(), currentUser.data?.name);
+  useEffect(() => {
+    const userId = currentUser.data?.id;
+    if (!userId || !dashboard.isSuccess) return;
+    if (!setup.isComplete) {
+      setShowGuidedSetup(true);
+      return;
+    }
+    void firstRunStorage.read(firstRunStorage.completionKey(userId)).then((value) => {
+      setShowGuidedSetup(value !== 'done');
+      if (value !== 'done') void firstRunStorage.mark(firstRunStorage.completionKey(userId));
+    });
+  }, [currentUser.data?.id, dashboard.isSuccess, setup.isComplete]);
+  useEffect(() => {
+    const userId = currentUser.data?.id;
+    if (!userId || !dashboard.isSuccess || !dashboardAccounts.length || hasGuidedMovement) return;
+    void firstRunStorage
+      .read(firstRunStorage.hintKey(userId, 'fab'))
+      .then((value) => setShowFabHint(value !== 'done'));
+  }, [currentUser.data?.id, dashboard.isSuccess, dashboardAccounts.length, hasGuidedMovement]);
   useEffect(() => {
     [greetingEntrance, summaryEntrance, flowEntrance, fabEntrance].forEach((value) => value.setValue(0));
     Animated.stagger(65, [
-      Animated.timing(greetingEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(summaryEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(flowEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(fabEntrance, { toValue: 1, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(greetingEntrance, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(summaryEntrance, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(flowEntrance, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(fabEntrance, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
     ]).start();
   }, [fabEntrance, flowEntrance, greetingEntrance, period, summaryEntrance]);
   if (dashboard.isPending)
@@ -76,7 +141,39 @@ export default function HomeScreen() {
   const recent = data.recentTransactions ?? [];
   const hasAccounts = accounts.length > 0;
   return (
-    <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
+    <Screen
+      scroll
+      refreshing={dashboard.isRefetching}
+      onRefresh={() => void dashboard.refetch()}
+      floatingAction={
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.fabAnimation,
+            {
+              opacity: fabEntrance,
+              transform: [{ scale: fabEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
+            },
+          ]}
+        >
+          <FirstRunFabHint
+            userId={currentUser.data?.id}
+            visible={showFabHint}
+            onDismiss={() => setShowFabHint(false)}
+          />
+          <FloatingActionButton
+            onPress={() => {
+              setShowFabHint(false);
+              if (currentUser.data?.id)
+                void firstRunStorage.mark(firstRunStorage.hintKey(currentUser.data.id, 'fab'));
+              if (hasAccounts) setQuickActions(true);
+              else router.push('/(app)/account-form');
+            }}
+          />
+        </Animated.View>
+      }
+    >
+      <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>
         <ScreenHeader
           title={greeting}
@@ -106,83 +203,86 @@ export default function HomeScreen() {
           tone="primary"
         />
       </View>
-      {!hasAccounts && (
-        <Animated.View style={[styles.onboarding, fadeSlide(summaryEntrance, 8)]}>
-          <Text style={typography.sectionTitle}>Empieza organizando tu dinero</Text>
-          <Text style={typography.bodySecondary}>
-            Crea tu primera cuenta y registra el saldo que tienes actualmente.
-          </Text>
-          <Button accessibilityLabel="Crear mi primera cuenta" onPress={() => router.push('/(app)/account-form')}>
-            Crear mi primera cuenta
-          </Button>
-        </Animated.View>
-      )}
-      <Animated.View
-        style={fadeSlide(summaryEntrance, 8, -8)}
-      >
-        {netWorth.map((entry) => (
-          <StatCard
-            key={entry.currency}
-            label="Patrimonio neto"
-            value={entry.amount}
-            currency={entry.currency}
-            supportingText={`Patrimonio en ${entry.currency}`}
-            privacyHidden={hidden}
-            tone="primary"
+      {showGuidedSetup ? (
+        <Animated.View style={fadeSlide(summaryEntrance, 8)}>
+          <GuidedSetupCard
+            steps={setupSteps}
+            completed={setup.completed}
+            onAction={(id: SetupStepId) => {
+              if (id === 'account') router.push('/(app)/account-form');
+              if (id === 'openingBalance') router.push('/(app)/accounts');
+              if (id === 'movement') setQuickActions(true);
+              if (id === 'budget') router.push('/(app)/budget-form');
+            }}
           />
+        </Animated.View>
+      ) : null}
+      <Animated.View style={fadeSlide(summaryEntrance, 8, -8)}>
+        {netWorth.map((entry) => (
+          <BrandSurface key={entry.currency} style={styles.netWorthHero}>
+            <Text style={styles.heroLabel}>Patrimonio neto</Text>
+            <Text style={typography.moneyLarge}>
+              {formatPrivateMoney(entry.amount, entry.currency, hidden)}
+            </Text>
+            <Text style={typography.bodySecondary}>
+              {(data.netCashFlow ?? data.balance ?? 0) >= 0
+                ? 'Vas construyendo una base estable este mes.'
+                : 'Revisa tu flujo de este mes con calma.'}
+            </Text>
+          </BrandSurface>
         ))}
         <Animated.View style={fadeSlide(flowEntrance, 6, -6)}>
-        <View style={styles.stats}>
-          {assets.map((entry) => (
+          <View style={styles.stats}>
+            {assets.map((entry) => (
+              <StatCard
+                key={`assets-${entry.currency}`}
+                label="Activos"
+                value={entry.amount}
+                currency={entry.currency}
+                supportingText={entry.currency}
+                privacyHidden={hidden}
+              />
+            ))}
+            {liabilities.map((entry) => (
+              <StatCard
+                key={`liabilities-${entry.currency}`}
+                label="Pasivos"
+                value={entry.amount}
+                currency={entry.currency}
+                supportingText={entry.currency}
+                privacyHidden={hidden}
+              />
+            ))}
+          </View>
+          <View style={styles.stats}>
             <StatCard
-              key={`assets-${entry.currency}`}
-              label="Activos"
-              value={entry.amount}
-              currency={entry.currency}
-              supportingText={entry.currency}
+              label="Ingresos"
+              value={data.totalIncome ?? 0}
+              currency={currency}
+              supportingText="Este mes"
               privacyHidden={hidden}
+              icon="arrow-down-outline"
+              tone="income"
             />
-          ))}
-          {liabilities.map((entry) => (
             <StatCard
-              key={`liabilities-${entry.currency}`}
-              label="Pasivos"
-              value={entry.amount}
-              currency={entry.currency}
-              supportingText={entry.currency}
+              label="Gastos"
+              value={data.totalExpense ?? 0}
+              currency={currency}
+              supportingText="Este mes"
               privacyHidden={hidden}
+              icon="arrow-up-outline"
+              tone="expense"
             />
-          ))}
-        </View>
-        <View style={styles.stats}>
-          <StatCard
-            label="Ingresos"
-            value={data.totalIncome ?? 0}
-            currency={currency}
-            supportingText="Este mes"
-            privacyHidden={hidden}
-            icon="arrow-down-outline"
-            tone="income"
-          />
-          <StatCard
-            label="Gastos"
-            value={data.totalExpense ?? 0}
-            currency={currency}
-            supportingText="Este mes"
-            privacyHidden={hidden}
-            icon="arrow-up-outline"
-            tone="expense"
-          />
-          <StatCard
-            label="Flujo neto"
-            value={data.netCashFlow ?? data.balance ?? 0}
-            currency={currency}
-            supportingText="Este mes"
-            privacyHidden={hidden}
-            icon="swap-horizontal-outline"
-            tone="info"
-          />
-        </View>
+            <StatCard
+              label="Flujo neto"
+              value={data.netCashFlow ?? data.balance ?? 0}
+              currency={currency}
+              supportingText="Este mes"
+              privacyHidden={hidden}
+              icon="swap-horizontal-outline"
+              tone="info"
+            />
+          </View>
         </Animated.View>
         <SectionHeader
           title="Cuentas"
@@ -205,9 +305,9 @@ export default function HomeScreen() {
           </View>
         ) : (
           <EmptyState
-            title="Sin cuentas todavía"
-            description="Crea una cuenta para registrar tus movimientos."
-            actionLabel="Crear cuenta"
+            title="Tu dinero empieza aquí"
+            description="Agrega la cuenta donde manejas tu dinero."
+            actionLabel="Agregar cuenta"
             onAction={() => router.push('/(app)/account-form')}
             tone="primary"
           />
@@ -225,8 +325,8 @@ export default function HomeScreen() {
           </View>
         ) : (
           <EmptyState
-            title="Sin presupuesto este mes"
-            description="Define un límite para tus gastos."
+            title="Dale un límite a tus gastos"
+            description="Define cuánto quieres destinar a una categoría este mes."
             actionLabel="Crear presupuesto"
             onAction={() => router.push('/(app)/budgets')}
             tone="warning"
@@ -249,8 +349,8 @@ export default function HomeScreen() {
           </View>
         ) : (
           <EmptyState
-            title="Sin movimientos"
-            description="Registra tu primer movimiento."
+            title="Tu historial empieza con un movimiento"
+            description="Registra un ingreso, gasto o transferencia."
             actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
             onAction={() => (hasAccounts ? setQuickActions(true) : router.push('/(app)/account-form'))}
             tone="info"
@@ -268,20 +368,6 @@ export default function HomeScreen() {
             </View>
           </>
         ) : null}
-      </Animated.View>
-      <Animated.View
-        pointerEvents="box-none"
-        style={[
-          styles.fabAnimation,
-          {
-            opacity: fabEntrance,
-            transform: [{ scale: fabEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
-          },
-        ]}
-      >
-        <FloatingActionButton
-          onPress={() => (hasAccounts ? setQuickActions(true) : router.push('/(app)/account-form'))}
-        />
       </Animated.View>
       <QuickActionModal
         visible={quickActions}
@@ -306,13 +392,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
   list: { gap: spacing.sm },
-  onboarding: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-    padding: spacing.xl,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
-  },
+  netWorthHero: { gap: spacing.xs, marginBottom: spacing.md },
+  heroLabel: { ...typography.label, color: colors.primary },
   period: {
     flexDirection: 'row',
     alignItems: 'center',

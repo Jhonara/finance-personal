@@ -1,30 +1,38 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export const colors = {
-  background: '#F8F9F8',
+  background: '#F7F8F6',
   surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
   surfaceSecondary: '#F1F4F5',
-  textPrimary: '#1E2A31',
-  textSecondary: '#5F6B72',
-  textMuted: '#8A969D',
-  border: '#E1E6E8',
+  textPrimary: '#202D32',
+  textSecondary: '#718087',
+  textMuted: '#89979D',
+  border: '#DDE4E6',
   divider: '#E9EDEE',
-  primary: '#334E5C',
-  primaryPressed: '#263E49',
-  primarySoft: '#E4EEF2',
-  success: '#31735B',
-  successSoft: '#E6F2EC',
-  warning: '#A66B1E',
-  warningSoft: '#FBF0DE',
-  danger: '#B54747',
-  dangerSoft: '#FBE9E9',
-  info: '#3E7091',
-  infoSoft: '#E6F0F5',
+  primary: '#315D6B',
+  primaryStrong: '#234754',
+  primaryPressed: '#234754',
+  primarySoft: '#E4F1F4',
+  accent: '#6674D9',
+  accentSoft: '#EEF0FF',
+  success: '#2D936C',
+  successSoft: '#E4F5ED',
+  warning: '#C88A2B',
+  warningSoft: '#FFF1D8',
+  danger: '#D96565',
+  dangerSoft: '#FCE8E8',
+  expense: '#D96565',
+  expenseSoft: '#FCE8E8',
+  info: '#4A8FBC',
+  infoSoft: '#E5F2FA',
+  lavenderSoft: '#F1ECFA',
 } as const;
 
 export const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 40 } as const;
 export const radius = { small: 8, medium: 12, large: 16, pill: 999 } as const;
 export const sizes = { touchTarget: 48, button: 48, icon: 22, fab: 56, input: 52, tabBar: 64 } as const;
+export const motion = { fast: 140, normal: 240, slow: 360, pressScale: 0.98 } as const;
 
 export const shadows: Record<'card' | 'floating' | 'bottomSheet', ViewStyle> = {
   card:
@@ -59,7 +67,11 @@ export const shadows: Record<'card' | 'floating' | 'bottomSheet', ViewStyle> = {
     }) ?? {},
 };
 
-const systemFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' });
+const systemFont = Platform.select({
+  ios: 'Inter_400Regular',
+  android: 'Inter_400Regular',
+  default: 'Inter_400Regular',
+});
 export const typography: Record<
   | 'display'
   | 'screenTitle'
@@ -158,5 +170,5 @@ export const typography: Record<
   button: { fontFamily: systemFont, fontSize: 16, lineHeight: 20, fontWeight: '700' },
 };
 
-export const lightTheme = { colors, spacing, radius, sizes, shadows, typography } as const;
+export const lightTheme = { colors, spacing, radius, sizes, shadows, typography, motion } as const;
 export type AppTheme = typeof lightTheme;

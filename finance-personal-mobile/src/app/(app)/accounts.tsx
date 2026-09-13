@@ -2,16 +2,20 @@ import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { useAccounts } from '@/features/accounts/use-accounts';
+import { balanceForAccount } from '@/features/accounts/account-balances';
+import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
+import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { spacing } from '@/theme';
 import { AccountCard } from '@/ui/financial';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
-import { Button, Screen } from '@/ui/primitives';
+import { IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 
 export default function AccountsScreen() {
   const { hidden } = usePrivacy();
   const accounts = useAccounts();
+  const dashboard = useDashboardMonth(currentDashboardPeriod());
   if (accounts.isPending)
     return (
       <Screen>
@@ -31,7 +35,20 @@ export default function AccountsScreen() {
   const inactive = accounts.data.filter((account) => !account.active);
   return (
     <Screen scroll>
-      <ScreenHeader title="Cuentas" subtitle="Tus cuentas" />
+      <ScreenHeader
+        title="Cuentas"
+        subtitle="Tus cuentas"
+        rightAction={
+          accounts.data.length ? (
+            <IconButton
+              name="add"
+              accessibilityLabel="Agregar cuenta"
+              onPress={() => router.push('/(app)/account-form')}
+              tone="primary"
+            />
+          ) : undefined
+        }
+      />
       {active.length ? (
         <>
           <SectionHeader title="Activas" />
@@ -45,7 +62,7 @@ export default function AccountsScreen() {
                 name={account.name ?? 'Cuenta'}
                 typeLabel={account.type ?? 'Cuenta'}
                 currency={account.currency ?? 'COP'}
-                balance={0}
+                balance={balanceForAccount(dashboard.data?.accounts, account.id)}
                 active
                 privacyHidden={hidden}
               />
@@ -54,8 +71,11 @@ export default function AccountsScreen() {
         </>
       ) : (
         <EmptyState
-          title="Aún no tienes cuentas"
-          description="Crea tu primera cuenta para empezar a organizar tu dinero."
+          title="Tu dinero empieza aquí"
+          description="Agrega la cuenta donde manejas tu dinero."
+          actionLabel="Agregar cuenta"
+          onAction={() => router.push('/(app)/account-form')}
+          tone="primary"
         />
       )}
       {inactive.length ? (
@@ -71,7 +91,7 @@ export default function AccountsScreen() {
                 name={account.name ?? 'Cuenta'}
                 typeLabel={account.type ?? 'Cuenta'}
                 currency={account.currency ?? 'COP'}
-                balance={0}
+                balance={balanceForAccount(dashboard.data?.accounts, account.id)}
                 active={false}
                 privacyHidden={hidden}
               />
@@ -79,7 +99,6 @@ export default function AccountsScreen() {
           </View>
         </>
       ) : null}
-      <Button onPress={() => router.push('/(app)/account-form')}>Crear cuenta</Button>
     </Screen>
   );
 }

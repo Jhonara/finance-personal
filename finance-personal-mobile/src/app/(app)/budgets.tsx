@@ -10,7 +10,8 @@ import { useBudgets } from '@/features/secondary/use-secondary';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { BudgetProgress } from '@/ui/financial';
 import { ScreenHeader } from '@/ui/headers';
-import { Button, Screen } from '@/ui/primitives';
+import { Button, IconButton, Screen } from '@/ui/primitives';
+import { spacing, typography } from '@/theme';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 const status = (value: string | undefined): 'OK' | 'WARNING' | 'EXCEEDED' =>
   value === 'WARNING' ? 'WARNING' : value === 'EXCEEDED' ? 'EXCEEDED' : 'OK';
@@ -41,13 +42,20 @@ export default function BudgetsScreen() {
         back
         onBack={() => router.back()}
       />
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Pressable accessibilityRole="button" onPress={() => setPeriod((x) => shiftDashboardPeriod(x, -1))}>
-          <Text>Mes anterior</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => setPeriod((x) => shiftDashboardPeriod(x, 1))}>
-          <Text>Mes siguiente</Text>
-        </Pressable>
+      <View style={styles.period}>
+        <IconButton
+          name="chevron-back"
+          accessibilityLabel="Mes anterior"
+          tone="primary"
+          onPress={() => setPeriod((x) => shiftDashboardPeriod(x, -1))}
+        />
+        <Text style={typography.cardTitle}>{formatDashboardPeriod(period)}</Text>
+        <IconButton
+          name="chevron-forward"
+          accessibilityLabel="Mes siguiente"
+          tone="primary"
+          onPress={() => setPeriod((x) => shiftDashboardPeriod(x, 1))}
+        />
       </View>
       {q.data.length ? (
         q.data.map((x) => (
@@ -78,13 +86,23 @@ export default function BudgetsScreen() {
         ))
       ) : (
         <EmptyState
-          title="Aún no tienes presupuestos para este mes."
-          description="Define límites para tus categorías de gasto."
+          title="Dale un límite a tus gastos"
+          description="Define cuánto quieres destinar a una categoría este mes."
           actionLabel="Crear presupuesto"
           onAction={() => router.push('/(app)/budget-form')}
         />
       )}
-      <Button onPress={() => router.push('/(app)/budget-form')}>Crear presupuesto</Button>
+      {q.data.length ? (
+        <Button onPress={() => router.push('/(app)/budget-form')}>Crear presupuesto</Button>
+      ) : null}
     </Screen>
   );
 }
+const styles = {
+  period: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: spacing.sm,
+  },
+};

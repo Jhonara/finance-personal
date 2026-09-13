@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState, type ComponentProps, type PropsWithChildren } from 'react';
+import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -30,6 +30,7 @@ export function Screen({
   style,
   refreshing,
   onRefresh,
+  floatingAction,
 }: PropsWithChildren<{
   scroll?: boolean;
   padded?: boolean;
@@ -37,6 +38,7 @@ export function Screen({
   style?: ViewStyle;
   refreshing?: boolean;
   onRefresh?: () => void;
+  floatingAction?: ReactNode;
 }>) {
   const content = scroll ? (
     <ScrollView
@@ -65,6 +67,7 @@ export function Screen({
       ) : (
         content
       )}
+      {floatingAction}
     </SafeAreaView>
   );
 }
@@ -79,9 +82,9 @@ export function Button({
   onPress,
   accessibilityLabel,
 }: PropsWithChildren<{
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'regular' | 'compact';
-  tone?: 'primary' | 'warning' | 'info';
+  tone?: 'primary' | 'warning' | 'info' | 'success' | 'danger' | 'accent';
   loading?: boolean;
   disabled?: boolean;
   onPress?: () => void;
@@ -108,7 +111,13 @@ export function Button({
           color={variant === 'primary' || variant === 'danger' ? colors.surface : colors.primary}
         />
       ) : (
-        <Text style={[typography.button, styles[`buttonText_${variant}`], variant === 'secondary' && secondaryToneTextStyles[tone]]}>
+        <Text
+          style={[
+            typography.button,
+            styles[`buttonText_${variant}`],
+            variant === 'secondary' && secondaryToneTextStyles[tone],
+          ]}
+        >
           {children}
         </Text>
       )}
@@ -164,17 +173,33 @@ export function Input({
   icon?: IconName;
 }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isPassword = Boolean(secureTextEntry);
   return (
     <View style={styles.field}>
-      <Text style={typography.label}>{label}</Text>
-      <View style={[styles.inputShell, Boolean(error) && styles.inputError, disabled && styles.disabled]}>
+      {label ? <Text style={typography.label}>{label}</Text> : null}
+      <View
+        style={[
+          styles.inputShell,
+          focused && styles.inputFocused,
+          Boolean(error) && styles.inputError,
+          disabled && styles.disabled,
+        ]}
+      >
         {icon && <Ionicons name={icon} size={sizes.icon} color={colors.textMuted} />}
         <TextInput
           editable={!disabled}
           placeholderTextColor={colors.textMuted}
           style={[typography.body, styles.input, style]}
           {...props}
+          onFocus={(event) => {
+            setFocused(true);
+            props.onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            props.onBlur?.(event);
+          }}
           secureTextEntry={isPassword && !passwordVisible}
         />
         {isPassword && (
@@ -206,27 +231,54 @@ export function MoneyInput({
   value,
   onChangeText,
   currency = 'COP',
+  label = 'Monto',
+  error,
+  disabled,
   ...props
 }: Omit<ComponentProps<typeof Input>, 'onChangeText' | 'value'> & {
   value: string;
   onChangeText(value: string): void;
   currency?: string;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
-      <Text style={typography.label}>{props.label ?? 'Monto'}</Text>
-      <View style={styles.moneyShell}>
+      <Text style={typography.label}>{label}</Text>
+      <View
+        style={[
+          styles.moneyShell,
+          focused && styles.inputFocused,
+          Boolean(error) && styles.inputError,
+          disabled && styles.disabled,
+        ]}
+      >
         <Text style={styles.currency}>{currency}</Text>
         <TextInput
-          accessibilityLabel={props.label ?? 'Monto'}
+          accessibilityLabel={label}
+          editable={!disabled}
           keyboardType="decimal-pad"
           value={formatMoneyInput(value)}
           onChangeText={(next) => onChangeText(preserveMoneyInput(next))}
           placeholderTextColor={colors.textMuted}
           style={[typography.moneyLarge, styles.moneyInput]}
           {...props}
+          onFocus={(event) => {
+            setFocused(true);
+            props.onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            props.onBlur?.(event);
+          }}
         />
       </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+          {error}
+        </Text>
+      ) : props.helperText ? (
+        <Text style={typography.caption}>{props.helperText}</Text>
+      ) : null}
     </View>
   );
 }
@@ -236,11 +288,13 @@ export function SelectField({
   value,
   placeholder = 'Seleccionar',
   onPress,
+  disabled = false,
 }: {
   label: string;
   value?: string;
   placeholder?: string;
   onPress?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <View style={styles.field}>
@@ -248,8 +302,14 @@ export function SelectField({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
+        disabled={disabled}
         onPress={onPress}
-        style={({ pressed }) => [styles.inputShell, styles.select, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.inputShell,
+          styles.select,
+          disabled && styles.disabled,
+          pressed && styles.pressed,
+        ]}
       >
         <Text style={[typography.body, !value && styles.placeholder]}>{value ?? placeholder}</Text>
         <Ionicons name="chevron-down" size={sizes.icon} color={colors.textSecondary} />
@@ -262,8 +322,15 @@ export function DateField({ value, onPress }: { value: string; onPress?: () => v
   return <SelectField label="Fecha" value={value} onPress={onPress} />;
 }
 
-export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
-  return <View style={[styles.card, style]}>{children}</View>;
+export function Card({
+  children,
+  style,
+  tone = 'default',
+}: PropsWithChildren<{
+  style?: StyleProp<ViewStyle>;
+  tone?: 'default' | 'tonal' | 'success' | 'expense' | 'warning' | 'info' | 'accent';
+}>) {
+  return <View style={[styles.card, cardToneStyles[tone], style]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -278,8 +345,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  button_primary: { backgroundColor: colors.primary },
+  button_primary: { backgroundColor: colors.primaryStrong },
   button_secondary: { backgroundColor: colors.primarySoft },
+  button_outline: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   button_ghost: { backgroundColor: 'transparent' },
   button_danger: { backgroundColor: colors.danger },
   buttonCompact: { minHeight: 44, paddingHorizontal: spacing.lg },
@@ -287,6 +355,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.48 },
   buttonText_primary: { color: colors.surface },
   buttonText_secondary: { color: colors.primary },
+  buttonText_outline: { color: colors.primary },
   buttonText_ghost: { color: colors.primary },
   buttonText_danger: { color: colors.surface },
   iconButton: {
@@ -312,6 +381,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, minHeight: sizes.input, color: colors.textPrimary },
   inputError: { borderColor: colors.danger },
+  inputFocused: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   disabled: { backgroundColor: colors.surfaceSecondary },
   errorText: { ...typography.caption, color: colors.danger },
   moneyShell: {
@@ -342,10 +412,26 @@ const secondaryToneStyles = {
   primary: { backgroundColor: colors.primarySoft },
   warning: { backgroundColor: colors.warningSoft },
   info: { backgroundColor: colors.infoSoft },
+  success: { backgroundColor: colors.successSoft },
+  danger: { backgroundColor: colors.dangerSoft },
+  accent: { backgroundColor: colors.accentSoft },
 } as const;
 
 const secondaryToneTextStyles = {
   primary: { color: colors.primary },
   warning: { color: colors.warning },
   info: { color: colors.info },
+  success: { color: colors.success },
+  danger: { color: colors.danger },
+  accent: { color: colors.accent },
+} as const;
+
+const cardToneStyles = {
+  default: {},
+  tonal: { backgroundColor: colors.surfaceSecondary },
+  success: { backgroundColor: colors.successSoft, borderColor: colors.successSoft },
+  expense: { backgroundColor: colors.expenseSoft, borderColor: colors.expenseSoft },
+  warning: { backgroundColor: colors.warningSoft, borderColor: colors.warningSoft },
+  info: { backgroundColor: colors.infoSoft, borderColor: colors.infoSoft },
+  accent: { backgroundColor: colors.accentSoft, borderColor: colors.accentSoft },
 } as const;

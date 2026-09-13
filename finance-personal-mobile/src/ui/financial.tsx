@@ -37,7 +37,12 @@ export function StatCard({
 }) {
   const presentation = statTone[tone];
   return (
-    <Card style={[styles.stat, { backgroundColor: presentation.backgroundColor, borderColor: presentation.borderColor }]}>
+    <Card
+      style={[
+        styles.stat,
+        { backgroundColor: presentation.backgroundColor, borderColor: presentation.borderColor },
+      ]}
+    >
       <View style={styles.row}>
         <Text style={typography.label}>{label}</Text>
         <View style={[styles.statIcon, { backgroundColor: presentation.badgeColor }]}>
@@ -100,19 +105,30 @@ export function TransactionRow({
   title,
   subtitle,
   amount,
+  amountPrefix = '',
   currency = 'COP',
   privacyHidden = false,
+  statusLabel,
+  onPress,
 }: {
   type: TransactionKind;
   title: string;
   subtitle: string;
   amount: number;
+  amountPrefix?: '' | '+' | '-';
   currency?: string;
   privacyHidden?: boolean;
+  statusLabel?: string;
+  onPress?: () => void;
 }) {
   const presentation = transactionPresentation[type];
   return (
-    <View accessibilityLabel={`${presentation.label}: ${title}`} style={styles.transaction}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${presentation.label}. ${subtitle}.`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.transaction, pressed && styles.transactionPressed]}
+    >
       <View style={[styles.transactionIcon, { backgroundColor: `${toneColors[presentation.tone]}1A` }]}>
         <Ionicons
           name={presentation.icon as keyof typeof Ionicons.glyphMap}
@@ -125,11 +141,16 @@ export function TransactionRow({
         <Text style={typography.caption}>
           {presentation.label} · {subtitle}
         </Text>
+        {statusLabel && statusLabel !== 'Registrado' ? (
+          <Text style={styles.transactionStatus}>{statusLabel}</Text>
+        ) : null}
       </View>
       <Text style={[typography.moneySmall, { color: toneColors[presentation.tone] }]}>
-        {formatPrivateMoney(amount, currency, privacyHidden)}
+        {privacyHidden
+          ? formatPrivateMoney(amount, currency, true)
+          : `${amountPrefix}${formatPrivateMoney(amount, currency, false)}`}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -217,7 +238,13 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   grow: { flex: 1, gap: spacing.xs },
   stat: { flex: 1, minWidth: 150, padding: spacing.lg, gap: spacing.sm },
-  statIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
+  statIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
   account: {
     padding: spacing.lg,
     flexDirection: 'row',
@@ -227,14 +254,25 @@ const styles = StyleSheet.create({
   inactive: { opacity: 0.62 },
   pressed: { opacity: 0.75 },
   accountLeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  accountIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySoft },
+  accountIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
   transaction: {
     minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
+  transactionPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
+  transactionStatus: { ...typography.caption, color: colors.warning },
   transactionIcon: {
     width: 40,
     height: 40,
@@ -261,11 +299,36 @@ const styles = StyleSheet.create({
 });
 
 const statTone = {
-  primary: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoft, badgeColor: colors.surface, color: colors.primary },
-  income: { backgroundColor: colors.successSoft, borderColor: colors.successSoft, badgeColor: colors.surface, color: colors.success },
-  expense: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerSoft, badgeColor: colors.surface, color: colors.danger },
-  info: { backgroundColor: colors.infoSoft, borderColor: colors.infoSoft, badgeColor: colors.surface, color: colors.info },
-  neutral: { backgroundColor: colors.surface, borderColor: colors.border, badgeColor: colors.primarySoft, color: colors.primary },
+  primary: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primarySoft,
+    badgeColor: colors.surface,
+    color: colors.primary,
+  },
+  income: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.successSoft,
+    badgeColor: colors.surface,
+    color: colors.success,
+  },
+  expense: {
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.dangerSoft,
+    badgeColor: colors.surface,
+    color: colors.danger,
+  },
+  info: {
+    backgroundColor: colors.infoSoft,
+    borderColor: colors.infoSoft,
+    badgeColor: colors.surface,
+    color: colors.info,
+  },
+  neutral: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    badgeColor: colors.primarySoft,
+    color: colors.primary,
+  },
 } as const;
 
 function accountTypeIcon(type: string): keyof typeof Ionicons.glyphMap {

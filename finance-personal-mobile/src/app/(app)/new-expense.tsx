@@ -9,9 +9,10 @@ import { useCategories } from '@/features/categories/use-categories';
 import { useExpenseMutation } from '@/features/mutations';
 import { financialErrorMessage, unavailableResource } from '@/features/transactions/form-errors';
 import { useFeedback } from '@/feedback/feedback-provider';
-import { spacing } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
+import { QuickCategoryModal } from '@/ui/quick-category-modal';
 import { Button, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { localDateFromNative } from '@/utils/local-date';
@@ -27,7 +28,7 @@ export default function NewExpenseScreen() {
   const form = useForm<Form>({
     defaultValues: { amount: '', expenseDate: localDateFromNative(new Date()), description: '' },
   });
-  const [selector, setSelector] = useState<'account' | 'category' | null>(null);
+  const [selector, setSelector] = useState<'account' | 'category' | 'quickCategory' | null>(null);
   const accounts = useAccounts();
   const categories = useCategories('EXPENSE');
   const mutation = useExpenseMutation();
@@ -51,7 +52,7 @@ export default function NewExpenseScreen() {
       },
       {
         onSuccess: () => {
-          feedback.show('Gasto registrado.');
+          feedback.show('Gasto registrado.', 'success');
           router.back();
         },
         onError: (error) => {
@@ -66,7 +67,7 @@ export default function NewExpenseScreen() {
             form.setValue('categoryId', undefined);
             void categories.refetch();
           }
-          if (message) feedback.show(message);
+          if (message) feedback.show(message, 'error');
         },
       },
     );
@@ -75,8 +76,19 @@ export default function NewExpenseScreen() {
   const selectedCategory = categories.data?.find((item) => item.id === form.watch('categoryId'));
   return (
     <Screen scroll keyboard>
-      <ScreenHeader title="Nuevo gasto" back onBack={() => router.back()} />
+      <ScreenHeader
+        title="Nuevo gasto"
+        subtitle="Registra una salida de dinero"
+        back
+        onBack={() => router.back()}
+      />
       <View style={styles.form}>
+        <View style={styles.help}>
+          <Text style={typography.cardTitle}>Registra lo que gastaste</Text>
+          <Text style={typography.bodySecondary}>
+            Elige la cuenta desde la que salió el dinero y una categoría para entender mejor tus hábitos.
+          </Text>
+        </View>
         <Controller
           control={form.control}
           name="amount"
@@ -92,10 +104,13 @@ export default function NewExpenseScreen() {
           onPress={() => setSelector('account')}
         />
         {form.formState.errors.accountId?.message && <Text>{form.formState.errors.accountId.message}</Text>}
+        {!accounts.isPending && !(accounts.data ?? []).some((account) => account.active) ? (
+          <Text style={styles.guidance}>Primero crea una cuenta para registrar tus movimientos.</Text>
+        ) : null}
         <SelectField
           label="Categoría"
           value={selectedCategory?.name}
-          placeholder="Opcional"
+          placeholder="Selecciona una categoría"
           onPress={() => setSelector('category')}
         />
         <Controller
@@ -116,7 +131,7 @@ export default function NewExpenseScreen() {
           render={({ field }) => (
             <Input
               label="Descripción"
-              placeholder="Opcional"
+              placeholder="Ej. Almuerzo, gasolina, Netflix"
               value={field.value}
               onChangeText={field.onChange}
               error={form.formState.errors.description?.message}
@@ -124,7 +139,7 @@ export default function NewExpenseScreen() {
           )}
         />
         <Button loading={mutation.isPending} disabled={mutation.isPending} onPress={submit}>
-          Guardar gasto
+          Registrar gasto
         </Button>
       </View>
       <ModalSelector
@@ -133,7 +148,13 @@ export default function NewExpenseScreen() {
         loading={accounts.isPending}
         options={(accounts.data ?? [])
           .filter((x) => x.active && x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Cuenta' }))}
+          .map((x) => ({
+            id: x.id!,
+            label: x.name ?? 'Cuenta',
+            subtitle: `${x.type ?? 'Cuenta'} · ${x.currency ?? 'COP'}`,
+            icon: 'wallet-outline',
+          }))}
+        selectedId={form.watch('accountId')}
         onClose={() => setSelector(null)}
         onSelect={(id) => form.setValue('accountId', id)}
       />
@@ -143,16 +164,34 @@ export default function NewExpenseScreen() {
         loading={categories.isPending}
         options={(categories.data ?? [])
           .filter((x) => x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría' }))}
+          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría', icon: 'pricetag-outline' }))}
+        selectedId={form.watch('categoryId')}
         onClose={() => setSelector(null)}
         emptyActionLabel="Crear categoría"
         onEmptyAction={() => {
-          setSelector(null);
-          router.push({ pathname: '/(app)/category-form', params: { type: 'EXPENSE' } });
+          setSelector('quickCategory');
         }}
         onSelect={(id) => form.setValue('categoryId', id)}
+      />
+      <QuickCategoryModal
+        visible={selector === 'quickCategory'}
+        type="EXPENSE"
+        onClose={() => setSelector(null)}
+        onCreated={(id) => {
+          form.setValue('categoryId', id);
+          setSelector(null);
+        }}
       />
     </Screen>
   );
 }
-const styles = StyleSheet.create({ form: { gap: spacing.lg, paddingTop: spacing.md } });
+const styles = StyleSheet.create({
+  form: { gap: spacing.lg, paddingTop: spacing.md },
+  help: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.large,
+    backgroundColor: colors.dangerSoft,
+  },
+  guidance: { ...typography.caption, marginTop: -spacing.md, color: colors.warning },
+});

@@ -10,6 +10,7 @@ import { Button, SelectField } from '@/ui/primitives';
 import {
   transactionStatusLabels,
   transactionTypeLabels,
+  filterCount,
   validateTransactionFilters,
   type PeriodMode,
   type TransactionFilters,
@@ -197,6 +198,9 @@ export function TransactionFiltersModal({
                 />
               )}
               {error && <Text style={styles.error}>{error}</Text>}
+              {filterCount(draft) ? (
+                <Text style={styles.count}>{filterCount(draft)} filtros seleccionados</Text>
+              ) : null}
               <Button onPress={apply}>Aplicar filtros</Button>
               <Button variant="ghost" onPress={clear}>
                 Limpiar filtros
@@ -308,4 +312,5 @@ const styles = StyleSheet.create({
   modeTextActive: { ...typography.label, color: colors.primary },
   clear: { ...typography.caption, color: colors.primary },
   error: { ...typography.caption, color: colors.danger },
+  count: { ...typography.caption, color: colors.textSecondary },
 });

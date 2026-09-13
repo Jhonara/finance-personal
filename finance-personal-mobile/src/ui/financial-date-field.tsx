@@ -1,7 +1,9 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { nativeFromLocalDate, localDateFromNative } from '@/utils/local-date';
+import { colors, radius, sizes, spacing, typography } from '@/theme';
 export function FinancialDateField({
   label,
   value,
@@ -16,10 +18,16 @@ export function FinancialDateField({
   const [open, setOpen] = useState(false);
   const pickerValue = value || localDateFromNative(new Date());
   return (
-    <View>
-      <Text>{label}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => setOpen(true)}>
-        <Text>{value || 'Selecciona una fecha'}</Text>
+    <View style={styles.field}>
+      <Text style={typography.label}>{label}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [styles.control, pressed && styles.pressed]}
+      >
+        <Text style={[typography.body, !value && styles.placeholder]}>{value || 'Selecciona una fecha'}</Text>
+        <Ionicons name="calendar-outline" size={sizes.icon} color={colors.primary} />
       </Pressable>
       {open && (
         <DateTimePicker
@@ -31,7 +39,25 @@ export function FinancialDateField({
           }}
         />
       )}
-      {error && <Text>{error}</Text>}
+      {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  field: { gap: spacing.sm },
+  control: {
+    minHeight: sizes.input,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.medium,
+    backgroundColor: colors.surface,
+  },
+  placeholder: { color: colors.textMuted },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
+  error: { ...typography.caption, color: colors.danger },
+});

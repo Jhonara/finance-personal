@@ -10,6 +10,7 @@ import { ScreenHeader } from '@/ui/headers';
 import { accountConflict, type AccountConflict } from '@/features/accounts/account-conflicts';
 import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
+import { balanceForAccount } from '@/features/accounts/account-balances';
 export default function AccountDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const accountsQuery = useAccounts();
@@ -22,7 +23,7 @@ export default function AccountDetail() {
   const [confirm, setConfirm] = useState(false);
   const [conflict, setConflict] = useState<AccountConflict>(null);
   const { hidden } = usePrivacy();
-  const balance = dashboard.data?.accounts?.find((item) => item.id === account?.id)?.balance ?? 0;
+  const balance = balanceForAccount(dashboard.data?.accounts, account?.id);
   if (!account)
     return (
       <Screen>
