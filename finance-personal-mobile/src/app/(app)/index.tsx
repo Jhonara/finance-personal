@@ -21,6 +21,8 @@ import { useOpeningBalanceExists } from '@/features/onboarding/use-opening-balan
 import { useFirstOrdinaryMovementExists } from '@/features/onboarding/use-first-ordinary-movement-exists';
 import { createSetupSteps, setupProgress, type SetupStepId } from '@/features/onboarding/first-run-progress';
 import { firstRunStorage } from '@/features/onboarding/first-run-storage';
+import { useGuidedSetupVisibility } from '@/features/onboarding/use-guided-setup-visibility';
+import { useFeedback } from '@/feedback/feedback-provider';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, spacing, typography } from '@/theme';
@@ -37,7 +39,6 @@ export default function HomeScreen() {
   const [period, setPeriod] = useState(currentDashboardPeriod);
   const [quickActions, setQuickActions] = useState(false);
   const [showFabHint, setShowFabHint] = useState(false);
-  const [showGuidedSetup, setShowGuidedSetup] = useState(true);
   const greetingEntrance = useRef(new Animated.Value(0)).current;
   const summaryEntrance = useRef(new Animated.Value(0)).current;
   const flowEntrance = useRef(new Animated.Value(0)).current;
@@ -45,6 +46,8 @@ export default function HomeScreen() {
   const { hidden, toggle } = usePrivacy();
   const dashboard = useDashboardMonth(period);
   const currentUser = useCurrentUser();
+  const guidedSetup = useGuidedSetupVisibility(currentUser.data?.id);
+  const feedback = useFeedback();
   const openingBalanceExists = useOpeningBalanceExists(
     Boolean(dashboard.data?.accounts?.some((account) => account.active)),
   );
@@ -62,18 +65,6 @@ export default function HomeScreen() {
   const setup = setupProgress(setupSteps);
   const hasGuidedMovement = setupSteps.some((step) => step.id === 'movement' && step.completed);
   const greeting = dashboardGreeting(new Date(), currentUser.data?.name);
-  useEffect(() => {
-    const userId = currentUser.data?.id;
-    if (!userId || !dashboard.isSuccess) return;
-    if (!setup.isComplete) {
-      setShowGuidedSetup(true);
-      return;
-    }
-    void firstRunStorage.read(firstRunStorage.completionKey(userId)).then((value) => {
-      setShowGuidedSetup(value !== 'done');
-      if (value !== 'done') void firstRunStorage.mark(firstRunStorage.completionKey(userId));
-    });
-  }, [currentUser.data?.id, dashboard.isSuccess, setup.isComplete]);
   useEffect(() => {
     const userId = currentUser.data?.id;
     if (!userId || !dashboard.isSuccess || !dashboardAccounts.length || hasGuidedMovement) return;
@@ -203,11 +194,16 @@ export default function HomeScreen() {
           tone="primary"
         />
       </View>
-      {showGuidedSetup ? (
+      {guidedSetup.visible ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
           <GuidedSetupCard
             steps={setupSteps}
             completed={setup.completed}
+            onContinue={() => {
+              void guidedSetup.dismiss().then((saved) => {
+                if (!saved) feedback.show('No pudimos guardar tu avance. Pulsa Continuar para reintentar.');
+              });
+            }}
             onAction={(id: SetupStepId) => {
               if (id === 'account') router.push('/(app)/account-form');
               if (id === 'openingBalance') router.push('/(app)/accounts');

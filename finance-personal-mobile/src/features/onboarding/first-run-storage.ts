@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 const keyFor = (kind: 'intro' | 'hint' | 'completion', userId: number, suffix = '') =>
-  `finance-first-run-v2:${kind}:${userId}${suffix ? `:${suffix}` : ''}`;
+  `finance-first-run-v2.${kind}.${userId}${suffix ? `.${suffix}` : ''}`;
 
 export const firstRunStorage = {
   introKey: (userId: number) => keyFor('intro', userId),

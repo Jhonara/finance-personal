@@ -4,11 +4,13 @@ import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useAccountUpdateMutation, useOpeningBalanceMutation } from '@/features/mutations';
 import { usePrivacy } from '@/privacy/privacy-provider';
-import { formatPrivateMoney } from '@/privacy/privacy-format';
-import { Button, Input, MoneyInput, Screen } from '@/ui/primitives';
+import { AccountBalanceAmount } from '@/ui/account-balance';
+import { Button, Card, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { accountConflict, type AccountConflict } from '@/features/accounts/account-conflicts';
 import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
+import { useFirstOrdinaryMovementExists } from '@/features/onboarding/use-first-ordinary-movement-exists';
+import { useOpeningBalanceExists } from '@/features/onboarding/use-opening-balance-exists';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { balanceForAccount } from '@/features/accounts/account-balances';
 export default function AccountDetail() {
@@ -23,7 +25,9 @@ export default function AccountDetail() {
   const [confirm, setConfirm] = useState(false);
   const [conflict, setConflict] = useState<AccountConflict>(null);
   const { hidden } = usePrivacy();
-  const balance = balanceForAccount(dashboard.data?.accounts, account?.id);
+  const openingExists = useOpeningBalanceExists(Boolean(account));
+  const ordinaryMovement = useFirstOrdinaryMovementExists(Boolean(account));
+  const balance = balanceForAccount(dashboard, account?.id);
   if (!account)
     return (
       <Screen>
@@ -53,38 +57,64 @@ export default function AccountDetail() {
     );
   return (
     <Screen scroll keyboard>
-      <ScreenHeader title={account.name ?? 'Cuenta'} back onBack={() => router.back()} />
-      <Text>
-        {account.type} · {account.currency}
-      </Text>
-      <Text>{formatPrivateMoney(balance, account.currency ?? 'COP', hidden)}</Text>
+      <ScreenHeader
+        title={account.name ?? 'Cuenta'}
+        subtitle={`${account.type} · ${account.currency}`}
+        back
+        onBack={() => router.back()}
+      />
+      <Card tone="tonal" style={styles.hero}>
+        <Text style={styles.label}>Saldo actual</Text>
+        <AccountBalanceAmount
+          balance={balance}
+          currency={account.currency ?? 'COP'}
+          hidden={hidden}
+          style={styles.balance}
+        />
+      </Card>
+      <Card style={styles.detail}>
+        <Text>Estado · {account.active ? 'Activa' : 'Inactiva'}</Text>
+        <Text>Tipo · {account.type}</Text>
+        <Text>Moneda · {account.currency}</Text>
+      </Card>
       <Input label="Nombre" value={name || account.name || ''} onChangeText={setName} />
-      <Button onPress={save} loading={update.isPending}>
-        Guardar cambios
+      <Button variant="secondary" onPress={save} loading={update.isPending}>
+        Editar cuenta
       </Button>
-      <Button onPress={() => (account.active ? setConfirm(true) : change(true))} loading={update.isPending}>
-        {account.active ? 'Desactivar cuenta' : 'Reactivar cuenta'}
-      </Button>
-      <MoneyInput label="Saldo inicial" value={amount} onChangeText={setAmount} />
+      {!openingExists.data && !ordinaryMovement.data ? (
+        <>
+          <Text>Registra con cuánto empiezas</Text>
+          <Text>Esto representa el dinero que ya tenías antes de empezar a usar Finance Personal.</Text>
+          <MoneyInput label="Saldo inicial" value={amount} onChangeText={setAmount} />
+          <Button
+            loading={opening.isPending}
+            onPress={() =>
+              opening.mutate(
+                {
+                  id: account.id!,
+                  data: { amount: Number(amount), effectiveDate: new Date().toISOString().slice(0, 10) },
+                },
+                {
+                  onSuccess: () => {
+                    void accountsQuery.refetch();
+                    void dashboard.refetch();
+                  },
+                },
+              )
+            }
+          >
+            Registrar saldo inicial
+          </Button>
+        </>
+      ) : (
+        <Text>{openingExists.data ? 'Saldo inicial registrado' : 'Empezaste sin saldo inicial'}</Text>
+      )}
       <Button
-        loading={opening.isPending}
-        onPress={() =>
-          opening.mutate(
-            {
-              id: account.id!,
-              data: { amount: Number(amount), effectiveDate: new Date().toISOString().slice(0, 10) },
-            },
-            {
-              onSuccess: () => {
-                void accountsQuery.refetch();
-                void dashboard.refetch();
-              },
-              onError: (error) => setConflict(accountConflict(error, 'openingBalance')),
-            },
-          )
-        }
+        variant={account.active ? 'danger' : 'primary'}
+        onPress={() => (account.active ? setConfirm(true) : change(true))}
+        loading={update.isPending}
       >
-        Registrar saldo inicial
+        {account.active ? 'Desactivar cuenta' : 'Reactivar cuenta'}
       </Button>
       <Modal transparent visible={confirm}>
         <View style={styles.modal}>
@@ -133,6 +163,10 @@ export default function AccountDetail() {
   );
 }
 const styles = StyleSheet.create({
+  hero: { gap: 4, padding: 20 },
+  detail: { gap: 8, padding: 16 },
+  label: { color: '#718087' },
+  balance: { fontSize: 30, fontWeight: '700', color: '#202D32' },
   modal: {
     marginTop: 96,
     marginHorizontal: 20,

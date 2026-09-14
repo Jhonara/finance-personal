@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Card } from './primitives';
+import type { AccountBalance } from '@/features/accounts/account-balances';
+import { AccountBalanceAmount, accountBalanceLabel } from './account-balance';
 import {
   budgetStatusPresentation,
   transactionPresentation,
@@ -67,17 +69,19 @@ export function AccountCard({
   name: string;
   typeLabel: string;
   currency: string;
-  balance: number;
+  balance: number | AccountBalance;
   active: boolean;
   privacyHidden?: boolean;
   onPress?: () => void;
 }) {
   const accountIcon = accountTypeIcon(typeLabel);
   const friendlyType = accountTypeLabel(typeLabel);
+  const resolvedBalance: AccountBalance =
+    typeof balance === 'number' ? { status: 'known', amount: balance } : balance;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Cuenta ${name}`}
+      accessibilityLabel={`${name}, ${friendlyType}, ${accountBalanceLabel(resolvedBalance, currency, privacyHidden)}`}
       onPress={onPress}
       style={({ pressed }) => [pressed && styles.pressed]}
     >
@@ -94,7 +98,8 @@ export function AccountCard({
             </Text>
           </View>
         </View>
-        <Text style={typography.moneySmall}>{formatPrivateMoney(balance, currency, privacyHidden)}</Text>
+        <AccountBalanceAmount balance={resolvedBalance} currency={currency} hidden={privacyHidden} />
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       </Card>
     </Pressable>
   );

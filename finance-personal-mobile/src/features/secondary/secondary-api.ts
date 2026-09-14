@@ -1,4 +1,4 @@
-import type { components } from '@/api/generated/schema';
+import type { components, operations } from '@/api/generated/schema';
 import { api } from '@/auth/auth-provider';
 
 export type Budget = components['schemas']['BudgetResponse'];
@@ -19,7 +19,11 @@ export const markAlertSeen = async (code: string) => {
 };
 export const getSavingGoals = async () => (await api.get<SavingGoal[]>('/savings/goals')).data;
 export const getSavingProgress = async (id: number) =>
-  (await api.get<components['schemas']['SavingProgressResponse']>(`/savings/goals/${id}/progress`)).data;
+  (
+    await api.get<operations['progress']['responses'][200]['content']['application/json']>(
+      `/savings/goals/${id}/progress`,
+    )
+  ).data;
 export const createSavingGoal = async (data: components['schemas']['CreateSavingGoalRequest']) =>
   (await api.post<SavingGoal>('/savings/goals', data)).data;
 export const addSavingContribution = async (

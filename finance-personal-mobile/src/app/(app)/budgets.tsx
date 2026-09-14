@@ -10,7 +10,7 @@ import { useBudgets } from '@/features/secondary/use-secondary';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { BudgetProgress } from '@/ui/financial';
 import { ScreenHeader } from '@/ui/headers';
-import { Button, IconButton, Screen } from '@/ui/primitives';
+import { Button, Card, IconButton, Screen } from '@/ui/primitives';
 import { spacing, typography } from '@/theme';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 const status = (value: string | undefined): 'OK' | 'WARNING' | 'EXCEEDED' =>
@@ -58,17 +58,45 @@ export default function BudgetsScreen() {
         />
       </View>
       {q.data.length ? (
+        <Card tone="warning" style={styles.summary}>
+          <Text style={typography.cardTitle}>Presupuesto del mes</Text>
+          <Text style={typography.bodySecondary}>
+            {q.data.some((budget) => budget.status === 'EXCEEDED')
+              ? 'Hay categorías que superaron lo planeado.'
+              : q.data.some((budget) => budget.status === 'WARNING')
+                ? 'Tienes categorías cerca de su límite.'
+                : 'Vas dentro de tus límites este mes.'}
+          </Text>
+          <Text style={typography.moneySmall}>
+            Límite total{' '}
+            {q.data.reduce((sum, budget) => sum + (budget.limitAmount ?? 0), 0).toLocaleString('es-CO')}
+          </Text>
+          <Text style={typography.caption}>
+            Gastado{' '}
+            {q.data.reduce((sum, budget) => sum + (budget.spentAmount ?? 0), 0).toLocaleString('es-CO')} ·
+            Disponible{' '}
+            {q.data.reduce((sum, budget) => sum + (budget.remainingAmount ?? 0), 0).toLocaleString('es-CO')}
+          </Text>
+        </Card>
+      ) : null}
+      {q.data.length ? (
         q.data.map((x) => (
           <Pressable
             key={x.id}
             accessibilityRole="button"
             onPress={() =>
               router.push({
-                pathname: '/(app)/budget-form',
+                pathname: '/(app)/budget-detail',
                 params: {
                   id: String(x.id),
                   version: String(x.version ?? 0),
                   limit: String(x.limitAmount ?? 0),
+                  spent: String(x.spentAmount ?? 0),
+                  remaining: String(x.remainingAmount ?? 0),
+                  percentage: String(x.percentageUsed ?? 0),
+                  category: x.categoryName ?? 'Categoría',
+                  status: status(x.status),
+                  period: formatDashboardPeriod(period),
                 },
               })
             }
@@ -105,4 +133,5 @@ const styles = {
     alignItems: 'center' as const,
     marginBottom: spacing.sm,
   },
+  summary: { gap: spacing.sm, marginBottom: spacing.md },
 };

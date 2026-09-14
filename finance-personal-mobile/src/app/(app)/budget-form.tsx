@@ -23,7 +23,12 @@ export default function BudgetForm() {
   const period = currentDashboardPeriod();
   return (
     <Screen scroll keyboard>
-      <ScreenHeader title="Nuevo presupuesto" back onBack={() => router.back()} />
+      <ScreenHeader
+        title={id ? 'Editar presupuesto' : 'Nuevo presupuesto'}
+        subtitle={id ? undefined : 'Define cuánto quieres destinar a una categoría este mes.'}
+        back
+        onBack={() => router.back()}
+      />
       <SelectField
         label="Categoría de gasto"
         value={categories.data?.find((x) => x.id === category)?.name}

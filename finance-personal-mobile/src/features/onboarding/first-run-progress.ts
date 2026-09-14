@@ -5,7 +5,7 @@ export type SetupStep = {
   title: string;
   description: string;
   completed: boolean;
-  resolutionLabel?: 'Omitido';
+  resolutionLabel?: 'Inicio sin saldo inicial';
   actionLabel?: string;
 };
 
@@ -43,14 +43,18 @@ export function createSetupSteps({
     },
     {
       id: 'openingBalance',
-      title: 'Registra tu saldo inicial',
+      title: openingBalanceSkipped
+        ? 'Inicio sin saldo inicial'
+        : openingBalanceRegistered
+          ? 'Saldo inicial registrado'
+          : 'Registra tu saldo inicial',
       description: openingBalanceSkipped
-        ? 'Ya empezaste sin saldo inicial.'
+        ? 'Continuaste directamente con tus movimientos.'
         : hasAccount
           ? 'Añade el dinero con el que empiezas hoy.'
           : 'Disponible cuando crees una cuenta.',
       completed: openingBalanceRegistered || openingBalanceSkipped,
-      resolutionLabel: openingBalanceSkipped ? 'Omitido' : undefined,
+      resolutionLabel: openingBalanceSkipped ? 'Inicio sin saldo inicial' : undefined,
       actionLabel: hasAccount && !openingBalanceRegistered && !hasMovement ? 'Registrar saldo' : undefined,
     },
     {

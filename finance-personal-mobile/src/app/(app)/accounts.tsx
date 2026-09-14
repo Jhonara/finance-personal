@@ -1,15 +1,16 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { useAccounts } from '@/features/accounts/use-accounts';
-import { balanceForAccount } from '@/features/accounts/account-balances';
+import { balanceForAccount, totalAccountBalance } from '@/features/accounts/account-balances';
 import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { usePrivacy } from '@/privacy/privacy-provider';
-import { spacing } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { AccountBalanceAmount } from '@/ui/account-balance';
 import { AccountCard } from '@/ui/financial';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
-import { IconButton, Screen } from '@/ui/primitives';
+import { Card, IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 
 export default function AccountsScreen() {
@@ -37,7 +38,7 @@ export default function AccountsScreen() {
     <Screen scroll>
       <ScreenHeader
         title="Cuentas"
-        subtitle="Tus cuentas"
+        subtitle="Dónde manejas tu dinero"
         rightAction={
           accounts.data.length ? (
             <IconButton
@@ -49,6 +50,25 @@ export default function AccountsScreen() {
           ) : undefined
         }
       />
+      {active.length ? (
+        <Card style={styles.summary}>
+          <Text style={typography.cardTitle}>Tus cuentas</Text>
+          {Array.from(new Set(active.map((account) => account.currency ?? 'COP'))).map((currency) => (
+            <View key={currency} style={styles.currencyTotal}>
+              <Text style={typography.moneySmall}>{currency} ·</Text>
+              <AccountBalanceAmount
+                balance={totalAccountBalance(
+                  active
+                    .filter((account) => (account.currency ?? 'COP') === currency)
+                    .map((account) => balanceForAccount(dashboard, account.id)),
+                )}
+                currency={currency}
+                hidden={hidden}
+              />
+            </View>
+          ))}
+        </Card>
+      ) : null}
       {active.length ? (
         <>
           <SectionHeader title="Activas" />
@@ -62,7 +82,7 @@ export default function AccountsScreen() {
                 name={account.name ?? 'Cuenta'}
                 typeLabel={account.type ?? 'Cuenta'}
                 currency={account.currency ?? 'COP'}
-                balance={balanceForAccount(dashboard.data?.accounts, account.id)}
+                balance={balanceForAccount(dashboard, account.id)}
                 active
                 privacyHidden={hidden}
               />
@@ -91,7 +111,7 @@ export default function AccountsScreen() {
                 name={account.name ?? 'Cuenta'}
                 typeLabel={account.type ?? 'Cuenta'}
                 currency={account.currency ?? 'COP'}
-                balance={balanceForAccount(dashboard.data?.accounts, account.id)}
+                balance={balanceForAccount(dashboard, account.id)}
                 active={false}
                 privacyHidden={hidden}
               />
@@ -102,4 +122,8 @@ export default function AccountsScreen() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({ list: { gap: spacing.sm } });
+const styles = StyleSheet.create({
+  currencyTotal: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  list: { gap: spacing.sm },
+  summary: { gap: spacing.xs, padding: spacing.lg },
+});

@@ -19,6 +19,7 @@ import {
   reverseCreditPayment,
   simulateCredit,
   updateBudget,
+  type SavingGoal,
 } from './secondary-api';
 export const secondaryKeys = {
   budgets: (year: number, month: number) => ['budgets', year, month] as const,
@@ -37,9 +38,15 @@ const invalidate = (client: ReturnType<typeof useQueryClient>, keys: ReadonlyArr
 export const useBudgets = (year: number, month: number) =>
   useQuery({ queryKey: secondaryKeys.budgets(year, month), queryFn: () => getBudgets(year, month) });
 export const useAlerts = () => useQuery({ queryKey: secondaryKeys.alerts, queryFn: getAlerts });
-export const useSavings = () => useQuery({ queryKey: secondaryKeys.savings, queryFn: getSavingGoals });
-export const useSavingProgress = (id: number) =>
-  useQuery({ queryKey: secondaryKeys.savingProgress(id), queryFn: () => getSavingProgress(id) });
+export const useSavings = () =>
+  useQuery({ queryKey: secondaryKeys.savings, queryFn: getSavingGoals, staleTime: 60_000 });
+export const useSavingProgress = (id: number, enabled = true) =>
+  useQuery({
+    queryKey: secondaryKeys.savingProgress(id),
+    queryFn: () => getSavingProgress(id),
+    enabled: enabled && Number.isSafeInteger(id) && id > 0,
+    staleTime: 60_000,
+  });
 export const useCredits = () => useQuery({ queryKey: secondaryKeys.credits, queryFn: getCredits });
 export const useCredit = (id: number) =>
   useQuery({ queryKey: secondaryKeys.credit(id), queryFn: () => getCredit(id) });
@@ -75,7 +82,15 @@ export const useCreateSaving = () => {
   return useMutation({
     mutationFn: createSavingGoal,
     retry: false,
-    onSuccess: () => invalidate(c, [secondaryKeys.savings]),
+    onSuccess: async (goal) => {
+      c.setQueryData<SavingGoal[]>(secondaryKeys.savings, (current) =>
+        current ? [...current.filter((item) => item.id !== goal.id), goal] : undefined,
+      );
+      await Promise.all([
+        c.invalidateQueries({ queryKey: secondaryKeys.savings, exact: true }),
+        c.invalidateQueries({ queryKey: dashboardKeys.all }),
+      ]);
+    },
   });
 };
 export const useContributeSaving = () => {
@@ -84,8 +99,18 @@ export const useContributeSaving = () => {
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof addSavingContribution>[1] }) =>
       addSavingContribution(id, data),
     retry: false,
-    onSuccess: (_data, variables) =>
-      invalidate(c, [secondaryKeys.savings, secondaryKeys.savingProgress(variables.id)]),
+    onSuccess: async (goal, variables) => {
+      c.setQueryData<SavingGoal[]>(secondaryKeys.savings, (current) =>
+        current?.map((item) => (item.id === variables.id ? goal : item)),
+      );
+      if (typeof goal.progress === 'number')
+        c.setQueryData(secondaryKeys.savingProgress(variables.id), goal.progress);
+      await Promise.all([
+        c.invalidateQueries({ queryKey: secondaryKeys.savings, exact: true }),
+        c.invalidateQueries({ queryKey: secondaryKeys.savingProgress(variables.id), exact: true }),
+        c.invalidateQueries({ queryKey: dashboardKeys.all }),
+      ]);
+    },
   });
 };
 export const useCreateCredit = () => {

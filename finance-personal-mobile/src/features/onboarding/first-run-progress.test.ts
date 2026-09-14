@@ -32,7 +32,7 @@ describe('guided first run progress', () => {
     });
     expect(steps.find((step) => step.id === 'openingBalance')).toMatchObject({
       completed: true,
-      resolutionLabel: 'Omitido',
+      resolutionLabel: 'Inicio sin saldo inicial',
     });
   });
 
