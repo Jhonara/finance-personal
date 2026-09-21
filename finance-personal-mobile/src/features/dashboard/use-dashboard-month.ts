@@ -10,7 +10,8 @@ export const dashboardKeys = {
 export function useDashboardMonth(period: DashboardPeriod) {
   return useQuery<DashboardMonth>({
     queryKey: dashboardKeys.month(period),
-    queryFn: () => getDashboardMonth(period.year, period.month),
+    queryFn: ({ queryKey, signal }) => getDashboardMonth(Number(queryKey[1]), Number(queryKey[2]), signal),
+    placeholderData: undefined,
     staleTime: 60_000,
   });
 }

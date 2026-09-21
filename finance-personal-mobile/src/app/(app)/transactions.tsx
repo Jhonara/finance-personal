@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
-import { router } from 'expo-router';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { openForm } from '@/features/forms/form-session';
+import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period';
+
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTransactions } from '@/features/transactions/use-transactions';
 import { useAccounts } from '@/features/accounts/use-accounts';
@@ -23,7 +26,16 @@ import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 export default function TransactionsScreen() {
   const [quickActions, setQuickActions] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState<TransactionFilters>({});
+  const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
+  const [filters, setFilters] = useState<TransactionFilters>(
+    () => dashboardPeriodFromParams(year, month) ?? {},
+  );
+  useFocusEffect(
+    useCallback(() => {
+      const requested = dashboardPeriodFromParams(year, month);
+      if (requested) setFilters(requested);
+    }, [year, month]),
+  );
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
   const [noAccountsOpen, setNoAccountsOpen] = useState(false);
   const { hidden } = usePrivacy();
@@ -81,7 +93,7 @@ export default function TransactionsScreen() {
           {activeFilters ? `Filtros (${activeFilters})` : 'Filtros'}
         </Button>
         {activeFilters ? (
-          <View style={styles.chips}>
+          <ScrollView horizontal style={{ flexBasis: '100%' }} contentContainerStyle={styles.chips}>
             {filterChips(filters, accounts.data ?? []).map((chip) => (
               <Pressable
                 key={chip.key}
@@ -93,7 +105,7 @@ export default function TransactionsScreen() {
                 <Text style={styles.chipText}>{chip.label} ×</Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
         ) : null}
         {activeFilters ? (
           <Pressable
@@ -161,7 +173,7 @@ export default function TransactionsScreen() {
               : 'Crea una cuenta primero para registrar tu saldo y tus movimientos.'
           }
           actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
-          onAction={() => (hasAccounts ? setQuickActions(true) : router.push('/(app)/account-form'))}
+          onAction={() => (hasAccounts ? setQuickActions(true) : openForm('/(app)/account-form'))}
           tone="info"
         />
       )}
@@ -170,15 +182,15 @@ export default function TransactionsScreen() {
         onClose={() => setQuickActions(false)}
         onExpense={() => {
           setQuickActions(false);
-          router.push('/(app)/new-expense');
+          openForm('/(app)/new-expense');
         }}
         onIncome={() => {
           setQuickActions(false);
-          router.push('/(app)/new-income');
+          openForm('/(app)/new-income');
         }}
         onTransfer={() => {
           setQuickActions(false);
-          router.push('/(app)/new-transfer');
+          openForm('/(app)/new-transfer');
         }}
         canTransfer={canTransfer}
       />
@@ -195,7 +207,7 @@ export default function TransactionsScreen() {
             <Button
               onPress={() => {
                 setNoAccountsOpen(false);
-                router.push('/(app)/account-form');
+                openForm('/(app)/account-form');
               }}
             >
               Crear cuenta
@@ -241,10 +253,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, flex: 1 },
+  chips: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs },
   chip: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },

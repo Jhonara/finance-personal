@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { accountTypeLabel } from '@/features/accounts/account-presentation';
+import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,15 +12,27 @@ import { ModalSelector } from '@/ui/modal-selector';
 import { Button, Input, Screen, SelectField } from '@/ui/primitives';
 
 const accountTypes = [
-  { id: 0, value: 'CASH', label: 'Efectivo', helper: 'Dinero que manejas en efectivo' },
-  { id: 1, value: 'BANK', label: 'Banco', helper: 'Cuenta bancaria tradicional' },
-  { id: 2, value: 'DIGITAL_WALLET', label: 'Billetera digital', helper: 'Nequi, Daviplata u otra billetera' },
-  { id: 3, value: 'SAVINGS', label: 'Ahorros', helper: 'Dinero reservado para ahorrar' },
-  { id: 4, value: 'INVESTMENT', label: 'Inversión', helper: 'Inversiones y productos financieros' },
-  { id: 5, value: 'OTHER', label: 'Otro', helper: 'Otro lugar donde administras dinero' },
+  { id: 0, value: 'CASH', label: accountTypeLabel('CASH'), helper: 'Dinero que manejas en efectivo' },
+  { id: 1, value: 'BANK', label: accountTypeLabel('BANK'), helper: 'Cuenta bancaria tradicional' },
+  {
+    id: 2,
+    value: 'DIGITAL_WALLET',
+    label: accountTypeLabel('DIGITAL_WALLET'),
+    helper: 'Nequi, Daviplata u otra billetera',
+  },
+  { id: 3, value: 'SAVINGS', label: accountTypeLabel('SAVINGS'), helper: 'Dinero reservado para ahorrar' },
+  {
+    id: 4,
+    value: 'INVESTMENT',
+    label: accountTypeLabel('INVESTMENT'),
+    helper: 'Inversiones y productos financieros',
+  },
+  { id: 5, value: 'OTHER', label: accountTypeLabel('OTHER'), helper: 'Otro lugar donde administras dinero' },
 ] as const;
 
-export default function AccountForm() {
+function AccountForm() {
+  const active = useFormSessionActive();
+  const submitting = useRef(false);
   const [name, setName] = useState('');
   const [type, setType] = useState<(typeof accountTypes)[number]['value']>('CASH');
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -26,15 +40,26 @@ export default function AccountForm() {
   const feedback = useFeedback();
   const selectedType = accountTypes.find((option) => option.value === type)!;
   const submit = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || submitting.current) return;
+    submitting.current = true;
     mutation.mutate(
       { name: name.trim(), type, currency: 'COP' },
       {
         onSuccess: () => {
+          if (!active()) return;
+          setName('');
+          setType('CASH');
+          setSelectorOpen(false);
+          mutation.reset();
           feedback.show('Cuenta creada. Ya puedes registrar movimientos.', 'success');
           router.back();
         },
-        onError: () => feedback.show('No fue posible crear la cuenta. Inténtalo nuevamente.', 'error'),
+        onError: () => {
+          if (active()) feedback.show('No fue posible crear la cuenta. Inténtalo nuevamente.', 'error');
+        },
+        onSettled: () => {
+          submitting.current = false;
+        },
       },
     );
   };
@@ -90,3 +115,5 @@ const styles = StyleSheet.create({
   form: { gap: spacing.lg, paddingTop: spacing.xl },
   helper: { ...typography.caption, marginTop: -spacing.md, color: colors.textSecondary },
 });
+
+export default withFormSession(AccountForm);

@@ -1,3 +1,5 @@
+import { openForm } from '@/features/forms/form-session';
+import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,7 +16,8 @@ import { financialErrorMessage, unavailableResource } from '@/features/transacti
 import { accountKeys } from '@/features/accounts/use-accounts';
 import { ModalSelector } from '@/ui/modal-selector';
 import { colors, radius, spacing, typography } from '@/theme';
-export default function NewTransferScreen() {
+function NewTransferScreen() {
+  const activeSession = useFormSessionActive();
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState<number>();
   const [destination, setDestination] = useState<number>();
@@ -43,10 +46,18 @@ export default function NewTransferScreen() {
       },
       {
         onSuccess: () => {
+          if (!activeSession()) return;
+          setAmount('');
+          setSource(undefined);
+          setDestination(undefined);
+          setEffectiveDate(localDateFromNative(new Date()));
+          setSelector(null);
+          mutation.reset();
           feedback.show('Transferencia realizada.', 'success');
           router.back();
         },
         onError: (error) => {
+          if (!activeSession()) return;
           if (isInsufficientBalanceError(error)) {
             feedback.show('Saldo insuficiente para realizar la transferencia.', 'error');
             return;
@@ -83,7 +94,7 @@ export default function NewTransferScreen() {
           <Text style={typography.bodySecondary}>
             Las transferencias mueven dinero entre dos cuentas de la misma moneda.
           </Text>
-          <Button variant="secondary" onPress={() => router.push('/(app)/account-form')}>
+          <Button variant="secondary" onPress={() => openForm('/(app)/account-form')}>
             Crear cuenta
           </Button>
         </View>
@@ -178,7 +189,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.infoSoft,
   },
   warning: { ...typography.caption, color: colors.warning, marginTop: -spacing.md },
-  explanation: { ...typography.caption, color: colors.textSecondary },
+  explanation: { ...typography.caption, color: colors.textSecondary, marginVertical: spacing.lg },
   needAccount: {
     gap: spacing.sm,
     padding: spacing.lg,
@@ -186,3 +197,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningSoft,
   },
 });
+
+export default withFormSession(NewTransferScreen);

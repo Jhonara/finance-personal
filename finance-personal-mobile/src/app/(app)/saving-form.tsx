@@ -1,3 +1,4 @@
+import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -15,7 +16,8 @@ import { requestAmount } from '@/features/savings/savings-money';
 import { claimSavingsEvent, type SavingsCelebration } from '@/features/savings/savings-celebrations';
 import { SavingCelebration } from '@/features/savings/saving-celebration';
 
-export default function SavingForm() {
+function SavingForm() {
+  const active = useFormSessionActive();
   const form = useForm({
     defaultValues: { name: '', targetAmount: '' },
     resolver: zodResolver(savingGoalSchema),
@@ -43,11 +45,14 @@ export default function SavingForm() {
         setError('');
         try {
           await mutation.mutateAsync({ name: data.name, targetAmount });
+          if (!active()) return;
+          form.reset();
           setSaved(true);
           feedback.show('Meta de ahorro creada.', 'success');
           let celebrate = false;
           if (first && user.data?.id !== undefined)
             celebrate = await claimSavingsEvent(user.data.id, 'first-goal').catch(() => false);
+          if (!active()) return;
           if (celebrate)
             setCelebration({
               title: 'Tu primera meta está lista',
@@ -55,6 +60,7 @@ export default function SavingForm() {
             });
           else router.back();
         } catch (cause) {
+          if (!active()) return;
           const failure = cause instanceof ApiError ? cause : toApiError(cause);
           setUncertain(failure.status === null || failure.status >= 500);
           setError(
@@ -138,3 +144,5 @@ export default function SavingForm() {
     </Screen>
   );
 }
+
+export default withFormSession(SavingForm);

@@ -1,3 +1,5 @@
+import { openForm } from '@/features/forms/form-session';
+import { FinancialProgressSection } from '@/features/progress/progress-signal';
 import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
@@ -73,8 +75,9 @@ export default function HomeScreen() {
       .then((value) => setShowFabHint(value !== 'done'));
   }, [currentUser.data?.id, dashboard.isSuccess, dashboardAccounts.length, hasGuidedMovement]);
   useEffect(() => {
+    if (!dashboard.isSuccess) return;
     [greetingEntrance, summaryEntrance, flowEntrance, fabEntrance].forEach((value) => value.setValue(0));
-    Animated.stagger(65, [
+    const animation = Animated.stagger(65, [
       Animated.timing(greetingEntrance, {
         toValue: 1,
         duration: 180,
@@ -99,12 +102,40 @@ export default function HomeScreen() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [fabEntrance, flowEntrance, greetingEntrance, period, summaryEntrance]);
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [
+    dashboard.isSuccess,
+    fabEntrance,
+    flowEntrance,
+    greetingEntrance,
+    period.year,
+    period.month,
+    summaryEntrance,
+  ]);
+  const periodControl = (
+    <View style={styles.period}>
+      <IconButton
+        name="chevron-back"
+        accessibilityLabel="Mes anterior"
+        onPress={() => setPeriod((value) => shiftDashboardPeriod(value, -1))}
+        tone="primary"
+      />
+      <Text style={typography.cardTitle}>{formatDashboardPeriod(period)}</Text>
+      <IconButton
+        name="chevron-forward"
+        accessibilityLabel="Mes siguiente"
+        onPress={() => setPeriod((value) => shiftDashboardPeriod(value, 1))}
+        tone="primary"
+      />
+    </View>
+  );
   if (dashboard.isPending)
     return (
       <Screen scroll>
         <ScreenHeader title={greeting} subtitle="Tu resumen financiero" />
+        {periodControl}
         <SkeletonCard />
         <View style={styles.stats}>
           <SkeletonCard />
@@ -119,6 +150,7 @@ export default function HomeScreen() {
     return (
       <Screen>
         <ScreenHeader title={greeting} subtitle="Tu resumen financiero" />
+        {periodControl}
         <ErrorState onRetry={() => void dashboard.refetch()} />
       </Screen>
     );
@@ -158,7 +190,7 @@ export default function HomeScreen() {
               if (currentUser.data?.id)
                 void firstRunStorage.mark(firstRunStorage.hintKey(currentUser.data.id, 'fab'));
               if (hasAccounts) setQuickActions(true);
-              else router.push('/(app)/account-form');
+              else openForm('/(app)/account-form');
             }}
           />
         </Animated.View>
@@ -179,21 +211,7 @@ export default function HomeScreen() {
           }
         />
       </Animated.View>
-      <View style={styles.period}>
-        <IconButton
-          name="chevron-back"
-          accessibilityLabel="Mes anterior"
-          onPress={() => setPeriod((value) => shiftDashboardPeriod(value, -1))}
-          tone="primary"
-        />
-        <Text style={typography.cardTitle}>{formatDashboardPeriod(period)}</Text>
-        <IconButton
-          name="chevron-forward"
-          accessibilityLabel="Mes siguiente"
-          onPress={() => setPeriod((value) => shiftDashboardPeriod(value, 1))}
-          tone="primary"
-        />
-      </View>
+      {periodControl}
       {guidedSetup.visible ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
           <GuidedSetupCard
@@ -205,10 +223,10 @@ export default function HomeScreen() {
               });
             }}
             onAction={(id: SetupStepId) => {
-              if (id === 'account') router.push('/(app)/account-form');
+              if (id === 'account') openForm('/(app)/account-form');
               if (id === 'openingBalance') router.push('/(app)/accounts');
               if (id === 'movement') setQuickActions(true);
-              if (id === 'budget') router.push('/(app)/budget-form');
+              if (id === 'budget') openForm('/(app)/budget-form');
             }}
           />
         </Animated.View>
@@ -233,6 +251,8 @@ export default function HomeScreen() {
               <StatCard
                 key={`assets-${entry.currency}`}
                 label="Activos"
+                tone="income"
+                icon="wallet-outline"
                 value={entry.amount}
                 currency={entry.currency}
                 supportingText={entry.currency}
@@ -243,6 +263,8 @@ export default function HomeScreen() {
               <StatCard
                 key={`liabilities-${entry.currency}`}
                 label="Pasivos"
+                tone="info"
+                icon="document-text-outline"
                 value={entry.amount}
                 currency={entry.currency}
                 supportingText={entry.currency}
@@ -271,6 +293,7 @@ export default function HomeScreen() {
             />
             <StatCard
               label="Flujo neto"
+              compact
               value={data.netCashFlow ?? data.balance ?? 0}
               currency={currency}
               supportingText="Este mes"
@@ -280,10 +303,11 @@ export default function HomeScreen() {
             />
           </View>
         </Animated.View>
+        <FinancialProgressSection dashboard={data} period={period} />
         <SectionHeader
           title="Cuentas"
           actionLabel={hasAccounts ? 'Ver todas' : 'Crear cuenta'}
-          onAction={() => router.push(hasAccounts ? '/(app)/accounts' : '/(app)/account-form')}
+          onAction={() => (hasAccounts ? router.push('/(app)/accounts') : openForm('/(app)/account-form'))}
         />
         {accounts.length ? (
           <View style={styles.list}>
@@ -304,7 +328,7 @@ export default function HomeScreen() {
             title="Tu dinero empieza aquí"
             description="Agrega la cuenta donde manejas tu dinero."
             actionLabel="Agregar cuenta"
-            onAction={() => router.push('/(app)/account-form')}
+            onAction={() => openForm('/(app)/account-form')}
             tone="primary"
           />
         )}
@@ -348,7 +372,7 @@ export default function HomeScreen() {
             title="Tu historial empieza con un movimiento"
             description="Registra un ingreso, gasto o transferencia."
             actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
-            onAction={() => (hasAccounts ? setQuickActions(true) : router.push('/(app)/account-form'))}
+            onAction={() => (hasAccounts ? setQuickActions(true) : openForm('/(app)/account-form'))}
             tone="info"
           />
         )}
@@ -370,15 +394,15 @@ export default function HomeScreen() {
         onClose={() => setQuickActions(false)}
         onExpense={() => {
           setQuickActions(false);
-          router.push('/(app)/new-expense');
+          openForm('/(app)/new-expense');
         }}
         onIncome={() => {
           setQuickActions(false);
-          router.push('/(app)/new-income');
+          openForm('/(app)/new-income');
         }}
         onTransfer={() => {
           setQuickActions(false);
-          router.push('/(app)/new-transfer');
+          openForm('/(app)/new-transfer');
         }}
       />
     </Screen>

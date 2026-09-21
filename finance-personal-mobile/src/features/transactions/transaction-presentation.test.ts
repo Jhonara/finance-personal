@@ -28,3 +28,21 @@ describe('transaction presenter', () => {
     });
   });
 });
+
+import { toTransaction } from '../dashboard/dashboard-adapter';
+it.each([
+  'INCOME',
+  'EXPENSE',
+  'TRANSFER',
+  'OPENING_BALANCE',
+  'REVERSAL',
+  'CREDIT_DISBURSEMENT',
+  'CREDIT_PAYMENT',
+])('Home and History share the %s presenter', (type) => {
+  const record = { type, effectiveDate: '2026-09-16', accountName: 'Nequi' };
+  const home = toTransaction(record);
+  const history = presentTransaction(record);
+  expect(home.title).toBe(history.title);
+  expect(home.subtitle).toBe(history.subtitle);
+  expect(home.title).not.toBe('Movimiento');
+});

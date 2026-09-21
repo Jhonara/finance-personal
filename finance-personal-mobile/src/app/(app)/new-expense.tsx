@@ -1,3 +1,5 @@
+import { accountTypeLabel } from '@/features/accounts/account-presentation';
+import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -24,7 +26,8 @@ type Form = {
   expenseDate: string;
   description: string;
 };
-export default function NewExpenseScreen() {
+function NewExpenseScreen() {
+  const activeSession = useFormSessionActive();
   const form = useForm<Form>({
     defaultValues: { amount: '', expenseDate: localDateFromNative(new Date()), description: '' },
   });
@@ -52,10 +55,15 @@ export default function NewExpenseScreen() {
       },
       {
         onSuccess: () => {
+          if (!activeSession()) return;
+          form.reset({ amount: '', expenseDate: localDateFromNative(new Date()), description: '' });
+          mutation.reset();
+          setSelector(null);
           feedback.show('Gasto registrado.', 'success');
           router.back();
         },
         onError: (error) => {
+          if (!activeSession()) return;
           applyApiFieldErrors(error, form.setError);
           const resource = unavailableResource(error);
           const message = financialErrorMessage(error, resource);
@@ -151,7 +159,7 @@ export default function NewExpenseScreen() {
           .map((x) => ({
             id: x.id!,
             label: x.name ?? 'Cuenta',
-            subtitle: `${x.type ?? 'Cuenta'} · ${x.currency ?? 'COP'}`,
+            subtitle: `${accountTypeLabel(x.type)} · ${x.currency ?? 'COP'}`,
             icon: 'wallet-outline',
           }))}
         selectedId={form.watch('accountId')}
@@ -195,3 +203,5 @@ const styles = StyleSheet.create({
   },
   guidance: { ...typography.caption, marginTop: -spacing.md, color: colors.warning },
 });
+
+export default withFormSession(NewExpenseScreen);

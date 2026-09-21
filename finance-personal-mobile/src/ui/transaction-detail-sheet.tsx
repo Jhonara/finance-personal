@@ -1,9 +1,12 @@
+import { formatLocalDate } from '@/utils/local-date';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { PresentedTransaction } from '@/features/transactions/transaction-presentation';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { transactionPresentation } from './presentation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './primitives';
 
 export function TransactionDetailSheet({
@@ -15,39 +18,49 @@ export function TransactionDetailSheet({
   privacyHidden: boolean;
   onClose(): void;
 }) {
+  const insets = useSafeAreaInsets();
   if (!transaction) return null;
+  const presentation =
+    Object.entries(transactionPresentation).find(([type]) => type === transaction.type)?.[1] ??
+    transactionPresentation.REVERSAL;
+  const tone = colors[presentation.tone];
   const fields = [
-    ['Tipo', transaction.typeLabel],
-    [
-      'Monto',
-      privacyHidden
-        ? '$ ••••••'
-        : `${transaction.amountPrefix}${formatPrivateMoney(transaction.amount ?? 0, transaction.currency ?? 'COP', false)}`,
-    ],
-    ['Fecha', transaction.effectiveDate],
     ['Estado', transaction.statusLabel],
     ['Descripción', transaction.description?.trim()],
     ['Categoría', transaction.categoryName],
-    ['Cuenta', transaction.accountName],
     ['Cuenta origen', transaction.sourceAccountName],
     ['Cuenta destino', transaction.destinationAccountName],
-    ['Moneda', transaction.currency],
   ].filter((field): field is [string, string] => Boolean(field[1]));
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.handle} />
           <View style={styles.titleRow}>
-            <View style={styles.icon}>
-              <Ionicons name="receipt-outline" size={22} color={colors.primary} />
+            <View style={[styles.icon, { backgroundColor: `${tone}1A` }]}>
+              <Ionicons name={presentation.icon as keyof typeof Ionicons.glyphMap} size={22} color={tone} />
             </View>
             <View style={styles.grow}>
               <Text style={typography.sectionTitle}>{transaction.title}</Text>
-              <Text style={typography.bodySecondary}>{transaction.subtitle}</Text>
+              {transaction.title !== transaction.typeLabel ? (
+                <Text style={typography.caption}>{transaction.typeLabel}</Text>
+              ) : null}
             </View>
           </View>
           <ScrollView contentContainerStyle={styles.fields}>
+            <Text style={[typography.moneyMedium, { color: tone }]}>
+              {privacyHidden
+                ? '$ ••••••'
+                : transaction.amountPrefix +
+                  formatPrivateMoney(transaction.amount ?? 0, transaction.currency ?? 'COP', false)}
+            </Text>
+            <Text style={typography.bodySecondary}>
+              {[transaction.accountName, transaction.currency].filter(Boolean).join(' · ')}
+            </Text>
+            <Text style={typography.bodySecondary}>{formatLocalDate(transaction.effectiveDate)}</Text>
             {fields.map(([label, value]) => (
               <View key={label} style={styles.field}>
                 <Text style={typography.caption}>{label}</Text>

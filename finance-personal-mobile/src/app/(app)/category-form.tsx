@@ -1,10 +1,12 @@
+import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCreateCategory } from '@/features/categories/use-categories';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { Button, Input, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
-export default function CategoryForm() {
+function CategoryForm() {
+  const activeSession = useFormSessionActive();
   const { type = 'EXPENSE' } = useLocalSearchParams<{ type?: 'EXPENSE' | 'INCOME' }>();
   const [name, setName] = useState('');
   const m = useCreateCategory();
@@ -22,6 +24,9 @@ export default function CategoryForm() {
               { name: name.trim(), type },
               {
                 onSuccess: () => {
+                  if (!activeSession()) return;
+                  setName('');
+                  m.reset();
                   f.show('Categoría creada.');
                   router.back();
                 },
@@ -34,3 +39,5 @@ export default function CategoryForm() {
     </Screen>
   );
 }
+
+export default withFormSession(CategoryForm);

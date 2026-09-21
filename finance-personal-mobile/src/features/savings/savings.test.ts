@@ -147,3 +147,13 @@ describe('Savings celebrations', () => {
     expect(await claimSavingsEvent(11, 'first-goal')).toBe(true);
   });
 });
+
+it('describes the milestone when actual progress exceeds 75 percent', async () => {
+  const result = await contributionCelebration(
+    100,
+    { id: 8, progress: 70, currentAmount: 700 },
+    { id: 8, name: 'Viaje', progress: 81.25, currentAmount: 812.5 },
+  );
+  expect(result?.title).toBe('¡Nuevo hito: 75%!');
+  expect(result?.badges).toEqual(['75%']);
+});

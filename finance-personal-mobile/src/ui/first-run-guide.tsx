@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { firstRunStorage } from '@/features/onboarding/first-run-storage';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -24,47 +24,64 @@ const slides = [
   },
 ] as const;
 
-export function FirstRunGuide({ userId }: { userId?: number }) {
-  const [visible, setVisible] = useState(false);
+export function FirstRunGuide({
+  userId,
+  replay = false,
+  onClose,
+}: {
+  userId?: number;
+  replay?: boolean;
+  onClose?: () => void;
+}) {
+  const [visible, setVisible] = useState(replay);
   const [slide, setSlide] = useState(0);
   useEffect(() => {
-    if (!userId) return;
+    if (replay || !userId) return;
+    let active = true;
     setSlide(0);
     void firstRunStorage
       .read(firstRunStorage.introKey(userId))
-      .then((value) => setVisible(value !== 'done'))
+      .then((value) => {
+        if (active) setVisible(value !== 'done');
+      })
       .catch(() => setVisible(false));
-  }, [userId]);
+    return () => {
+      active = false;
+    };
+  }, [userId, replay]);
   const close = () => {
     setVisible(false);
-    if (userId) void firstRunStorage.mark(firstRunStorage.introKey(userId));
+    if (!replay && userId) void firstRunStorage.mark(firstRunStorage.introKey(userId));
+    onClose?.();
   };
   const current = slides[slide] ?? slides[0]!;
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={close}>
       <View style={styles.overlay}>
         <View accessibilityViewIsModal style={styles.card}>
-          <View style={styles.icon}>
-            <Ionicons name={current.icon} size={28} color={colors.primary} />
-          </View>
-          <Text style={typography.sectionTitle}>{current.title}</Text>
-          <Text style={[typography.bodySecondary, styles.copy]}>{current.copy}</Text>
-          <View accessibilityLabel={`Paso ${slide + 1} de ${slides.length}`} style={styles.dots}>
-            {slides.map((item, index) => (
-              <View key={item.title} style={[styles.dot, index === slide && styles.dotActive]} />
-            ))}
-          </View>
-          <Button onPress={slide === slides.length - 1 ? close : () => setSlide((value) => value + 1)}>
-            {slide === slides.length - 1 ? 'Empezar' : 'Continuar'}
-          </Button>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Omitir introducción"
-            onPress={close}
-            style={styles.skip}
-          >
-            <Text style={styles.skipText}>Omitir</Text>
-          </Pressable>
+          <ScrollView contentContainerStyle={{ gap: spacing.md }}>
+            <View style={styles.icon}>
+              <Ionicons name={current.icon} size={28} color={colors.primary} />
+            </View>
+            <Text style={typography.sectionTitle}>{current.title}</Text>
+            <Text style={[typography.bodySecondary, styles.copy]}>{current.copy}</Text>
+            <View accessibilityLabel={`Paso ${slide + 1} de ${slides.length}`} style={styles.dots}>
+              {slides.map((item, index) => (
+                <View key={item.title} style={[styles.dot, index === slide && styles.dotActive]} />
+              ))}
+            </View>
+            <Button onPress={slide === slides.length - 1 ? close : () => setSlide((value) => value + 1)}>
+              {slide === slides.length - 1 ? (replay ? 'Listo' : 'Empezar') : 'Continuar'}
+            </Button>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Omitir introducción"
+              onPress={close}
+              style={styles.skip}
+            >
+              <Text style={styles.skipText}>Omitir</Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -103,6 +120,7 @@ export function FirstRunFabHint({
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'center', padding: spacing.xl, backgroundColor: 'rgba(32,45,50,0.38)' },
   card: {
+    maxHeight: '90%',
     gap: spacing.md,
     padding: spacing.xl,
     borderRadius: radius.large,

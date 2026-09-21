@@ -3,6 +3,7 @@ import type { AuthTokens, SessionState, SessionStorage } from './session-types';
 
 export class SessionManager {
   private tokens: AuthTokens | null = null;
+  private generation = 0;
 
   constructor(
     private readonly storage: SessionStorage,
@@ -38,18 +39,22 @@ export class SessionManager {
 
   async refresh(): Promise<string | null> {
     if (!this.tokens?.refreshToken) return null;
+    const generation = this.generation;
     try {
       const tokens = await this.authApi.refresh(this.tokens.refreshToken);
+      if (generation !== this.generation) return null;
       await this.save(tokens);
       return tokens.accessToken;
     } catch {
-      await this.clear();
+      if (generation === this.generation) await this.clear();
       return null;
     }
   }
 
   async logout(): Promise<void> {
     const refreshToken = this.tokens?.refreshToken;
+    this.generation += 1;
+    this.tokens = null;
     try {
       if (refreshToken) await this.authApi.logout(refreshToken);
     } finally {
@@ -59,8 +64,11 @@ export class SessionManager {
 
   async logoutAll(): Promise<void> {
     const accessToken = this.tokens?.accessToken;
+    this.generation += 1;
+    this.tokens = null;
     try {
-      if (accessToken) await this.authApi.logoutAll(accessToken);
+      if (!accessToken) throw new Error('No hay una sesión activa para cerrar los demás dispositivos.');
+      await this.authApi.logoutAll(accessToken);
     } finally {
       await this.clear();
     }

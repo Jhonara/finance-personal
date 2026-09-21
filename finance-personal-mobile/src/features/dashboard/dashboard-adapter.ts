@@ -1,3 +1,4 @@
+import { presentTransaction } from '@/features/transactions/transaction-presentation';
 import type { components } from '@/api/generated/schema';
 import type { BudgetVisualStatus, TransactionKind } from '@/ui/presentation';
 
@@ -20,11 +21,13 @@ export function toTransaction(transaction: components['schemas']['DashboardRecen
   const type = kinds.includes(transaction.type as TransactionKind)
     ? (transaction.type as TransactionKind)
     : 'REVERSAL';
+  const presented = presentTransaction(transaction);
   return {
     type,
-    title: transaction.description || transaction.categoryName || 'Movimiento',
-    subtitle:
-      [transaction.effectiveDate, transaction.accountName].filter(Boolean).join(' · ') || 'Sin detalle',
+    title: presented.title,
+    subtitle: presented.subtitle,
+    amountPrefix: presented.amountPrefix,
+    statusLabel: presented.statusLabel,
     amount: transaction.amount ?? 0,
     currency: transaction.currency ?? 'COP',
   };

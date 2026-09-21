@@ -12,7 +12,11 @@ const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   write: vi.fn(),
   hidden: false,
-  params: { id: '1', contribute: undefined as string | undefined },
+  params: {
+    id: '1',
+    contribute: undefined as string | undefined,
+    formSession: undefined as string | undefined,
+  },
 }));
 vi.mock('react-native', () => {
   const host =
@@ -59,6 +63,7 @@ vi.mock('@expo/vector-icons/Ionicons', () => ({
   default: (props: object) => React.createElement('Icon', props),
 }));
 vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }),
   SafeAreaView: ({ children }: React.PropsWithChildren) =>
     React.createElement('SafeAreaView', undefined, children),
 }));
@@ -70,6 +75,7 @@ vi.mock('@react-native-community/datetimepicker', () => ({
   default: (props: object) => React.createElement('DateTimePicker', props),
 }));
 vi.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void | (() => void)) => React.useEffect(effect, [effect]),
   router: { push: mocks.push, back: mocks.back },
   useLocalSearchParams: () => mocks.params,
   Redirect: () => null,
@@ -124,11 +130,11 @@ async function render(child: React.ReactNode) {
   return tree;
 }
 async function flush(check: () => void) {
-  await act(async () => {
-    await vi.waitFor(check);
-  });
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 10));
+  await vi.waitFor(async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    check();
   });
 }
 function press(tree: ReturnType<typeof create>, label: string) {
@@ -150,7 +156,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   mocks.hidden = false;
-  mocks.params = { id: '1', contribute: undefined };
+  mocks.params = { id: '1', contribute: undefined, formSession: undefined };
   goals = [];
   trees = [];
   storage = new Map();
@@ -202,7 +208,12 @@ describe('Savings list', () => {
       ),
     ).toHaveLength(1);
     await act(async () => press(tree, 'Crear mi primera meta'));
-    expect(mocks.push).toHaveBeenCalledWith('/(app)/saving-form');
+    expect(mocks.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/(app)/saving-form',
+        params: expect.objectContaining({ id: '', formSession: expect.any(String) }),
+      }),
+    );
   });
   it('separates active and completed goals, with no unsupported multicurrency total', async () => {
     goals = [
@@ -259,8 +270,10 @@ describe('Savings list', () => {
   it('shows the introductory context only once per user', async () => {
     const tree = await render(<SavingsScreen />);
     await flush(() => expect(mocks.read).toHaveBeenCalledWith(savingsEventKey(10, 'intro')));
+    expect(storage.get(savingsEventKey(10, 'intro'))).toBeUndefined();
+    await act(async () => press(tree, 'Entendido'));
     await flush(() => expect(storage.get(savingsEventKey(10, 'intro'))).toBe('seen'));
-    expect(text(tree.toJSON())).toContain('no cuentas bancarias');
+    expect(text(tree.toJSON())).not.toContain('no cuentas bancarias');
     const second = await render(<SavingsScreen />);
     expect(text(second.toJSON())).not.toContain('no cuentas bancarias');
   });
@@ -327,7 +340,7 @@ describe('Goal detail and contributions', () => {
       movementDate: '2026-12-31',
     });
     expect(mocks.feedback).toHaveBeenCalledWith('Aporte registrado', 'success');
-    expect(text(tree.toJSON())).toContain('¡Llegaste al 50%!');
+    expect(text(tree.toJSON())).toContain('¡Nuevo hito: 50%!');
     expect(client.getQueryData(secondaryKeys.savingProgress(1))).toBe(50);
     expect(client.getQueryData<SavingGoal[]>(secondaryKeys.savings)?.[0]?.currentAmount).toBe(500);
     expect(client.getQueryState(['dashboard', 2026, 9])?.isInvalidated).toBe(true);
@@ -377,4 +390,76 @@ it('keeps exactly four visible tabs and all Savings routes internal', async () =
   ).toEqual(['Inicio', 'Movimientos', 'Cuentas', 'Más']);
   for (const name of ['savings', 'saving-detail', 'saving-form'])
     expect(routes.find((route) => route.props.name === name)!.props.options.href).toBe(null);
+});
+
+it('creates A, completes A, reopens the retained creation route clean and creates active B', async () => {
+  storage.set(savingsEventKey(10, 'first-goal'), 'seen');
+  mocks.params = { id: '', contribute: undefined, formSession: 'A' };
+  const form = await render(<SavingForm />);
+  await fill(form, 'Nombre', 'Meta A');
+  await fill(form, 'Objetivo', '1000');
+  await act(async () => press(form, 'Crear meta'));
+  await flush(() => expect(goals).toHaveLength(1));
+  const createGoal = mocks.post.getMockImplementation()!;
+  mocks.post.mockImplementation(async (url: string, data: { amount?: number }) => {
+    if (!url.endsWith('/movements')) return createGoal(url, data);
+    goals = goals.map((goal) =>
+      goal.id === 1 ? { ...goal, currentAmount: 1000, progress: 100, completed: true } : goal,
+    );
+    return { data: goals[0] };
+  });
+  mocks.params = { id: '1', contribute: '1', formSession: undefined };
+  const detail = await render(<SavingDetail />);
+  await fill(detail, 'Monto del aporte', '1000');
+  await act(async () => press(detail, 'Registrar aporte'));
+  await flush(() => expect(goals[0]?.completed).toBe(true));
+  const list = await render(<SavingsScreen />);
+  await act(async () => press(list, 'Nueva meta'));
+  const entry = mocks.push.mock.calls.at(-1)![0];
+  mocks.params = entry.params;
+  await act(async () =>
+    form.update(
+      <QueryClientProvider client={client}>
+        <SavingForm />
+      </QueryClientProvider>,
+    ),
+  );
+  const fields = form.root.findAll((node) => (node.type as unknown) === 'TextInput');
+  expect(fields.find((node) => node.props.accessibilityLabel === 'Nombre')!.props.value).toBe('');
+  expect(fields.find((node) => node.props.accessibilityLabel === 'Objetivo')!.props.value).toBe('');
+  await fill(form, 'Nombre', 'Meta B');
+  await fill(form, 'Objetivo', '2000');
+  await act(async () => press(form, 'Crear meta'));
+  await flush(() => expect(goals).toHaveLength(2));
+  await flush(() => expect(list.root.findAllByType(SavingGoalCard)).toHaveLength(2));
+  expect(goals.map((goal) => [goal.name, goal.completed])).toEqual([
+    ['Meta A', true],
+    ['Meta B', false],
+  ]);
+  expect(text(list.toJSON())).toContain('Meta A');
+  expect(text(list.toJSON())).toContain('Meta B');
+  expect(text(list.toJSON())).toContain('Cumplidas');
+});
+
+import { currentUserKeys } from '@/features/profile/profile-keys';
+it('keeps dismissal per user across navigation and switching A to B to A', async () => {
+  const tree = await render(<SavingsScreen />);
+  await flush(() => expect(text(tree.toJSON())).toContain('Tus planes tienen su propio espacio'));
+  await act(async () => press(tree, 'Entendido'));
+  await flush(() => expect(storage.get(savingsEventKey(10, 'intro'))).toBe('seen'));
+  const reopened = await render(<SavingsScreen />);
+  expect(text(reopened.toJSON())).not.toContain('Tus planes tienen su propio espacio');
+  await act(async () => {
+    client.setQueryData(currentUserKeys.current(), { id: 20, name: 'B' });
+  });
+  await flush(() => {});
+  await flush(() => expect(text(tree.toJSON())).toContain('Tus planes tienen su propio espacio'));
+  expect(storage.get(savingsEventKey(20, 'intro'))).toBeUndefined();
+  await act(async () => press(tree, 'Entendido'));
+  await flush(() => expect(storage.get(savingsEventKey(20, 'intro'))).toBe('seen'));
+  await act(async () => {
+    client.setQueryData(currentUserKeys.current(), { id: 10, name: 'A' });
+  });
+  await flush(() => {});
+  await flush(() => expect(text(tree.toJSON())).not.toContain('Tus planes tienen su propio espacio'));
 });

@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Tabs } from 'expo-router';
-import { ActivityIndicator, View, type ColorValue } from 'react-native';
+import { ActivityIndicator, Text, View, type ColorValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAuth } from '@/auth/auth-provider';
@@ -7,6 +8,7 @@ import { colors, radius, sizes, spacing, typography } from '@/theme';
 
 export default function AppLayout() {
   const { state } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (state.status === 'bootstrapping') {
     return (
@@ -21,6 +23,9 @@ export default function AppLayout() {
 
   const options = (label: string, icon: keyof typeof Ionicons.glyphMap) => ({
     title: label,
+    tabBarLabel: ({ color }: { color: ColorValue }) => (
+      <Text style={{ ...typography.caption, fontSize: 10, color, textAlign: 'center' }}>{label}</Text>
+    ),
     tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => (
       <Ionicons name={icon} color={color} size={size} />
     ),
@@ -32,7 +37,8 @@ export default function AppLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          height: sizes.tabBar,
+          height: sizes.tabBar + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: spacing.xs,
           borderTopColor: colors.border,
           backgroundColor: colors.surface,

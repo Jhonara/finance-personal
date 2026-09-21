@@ -48,7 +48,7 @@ export async function contributionCelebration(
   const highest = reached.at(-1);
   if (highest === undefined && !first) return undefined;
   return {
-    title: highest === 100 ? '¡Lo lograste!' : highest ? `¡Llegaste al ${highest}%!` : '¡Primer aporte!',
+    title: highest === 100 ? '¡Lo lograste!' : highest ? `¡Nuevo hito: ${highest}%!` : '¡Primer aporte!',
     message:
       highest === 100
         ? 'Completaste tu objetivo de ahorro.'

@@ -1,5 +1,5 @@
+import { openForm } from '@/features/forms/form-session';
 import { StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
 
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { balanceForAccount, totalAccountBalance } from '@/features/accounts/account-balances';
@@ -44,7 +44,7 @@ export default function AccountsScreen() {
             <IconButton
               name="add"
               accessibilityLabel="Agregar cuenta"
-              onPress={() => router.push('/(app)/account-form')}
+              onPress={() => openForm('/(app)/account-form')}
               tone="primary"
             />
           ) : undefined
@@ -75,9 +75,7 @@ export default function AccountsScreen() {
           <View style={styles.list}>
             {active.map((account) => (
               <AccountCard
-                onPress={() =>
-                  router.push({ pathname: '/(app)/account-detail', params: { id: String(account.id) } })
-                }
+                onPress={() => openForm('/(app)/account-detail', { id: String(account.id) })}
                 key={account.id}
                 name={account.name ?? 'Cuenta'}
                 typeLabel={account.type ?? 'Cuenta'}
@@ -94,7 +92,7 @@ export default function AccountsScreen() {
           title="Tu dinero empieza aquí"
           description="Agrega la cuenta donde manejas tu dinero."
           actionLabel="Agregar cuenta"
-          onAction={() => router.push('/(app)/account-form')}
+          onAction={() => openForm('/(app)/account-form')}
           tone="primary"
         />
       )}
@@ -104,9 +102,7 @@ export default function AccountsScreen() {
           <View style={styles.list}>
             {inactive.map((account) => (
               <AccountCard
-                onPress={() =>
-                  router.push({ pathname: '/(app)/account-detail', params: { id: String(account.id) } })
-                }
+                onPress={() => openForm('/(app)/account-detail', { id: String(account.id) })}
                 key={account.id}
                 name={account.name ?? 'Cuenta'}
                 typeLabel={account.type ?? 'Cuenta'}

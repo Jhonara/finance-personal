@@ -42,7 +42,12 @@ export function Screen({
 }>) {
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={[styles.scroll, padded && styles.padding, style]}
+      contentContainerStyle={[
+        styles.scroll,
+        padded && styles.padding,
+        style,
+        floatingAction ? styles.floatingSpace : undefined,
+      ]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         onRefresh ? (
@@ -67,7 +72,7 @@ export function Screen({
       ) : (
         content
       )}
-      {floatingAction}
+      {floatingAction ? <View style={styles.floatingDock}>{floatingAction}</View> : null}
     </SafeAreaView>
   );
 }
@@ -101,6 +106,7 @@ export function Button({
         styles.button,
         styles[`button_${variant}`],
         variant === 'secondary' && secondaryToneStyles[tone],
+        variant === 'outline' && tone === 'danger' && { borderColor: colors.danger },
         size === 'compact' && styles.buttonCompact,
         (pressed || blocked) && styles.buttonPressed,
         blocked && styles.buttonDisabled,
@@ -116,6 +122,7 @@ export function Button({
             typography.button,
             styles[`buttonText_${variant}`],
             variant === 'secondary' && secondaryToneTextStyles[tone],
+            (variant === 'outline' || variant === 'ghost') && secondaryToneTextStyles[tone],
           ]}
         >
           {children}
@@ -337,6 +344,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   fill: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: spacing.huge },
+  floatingSpace: { paddingBottom: spacing.lg },
+  floatingDock: { height: sizes.fab + spacing.xl * 2 },
   padding: { paddingHorizontal: spacing.lg },
   button: {
     minHeight: sizes.button,

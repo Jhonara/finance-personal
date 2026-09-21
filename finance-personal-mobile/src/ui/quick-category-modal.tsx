@@ -53,7 +53,9 @@ export function QuickCategoryModal({
                   onSuccess: (category) => {
                     if (category.id !== undefined) onCreated(category.id);
                     feedback.show('Categoría creada.', 'success');
-                    close();
+                    setName('');
+                    mutation.reset();
+                    onClose();
                   },
                   onError: () => feedback.show('No fue posible crear la categoría.', 'error'),
                 },

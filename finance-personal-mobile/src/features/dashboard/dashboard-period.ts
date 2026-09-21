@@ -1,5 +1,18 @@
 export type DashboardPeriod = { year: number; month: number };
 
+export function dashboardPeriodFromParams(year: unknown, month: unknown): DashboardPeriod | undefined {
+  if (
+    typeof year !== 'string' ||
+    typeof month !== 'string' ||
+    !/^\d{4}$/.test(year) ||
+    !/^\d{1,2}$/.test(month)
+  )
+    return undefined;
+  const y = Number(year),
+    m = Number(month);
+  return y >= 1900 && y <= 9999 && m >= 1 && m <= 12 ? { year: y, month: m } : undefined;
+}
+
 export function currentDashboardPeriod(now = new Date()): DashboardPeriod {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }

@@ -1,3 +1,4 @@
+import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -28,6 +29,7 @@ export function StatCard({
   tone = 'neutral',
   privacyHidden = false,
   currency = 'COP',
+  compact = false,
 }: {
   label: string;
   value: number | string;
@@ -36,12 +38,14 @@ export function StatCard({
   tone?: 'primary' | 'income' | 'expense' | 'info' | 'neutral';
   privacyHidden?: boolean;
   currency?: string;
+  compact?: boolean;
 }) {
   const presentation = statTone[tone];
   return (
     <Card
       style={[
         styles.stat,
+        compact && { paddingVertical: spacing.md, gap: spacing.xs },
         { backgroundColor: presentation.backgroundColor, borderColor: presentation.borderColor },
       ]}
     >
@@ -51,7 +55,9 @@ export function StatCard({
           <Ionicons name={icon} size={18} color={presentation.color} />
         </View>
       </View>
-      <Text style={typography.moneyMedium}>{formatPrivateMoney(value, currency, privacyHidden)}</Text>
+      <Text style={compact ? typography.moneySmall : typography.moneyMedium}>
+        {formatPrivateMoney(value, currency, privacyHidden)}
+      </Text>
       {supportingText && <Text style={typography.caption}>{supportingText}</Text>}
     </Card>
   );
@@ -127,10 +133,14 @@ export function TransactionRow({
   onPress?: () => void;
 }) {
   const presentation = transactionPresentation[type];
+  const detail =
+    subtitle === presentation.label || subtitle.startsWith(`${presentation.label} · `)
+      ? subtitle
+      : `${presentation.label} · ${subtitle}`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${title}. ${presentation.label}. ${subtitle}.`}
+      accessibilityLabel={`${title}. ${detail}.`}
       onPress={onPress}
       style={({ pressed }) => [styles.transaction, pressed && styles.transactionPressed]}
     >
@@ -143,9 +153,7 @@ export function TransactionRow({
       </View>
       <View style={styles.grow}>
         <Text style={typography.cardTitle}>{title}</Text>
-        <Text style={typography.caption}>
-          {presentation.label} · {subtitle}
-        </Text>
+        <Text style={typography.caption}>{detail}</Text>
         {statusLabel && statusLabel !== 'Registrado' ? (
           <Text style={styles.transactionStatus}>{statusLabel}</Text>
         ) : null}
@@ -351,16 +359,4 @@ function accountTypeIcon(type: string): keyof typeof Ionicons.glyphMap {
     default:
       return 'wallet-outline';
   }
-}
-
-function accountTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    CASH: 'Efectivo',
-    BANK: 'Banco',
-    DIGITAL_WALLET: 'Billetera digital',
-    SAVINGS: 'Ahorros',
-    INVESTMENT: 'Inversión',
-    OTHER: 'Otra cuenta',
-  };
-  return labels[type] ?? type;
 }

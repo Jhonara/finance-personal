@@ -20,6 +20,8 @@ import {
   simulateCredit,
   updateBudget,
   type SavingGoal,
+  type Credit,
+  type CreditPayment,
 } from './secondary-api';
 export const secondaryKeys = {
   budgets: (year: number, month: number) => ['budgets', year, month] as const,
@@ -47,11 +49,22 @@ export const useSavingProgress = (id: number, enabled = true) =>
     enabled: enabled && Number.isSafeInteger(id) && id > 0,
     staleTime: 60_000,
   });
-export const useCredits = () => useQuery({ queryKey: secondaryKeys.credits, queryFn: getCredits });
+export const useCredits = () =>
+  useQuery({ queryKey: secondaryKeys.credits, queryFn: getCredits, staleTime: 60_000 });
 export const useCredit = (id: number) =>
-  useQuery({ queryKey: secondaryKeys.credit(id), queryFn: () => getCredit(id) });
+  useQuery({
+    queryKey: secondaryKeys.credit(id),
+    queryFn: () => getCredit(id),
+    enabled: Number.isSafeInteger(id) && id > 0,
+    staleTime: 60_000,
+  });
 export const usePlanVsReal = (id: number) =>
-  useQuery({ queryKey: secondaryKeys.plan(id), queryFn: () => getCreditPlanVsReal(id) });
+  useQuery({
+    queryKey: secondaryKeys.plan(id),
+    queryFn: () => getCreditPlanVsReal(id),
+    enabled: Number.isSafeInteger(id) && id > 0,
+    staleTime: 60_000,
+  });
 export const useCreateBudget = () => {
   const c = useQueryClient();
   return useMutation({
@@ -69,12 +82,15 @@ export const useUpdateBudget = () => {
     onSuccess: () => invalidate(c, [['budgets'], secondaryKeys.alerts]),
   });
 };
-export const useSeenAlert = () => {
+export const useSeenAlert = (afterSuccess?: () => Promise<void>) => {
   const c = useQueryClient();
   return useMutation({
     mutationFn: markAlertSeen,
     retry: false,
-    onSuccess: () => invalidate(c, [secondaryKeys.alerts]),
+    onSuccess: async () => {
+      await afterSuccess?.();
+      await invalidate(c, [secondaryKeys.alerts]);
+    },
   });
 };
 export const useCreateSaving = () => {
@@ -118,8 +134,13 @@ export const useCreateCredit = () => {
   return useMutation({
     mutationFn: createCredit,
     retry: false,
-    onSuccess: () =>
-      invalidate(c, [secondaryKeys.credits, accountKeys.all, transactionKeys.all, secondaryKeys.alerts]),
+    onSuccess: (credit) => {
+      if (credit.id !== undefined) c.setQueryData(secondaryKeys.credit(credit.id), credit);
+      c.setQueryData<Credit[]>(secondaryKeys.credits, (current) =>
+        current ? [...current.filter((item) => item.id !== credit.id), credit] : undefined,
+      );
+      return refreshCredit(c, credit.id);
+    },
   });
 };
 export const usePayCredit = () => {
@@ -127,8 +148,10 @@ export const usePayCredit = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof payCredit>[1] }) => payCredit(id, data),
     retry: false,
-    onSuccess: () =>
-      invalidate(c, [secondaryKeys.credits, accountKeys.all, transactionKeys.all, secondaryKeys.alerts]),
+    onSuccess: (payment, variables) => {
+      applyCreditPayment(c, variables.id, payment);
+      return refreshCredit(c, variables.id);
+    },
   });
 };
 export const useReverseCreditPayment = () => {
@@ -137,8 +160,10 @@ export const useReverseCreditPayment = () => {
     mutationFn: ({ creditId, paymentId }: { creditId: number; paymentId: number }) =>
       reverseCreditPayment(creditId, paymentId),
     retry: false,
-    onSuccess: () =>
-      invalidate(c, [secondaryKeys.credits, accountKeys.all, transactionKeys.all, secondaryKeys.alerts]),
+    onSuccess: (payment, variables) => {
+      applyCreditPayment(c, variables.creditId, payment);
+      return refreshCredit(c, variables.creditId);
+    },
   });
 };
 export const useSimulateCredit = () =>
@@ -147,3 +172,36 @@ export const useSimulateCredit = () =>
       simulateCredit(id, data),
     retry: false,
   });
+
+function applyCreditPayment(client: ReturnType<typeof useQueryClient>, id: number, payment: CreditPayment) {
+  const update = (credit: Credit): Credit => ({
+    ...credit,
+    ...(payment.newBalance === undefined ? {} : { remainingBalance: payment.newBalance }),
+    ...(payment.status === undefined ? {} : { status: payment.status }),
+    nextPaymentDate: payment.nextPaymentDate,
+    // A payment response has no updated totals, installment estimate or version.
+    // Do not keep showing those pre-operation figures if the following GET fails.
+    paidPrincipal: undefined,
+    paidInterest: undefined,
+    expectedPaymentAmount: undefined,
+    version: undefined,
+  });
+  client.setQueryData<Credit>(secondaryKeys.credit(id), (current) => (current ? update(current) : current));
+  client.setQueryData<Credit[]>(secondaryKeys.credits, (current) =>
+    current?.map((credit) => (credit.id === id ? update(credit) : credit)),
+  );
+}
+
+export const refreshCredit = (client: ReturnType<typeof useQueryClient>, id?: number) =>
+  Promise.all([
+    client.invalidateQueries({ queryKey: secondaryKeys.credits, exact: true }),
+    ...(id === undefined
+      ? []
+      : [
+          client.invalidateQueries({ queryKey: secondaryKeys.credit(id), exact: true }),
+          client.invalidateQueries({ queryKey: secondaryKeys.plan(id), exact: true }),
+        ]),
+    ...[accountKeys.all, dashboardKeys.all, transactionKeys.all, secondaryKeys.alerts].map((queryKey) =>
+      client.invalidateQueries({ queryKey }),
+    ),
+  ]);

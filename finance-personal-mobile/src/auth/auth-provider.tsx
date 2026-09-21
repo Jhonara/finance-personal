@@ -8,7 +8,7 @@ import { createAuthApi, type LoginInput, type RegisterInput } from './auth-api';
 import { SessionManager } from './session-manager';
 import type { SessionState } from './session-types';
 import { secureSessionStorage } from '@/storage/secure-session-storage';
-import { removeCurrentUserCache } from '@/features/profile/profile-cache';
+import { clearSessionCache } from './session-cache';
 
 type AuthContextValue = {
   state: SessionState;
@@ -37,26 +37,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       state,
       async login(input) {
-        removeCurrentUserCache(queryClient);
+        await clearSessionCache(queryClient);
         setState(await sessionManager.login(input));
       },
       async register(input) {
-        removeCurrentUserCache(queryClient);
+        await clearSessionCache(queryClient);
         setState(await sessionManager.register(input));
       },
       async logout() {
+        setState({ status: 'bootstrapping' });
+        await clearSessionCache(queryClient);
         try {
           await sessionManager.logout();
         } finally {
-          removeCurrentUserCache(queryClient);
+          await clearSessionCache(queryClient);
           setState({ status: 'unauthenticated' });
         }
       },
       async logoutAll() {
+        setState({ status: 'bootstrapping' });
+        await clearSessionCache(queryClient);
         try {
           await sessionManager.logoutAll();
         } finally {
-          removeCurrentUserCache(queryClient);
+          await clearSessionCache(queryClient);
           setState({ status: 'unauthenticated' });
         }
       },

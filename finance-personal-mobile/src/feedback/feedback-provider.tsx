@@ -2,11 +2,13 @@ import { createContext, useContext, useEffect, useState, type PropsWithChildren 
 import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 
 type FeedbackTone = 'success' | 'error' | 'info' | 'warning';
 const C = createContext<{ show(message: string, tone?: FeedbackTone): void } | null>(null);
 export const FeedbackProvider = ({ children }: PropsWithChildren) => {
+  const insets = useSafeAreaInsets();
   const [feedback, setFeedback] = useState<{ message: string; tone: FeedbackTone } | null>(null);
   useEffect(() => {
     if (!feedback) return;
@@ -15,33 +17,42 @@ export const FeedbackProvider = ({ children }: PropsWithChildren) => {
   }, [feedback]);
   return (
     <C.Provider value={{ show: (message, tone = 'info') => setFeedback({ message, tone }) }}>
-      {children}
-      {feedback ? (
-        <View accessibilityLiveRegion="polite" style={[styles.feedback, toneStyles[feedback.tone]]}>
-          <Ionicons
-            name={
-              feedback.tone === 'success'
-                ? 'checkmark-circle'
-                : feedback.tone === 'error'
-                  ? 'alert-circle'
-                  : 'information-circle'
-            }
-            size={22}
-            color={toneTextStyles[feedback.tone].color}
-          />
-          <Text style={[typography.bodySecondary, toneTextStyles[feedback.tone]]}>{feedback.message}</Text>
-        </View>
-      ) : null}
+      <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>{children}</View>
+        {feedback ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={[
+              styles.feedback,
+              toneStyles[feedback.tone],
+              { marginBottom: Math.max(insets.bottom, spacing.sm) },
+            ]}
+          >
+            <Ionicons
+              name={
+                feedback.tone === 'success'
+                  ? 'checkmark-circle'
+                  : feedback.tone === 'error'
+                    ? 'alert-circle'
+                    : 'information-circle'
+              }
+              size={22}
+              color={toneTextStyles[feedback.tone].color}
+            />
+            <Text style={[typography.bodySecondary, toneTextStyles[feedback.tone], { flex: 1 }]}>
+              {feedback.message}
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </C.Provider>
   );
 };
 
 const styles = StyleSheet.create({
   feedback: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.huge,
-    left: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.medium,
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 
 export function FloatingActionButton({ onPress }: { onPress: () => void }) {
@@ -31,6 +32,7 @@ export function QuickActionModal({
   onTransfer?: () => void;
   canTransfer?: boolean;
 }) {
+  const insets = useSafeAreaInsets();
   const actions: Array<{
     label: string;
     description: string;
@@ -72,7 +74,10 @@ export function QuickActionModal({
         style={styles.overlay}
         onPress={onClose}
       >
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xxl) }]}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.handle} />
           <Text style={typography.sectionTitle}>Nuevo movimiento</Text>
           {actions.map((action) => (

@@ -1,3 +1,5 @@
+import { accountTypeLabel } from '@/features/accounts/account-presentation';
+import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -23,7 +25,8 @@ type Form = {
   incomeDate: string;
   description: string;
 };
-export default function NewIncomeScreen() {
+function NewIncomeScreen() {
+  const activeSession = useFormSessionActive();
   const form = useForm<Form>({
     defaultValues: { amount: '', incomeDate: localDateFromNative(new Date()), description: '' },
   });
@@ -50,10 +53,15 @@ export default function NewIncomeScreen() {
       },
       {
         onSuccess: () => {
+          if (!activeSession()) return;
+          form.reset({ amount: '', incomeDate: localDateFromNative(new Date()), description: '' });
+          mutation.reset();
+          setSelector(null);
           feedback.show('Ingreso registrado.', 'success');
           router.back();
         },
         onError: (error) => {
+          if (!activeSession()) return;
           applyApiFieldErrors(error, form.setError);
           const resource = unavailableResource(error);
           const message = financialErrorMessage(error, resource);
@@ -145,7 +153,7 @@ export default function NewIncomeScreen() {
           .map((x) => ({
             id: x.id!,
             label: x.name ?? 'Cuenta',
-            subtitle: `${x.type ?? 'Cuenta'} · ${x.currency ?? 'COP'}`,
+            subtitle: `${accountTypeLabel(x.type)} · ${x.currency ?? 'COP'}`,
             icon: 'wallet-outline',
           }))}
         selectedId={form.watch('accountId')}
@@ -191,3 +199,5 @@ const styles = StyleSheet.create({
   },
   guidance: { ...typography.caption, marginTop: -spacing.md, color: colors.warning },
 });
+
+export default withFormSession(NewIncomeScreen);

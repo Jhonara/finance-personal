@@ -1,57 +1,93 @@
+import { openForm } from '@/features/forms/form-session';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Pressable, Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { useCredits } from '@/features/secondary/use-secondary';
+import { creditGroups, creditMoney, creditSummary } from '@/features/credits/credit-presentation';
+import { CreditCard, creditPanel } from '@/features/credits/credit-components';
 import { usePrivacy } from '@/privacy/privacy-provider';
-import { formatPrivateMoney } from '@/privacy/privacy-format';
+import { Button, Screen } from '@/ui/primitives';
+import { BrandSurface } from '@/ui/brand-surface';
 import { ScreenHeader } from '@/ui/headers';
-import { Button, Card, Screen } from '@/ui/primitives';
-import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
-const label: Record<string, string> = { ACTIVE: 'Al día', PAID: 'Pagado', LATE: 'Atrasado' };
+import { ErrorState, Skeleton } from '@/ui/states';
+import { colors, spacing, typography } from '@/theme';
+
 export default function CreditsScreen() {
-  const q = useCredits();
+  const query = useCredits();
   const { hidden } = usePrivacy();
-  if (q.isPending)
-    return (
-      <Screen>
-        <ScreenHeader title="Créditos" />
-        <SkeletonRow />
-      </Screen>
-    );
-  if (q.isError)
-    return (
-      <Screen>
-        <ScreenHeader title="Créditos" />
-        <ErrorState onRetry={() => void q.refetch()} />
-      </Screen>
-    );
+  const add = () => openForm('/(app)/credit-form');
   return (
-    <Screen scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
-      <ScreenHeader title="Créditos" back onBack={() => router.back()} />
-      {q.data.length ? (
-        q.data.map((x) => (
-          <Pressable
-            key={x.id}
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/(app)/credit-detail', params: { id: String(x.id) } })}
-          >
-            <Card>
-              <Text>{x.name ?? 'Crédito'}</Text>
-              <Text>{formatPrivateMoney(x.remainingBalance ?? 0, x.currency ?? 'COP', hidden)}</Text>
-              <Text>
-                {label[x.status ?? ''] ?? 'Estado pendiente'} · Tasa efectiva anual (EA) {x.annualRate ?? 0}%
-              </Text>
-            </Card>
-          </Pressable>
-        ))
+    <Screen
+      scroll
+      style={{ gap: spacing.lg }}
+      refreshing={query.isRefetching}
+      onRefresh={() => void query.refetch()}
+    >
+      <ScreenHeader
+        title="Créditos"
+        subtitle="Entiende y controla tus deudas."
+        rightAction={
+          query.data?.length ? (
+            <Button size="compact" variant="secondary" accessibilityLabel="Agregar crédito" onPress={add}>
+              + Nuevo
+            </Button>
+          ) : undefined
+        }
+        back
+        onBack={() => router.back()}
+      />
+      {query.isPending ? (
+        <Skeleton height={160} />
+      ) : !query.data ? (
+        <ErrorState onRetry={() => void query.refetch()} />
+      ) : query.data.length === 0 ? (
+        <BrandSurface tone="credit" style={creditPanel}>
+          <Ionicons name="document-text-outline" size={40} color={colors.accent} />
+          <Text style={typography.sectionTitle}>Tus deudas, bajo control</Text>
+          <Text style={typography.bodySecondary}>
+            Agrega un crédito para entender cuánto debes y seguir tus pagos.
+          </Text>
+          <Button onPress={add}>Agregar crédito</Button>
+        </BrandSurface>
       ) : (
-        <EmptyState
-          title="Aún no tienes créditos"
-          description="Registra tus créditos para tener una visión completa."
-          actionLabel="Crear crédito"
-          onAction={() => router.push('/(app)/credit-form')}
-        />
+        <>
+          {query.isError && (
+            <Text style={typography.caption}>
+              No pudimos actualizar. Estos son los últimos datos disponibles.
+            </Text>
+          )}
+          <BrandSurface tone="credit" style={creditPanel}>
+            <Text style={typography.sectionTitle}>Tus deudas</Text>
+            {creditSummary(query.data).map((summary) => (
+              <View key={summary.currency ?? 'unknown'} style={{ gap: spacing.sm }}>
+                <Text style={typography.label}>{summary.currency ?? 'Moneda no disponible'}</Text>
+                <Text style={typography.caption}>Saldo pendiente</Text>
+                <Text style={typography.moneyMedium}>
+                  {creditMoney(summary.total, summary.currency, hidden)}
+                </Text>
+                <Text style={typography.bodySecondary}>
+                  {summary.active} {summary.active === 1 ? 'crédito por completar' : 'créditos por completar'}
+                </Text>
+              </View>
+            ))}
+          </BrandSurface>
+          {creditGroups(query.data).map((group) => (
+            <View key={group.title} style={{ gap: spacing.md }}>
+              <Text accessibilityRole="header" style={typography.sectionTitle}>
+                {group.title}
+              </Text>
+              {group.credits.map((credit, index) => (
+                <CreditCard
+                  key={credit.id ?? index}
+                  credit={credit}
+                  hidden={hidden}
+                  onPress={() => router.push({ pathname: '/(app)/credit-detail', params: { id: credit.id } })}
+                />
+              ))}
+            </View>
+          ))}
+        </>
       )}
-      <Button onPress={() => router.push('/(app)/credit-form')}>Crear crédito</Button>
     </Screen>
   );
 }

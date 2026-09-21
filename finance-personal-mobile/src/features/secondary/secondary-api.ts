@@ -14,8 +14,9 @@ export const createBudget = async (data: components['schemas']['CreateBudgetRequ
 export const updateBudget = async (id: number, data: components['schemas']['UpdateBudgetRequest']) =>
   (await api.patch<Budget>(`/budgets/${id}`, data)).data;
 export const getAlerts = async () => (await api.get<Alert[]>('/alerts')).data;
-export const markAlertSeen = async (code: string) => {
-  await api.post(`/alerts/${code}/seen`);
+export type SeenAlert = { code: string; data: components['schemas']['MarkAlertSeenRequest'] };
+export const markAlertSeen = async ({ code, data }: SeenAlert) => {
+  await api.post(`/alerts/${encodeURIComponent(code)}/seen`, data);
 };
 export const getSavingGoals = async () => (await api.get<SavingGoal[]>('/savings/goals')).data;
 export const getSavingProgress = async (id: number) =>
@@ -38,6 +39,9 @@ export const payCredit = async (id: number, data: components['schemas']['CreateC
   (await api.post<CreditPayment>(`/credits/${id}/payments`, data)).data;
 export const reverseCreditPayment = async (creditId: number, paymentId: number) =>
   (await api.post<CreditPayment>(`/credits/${creditId}/payments/${paymentId}/reverse`)).data;
-export const getCreditPlanVsReal = async (id: number) => (await api.get(`/credits/${id}/plan-vs-real`)).data;
+export type CreditPlan = components['schemas']['CreditPlanVsRealResponse'];
+export type CreditSimulation = components['schemas']['CreditSimulationResponse'];
+export const getCreditPlanVsReal = async (id: number) =>
+  (await api.get<CreditPlan>(`/credits/${id}/plan-vs-real`)).data;
 export const simulateCredit = async (id: number, data: components['schemas']['CreditSimulationRequest']) =>
-  (await api.post(`/credits/${id}/simulate`, data)).data;
+  (await api.post<CreditSimulation>(`/credits/${id}/simulate`, data)).data;

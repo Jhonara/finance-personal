@@ -3,10 +3,18 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radius, spacing } from '@/theme';
 
-export function BrandSurface({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+export function BrandSurface({
+  children,
+  style,
+  tone,
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle>; tone?: 'credit' }>) {
   return (
     <LinearGradient
-      colors={[colors.primarySoft, colors.infoSoft, colors.accentSoft]}
+      colors={
+        tone === 'credit'
+          ? [colors.accentSoft, colors.primarySoft, colors.warningSoft]
+          : [colors.primarySoft, colors.infoSoft, colors.accentSoft]
+      }
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.surface, style]}

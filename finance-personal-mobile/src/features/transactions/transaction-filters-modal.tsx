@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useCategories } from '@/features/categories/use-categories';
 import { colors, radius, spacing, typography } from '@/theme';
 import { FinancialDateField } from '@/ui/financial-date-field';
+import { transactionPresentation } from '@/ui/presentation';
 import { ModalSelector, type SelectorOption } from '@/ui/modal-selector';
 import { Button, SelectField } from '@/ui/primitives';
 import {
@@ -49,6 +51,7 @@ export function TransactionFiltersModal({
   onApply(filters: TransactionFilters): void;
   onClear(): void;
 }) {
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<TransactionFilters>(filters);
   const [mode, setMode] = useState<PeriodMode>(filters.from || filters.to ? 'range' : 'month');
   const [selector, setSelector] = useState<Selector>(null);
@@ -102,10 +105,20 @@ export function TransactionFiltersModal({
     }));
   const typeOptions: SelectorOption[] = (
     Object.entries(transactionTypeLabels) as [TransactionType, string][]
-  ).map(([id, label], index) => ({ id: index, label: `${label}|${id}` }));
+  ).map(([type, label], index) => ({
+    id: index,
+    label,
+    icon: transactionPresentation[type].icon as SelectorOption['icon'],
+    tone: transactionPresentation[type].tone,
+  }));
   const statusOptions: SelectorOption[] = (
     Object.entries(transactionStatusLabels) as [TransactionStatus, string][]
-  ).map(([id, label], index) => ({ id: index, label: `${label}|${id}` }));
+  ).map(([status, label], index) => ({
+    id: index,
+    label,
+    icon: status === 'POSTED' ? 'checkmark-circle-outline' : 'return-up-back-outline',
+    tone: status === 'POSTED' ? 'success' : 'warning',
+  }));
   const typeLabel = draft.type ? transactionTypeLabels[draft.type] : undefined;
   const statusLabel = draft.status ? transactionStatusLabels[draft.status] : undefined;
 
@@ -114,7 +127,13 @@ export function TransactionFiltersModal({
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={styles.backdrop}>
           <View style={styles.sheet}>
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              contentContainerStyle={[
+                styles.content,
+                { paddingBottom: Math.max(insets.bottom, spacing.xxxl) },
+              ]}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={typography.sectionTitle}>Filtros</Text>
               <View style={styles.modeRow}>
                 <ModeButton label="Mes" active={mode === 'month'} onPress={() => setPeriodMode('month')} />
@@ -215,6 +234,7 @@ export function TransactionFiltersModal({
       <ModalSelector
         visible={selector === 'account'}
         label="Cuenta"
+        selectedId={draft.accountId}
         options={accountOptions}
         loading={accounts.isPending}
         onClose={() => setSelector(null)}
@@ -222,7 +242,10 @@ export function TransactionFiltersModal({
       />
       <ModalSelector
         visible={selector === 'category'}
+        emptyTitle="No hay categorías disponibles"
+        emptyDescription="Aún no tienes categorías para usar como filtro."
         label="Categoría"
+        selectedId={draft.categoryId}
         options={categoryOptions}
         loading={expenseCategories.isPending || incomeCategories.isPending}
         onClose={() => setSelector(null)}
@@ -231,6 +254,7 @@ export function TransactionFiltersModal({
       <ModalSelector
         visible={selector === 'year'}
         label="Año"
+        selectedId={draft.year}
         options={years.map((year) => ({ id: year, label: String(year) }))}
         onClose={() => setSelector(null)}
         onSelect={(year) => setDraft((current) => ({ ...current, year }))}
@@ -238,6 +262,7 @@ export function TransactionFiltersModal({
       <ModalSelector
         visible={selector === 'month'}
         label="Mes"
+        selectedId={draft.month}
         options={months.map((label, index) => ({ id: index + 1, label }))}
         onClose={() => setSelector(null)}
         onSelect={(month) => setDraft((current) => ({ ...current, month }))}
@@ -245,7 +270,8 @@ export function TransactionFiltersModal({
       <ModalSelector
         visible={selector === 'type'}
         label="Tipo"
-        options={typeOptions.map(({ id, label }) => ({ id, label: label.split('|')[0]! }))}
+        options={typeOptions}
+        selectedId={draft.type ? Object.keys(transactionTypeLabels).indexOf(draft.type) : undefined}
         onClose={() => setSelector(null)}
         onSelect={(index) =>
           setDraft((current) => ({
@@ -257,7 +283,8 @@ export function TransactionFiltersModal({
       <ModalSelector
         visible={selector === 'status'}
         label="Estado"
-        options={statusOptions.map(({ id, label }) => ({ id, label: label.split('|')[0]! }))}
+        options={statusOptions}
+        selectedId={draft.status ? Object.keys(transactionStatusLabels).indexOf(draft.status) : undefined}
         onClose={() => setSelector(null)}
         onSelect={(index) =>
           setDraft((current) => ({

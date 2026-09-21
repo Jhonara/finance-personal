@@ -9,6 +9,7 @@ export function SavingsIntro() {
   const { data: user } = useCurrentUser();
   const [visibleFor, setVisibleFor] = useState<number>();
   useEffect(() => {
+    setVisibleFor(undefined);
     if (user?.id === undefined) return;
     let cancelled = false;
     const id = user.id;
@@ -21,10 +22,7 @@ export function SavingsIntro() {
       cancelled = true;
     };
   }, [user?.id]);
-  useEffect(() => {
-    if (visibleFor !== undefined && visibleFor === user?.id)
-      void claimSavingsEvent(visibleFor, 'intro').catch(() => undefined);
-  }, [visibleFor, user?.id]);
+
   if (visibleFor === undefined || visibleFor !== user?.id) return null;
   return (
     <Card tone="tonal" style={{ gap: spacing.sm, padding: spacing.lg, marginBottom: spacing.md }}>
@@ -33,7 +31,15 @@ export function SavingsIntro() {
         Las metas representan objetivos, no cuentas bancarias. Puedes registrar aportes para seguir tu
         progreso.
       </Text>
-      <Button size="compact" variant="ghost" onPress={() => setVisibleFor(undefined)}>
+      <Button
+        size="compact"
+        variant="ghost"
+        onPress={() => {
+          const id = visibleFor;
+          setVisibleFor(undefined);
+          void claimSavingsEvent(id, 'intro').catch(() => undefined);
+        }}
+      >
         Entendido
       </Button>
     </Card>

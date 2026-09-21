@@ -1,12 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './primitives';
 export type SelectorOption = {
   id: number;
   label: string;
   subtitle?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  tone?: 'primary' | 'success' | 'warning' | 'info' | 'danger';
   disabled?: boolean;
 };
 export function ModalSelector({
@@ -17,6 +19,8 @@ export function ModalSelector({
   loading,
   selectedId,
   emptyActionLabel,
+  emptyTitle = 'No tienes opciones disponibles',
+  emptyDescription = 'Crea una opción para continuar con este movimiento.',
   onEmptyAction,
   onClose,
   onSelect,
@@ -28,14 +32,20 @@ export function ModalSelector({
   loading?: boolean;
   selectedId?: number;
   emptyActionLabel?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
   onEmptyAction?(): void;
   onClose(): void;
   onSelect(id: number): void;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal transparent visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
+          onPress={(event) => event.stopPropagation()}
+        >
           <View style={styles.handle} />
           <Text style={typography.sectionTitle}>{label}</Text>
           {subtitle ? <Text style={typography.bodySecondary}>{subtitle}</Text> : null}
@@ -48,6 +58,7 @@ export function ModalSelector({
                   key={o.id}
                   disabled={o.disabled}
                   accessibilityRole="button"
+                  accessibilityState={{ selected: o.id === selectedId, disabled: Boolean(o.disabled) }}
                   onPress={(event) => {
                     event.stopPropagation();
                     onSelect(o.id);
@@ -62,8 +73,16 @@ export function ModalSelector({
                 >
                   <View style={styles.optionCopy}>
                     <View style={styles.optionLabel}>
-                      {o.icon ? <Ionicons name={o.icon} size={20} color={colors.primary} /> : null}
-                      <Text style={[typography.body, o.id === selectedId && styles.optionTextSelected]}>
+                      {o.icon ? (
+                        <Ionicons name={o.icon} size={20} color={colors[o.tone ?? 'primary']} />
+                      ) : null}
+                      <Text
+                        style={[
+                          typography.body,
+                          { flexShrink: 1 },
+                          o.id === selectedId && styles.optionTextSelected,
+                        ]}
+                      >
                         {o.label}
                       </Text>
                     </View>
@@ -80,10 +99,8 @@ export function ModalSelector({
               <View style={styles.emptyIcon}>
                 <Ionicons name="sparkles-outline" size={24} color={colors.primary} />
               </View>
-              <Text style={typography.cardTitle}>No tienes opciones disponibles</Text>
-              <Text style={[typography.bodySecondary, styles.emptyText]}>
-                Crea una opción para continuar con este movimiento.
-              </Text>
+              <Text style={typography.cardTitle}>{emptyTitle}</Text>
+              <Text style={[typography.bodySecondary, styles.emptyText]}>{emptyDescription}</Text>
               {emptyActionLabel && onEmptyAction && (
                 <Button variant="secondary" size="compact" onPress={onEmptyAction}>
                   {emptyActionLabel}
@@ -120,6 +137,7 @@ const styles = StyleSheet.create({
   optionsContent: { gap: spacing.sm },
   option: {
     minHeight: 52,
+    paddingVertical: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

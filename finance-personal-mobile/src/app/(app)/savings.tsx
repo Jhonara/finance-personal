@@ -1,3 +1,4 @@
+import { openForm } from '@/features/forms/form-session';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSavings } from '@/features/secondary/use-secondary';
@@ -37,7 +38,7 @@ export default function SavingsScreen() {
             <IconButton
               name="add"
               accessibilityLabel="Nueva meta"
-              onPress={() => router.push('/(app)/saving-form')}
+              onPress={() => openForm('/(app)/saving-form')}
               tone="primary"
             />
           ) : undefined
@@ -108,7 +109,7 @@ export default function SavingsScreen() {
               description="Crea una meta y empieza a construirla paso a paso."
               actionLabel="Crear mi primera meta"
               tone="primary"
-              onAction={() => router.push('/(app)/saving-form')}
+              onAction={() => openForm('/(app)/saving-form')}
             />
           )}
         </>

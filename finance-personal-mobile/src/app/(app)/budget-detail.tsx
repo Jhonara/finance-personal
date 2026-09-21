@@ -1,3 +1,4 @@
+import { openForm } from '@/features/forms/form-session';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 
@@ -5,28 +6,59 @@ import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { Card, Button, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
-import { spacing, typography } from '@/theme';
+import { Progress } from '@/ui/progress';
+import { colors, spacing, typography } from '@/theme';
 
 export default function BudgetDetail() {
-  const { id, version, limit, spent, remaining, percentage, category, status, period } =
-    useLocalSearchParams<Record<string, string>>();
+  const {
+    id,
+    version,
+    limit,
+    spent,
+    remaining,
+    percentage,
+    category,
+    categoryId,
+    year,
+    month,
+    status,
+    period,
+  } = useLocalSearchParams<Record<string, string>>();
   const { hidden } = usePrivacy();
   const amount = (value: string | undefined) => formatPrivateMoney(Number(value ?? 0), 'COP', hidden);
   const label = status === 'EXCEEDED' ? 'Excedido' : status === 'WARNING' ? 'Atención' : 'En curso';
   return (
-    <Screen scroll>
+    <Screen scroll style={{ gap: spacing.lg }}>
       <ScreenHeader title={category ?? 'Presupuesto'} subtitle={period} back onBack={() => router.back()} />
       <Card style={{ gap: spacing.md, padding: spacing.lg }}>
-        <Text style={typography.cardTitle}>Resumen del presupuesto</Text>
-        <Text>Límite · {amount(limit)}</Text>
-        <Text>Gastado · {amount(spent)}</Text>
-        <Text>Restante · {amount(remaining)}</Text>
-        <Text>Usado · {percentage ?? '0'}%</Text>
-        <Text>Estado · {label}</Text>
+        <Text style={typography.moneyMedium}>
+          {Number(percentage ?? 0).toLocaleString('es-CO', { maximumFractionDigits: 1 })}% usado
+        </Text>
+        <Progress
+          value={Number(percentage ?? 0)}
+          label="Presupuesto utilizado"
+          color={
+            status === 'EXCEEDED' ? colors.danger : status === 'WARNING' ? colors.warning : colors.success
+          }
+        />
+        <Text style={typography.moneyMedium}>{amount(spent)} gastados</Text>
+        <Text style={typography.bodySecondary}>de {amount(limit)}</Text>
+        <Text style={typography.cardTitle}>{amount(remaining)} disponibles</Text>
+        <Text style={typography.label}>Estado · {label}</Text>
       </Card>
       <Button
         variant="secondary"
-        onPress={() => router.push({ pathname: '/(app)/budget-form', params: { id, version, limit } })}
+        onPress={() =>
+          openForm('/(app)/budget-form', {
+            id,
+            version,
+            limit,
+            categoryId,
+            categoryName: category,
+            year,
+            month,
+          })
+        }
       >
         Editar límite
       </Button>

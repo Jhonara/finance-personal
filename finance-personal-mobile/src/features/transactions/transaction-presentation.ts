@@ -1,3 +1,4 @@
+import { formatLocalDate } from '@/utils/local-date';
 import type { Transaction } from './transactions-api';
 
 export type PresentedTransaction = Transaction & {
@@ -54,7 +55,7 @@ function transactionTitle(transaction: Transaction, type: string): string {
   if (type === 'REVERSAL') return 'Reversión';
   if (type === 'CREDIT_DISBURSEMENT') return 'Desembolso de crédito';
   if (type === 'CREDIT_PAYMENT') return 'Pago de crédito';
-  return description || category || (type === 'INCOME' ? 'Ingreso' : 'Gasto');
+  return description || category || (typeLabels[type] ?? 'Movimiento');
 }
 
 function transactionSubtitle(transaction: Transaction, type: string, typeLabel: string): string {
@@ -64,6 +65,11 @@ function transactionSubtitle(transaction: Transaction, type: string, typeLabel: 
       .join(' → ');
     return route ? `${typeLabel} · ${route}` : typeLabel;
   }
-  const details = [typeLabel, transaction.categoryName, transaction.accountName].filter(Boolean);
+  const details = [
+    typeLabel,
+    transaction.effectiveDate ? formatLocalDate(transaction.effectiveDate, 'compact') : undefined,
+    transaction.categoryName,
+    transaction.accountName,
+  ].filter(Boolean);
   return details.join(' · ') || typeLabel;
 }

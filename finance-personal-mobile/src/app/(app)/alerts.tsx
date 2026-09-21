@@ -1,65 +1,46 @@
 import { router } from 'expo-router';
-import { AlertCard } from '@/ui/financial';
+import { Text, View } from 'react-native';
 import { ScreenHeader } from '@/ui/headers';
 import { Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
-import { useAlerts, useSeenAlert } from '@/features/secondary/use-secondary';
-import { useFeedback } from '@/feedback/feedback-provider';
-const titles: Record<string, string> = {
-  BUDGET_WARNING: 'Presupuesto cerca del límite',
-  BUDGET_EXCEEDED: 'Presupuesto excedido',
-  CREDIT_BEHIND: 'Crédito atrasado',
-  HIGH_INTEREST: 'Tasa de crédito alta',
-  OPPORTUNITY_PREPAY: 'Oportunidad de abono',
-  SPEND_SPIKE: 'Gasto inusual',
-  ALL_GOOD: 'Todo está al día',
-};
-const severity = (s: string | undefined): 'info' | 'warning' | 'critical' =>
-  s === 'CRITICAL' ? 'critical' : s === 'WARNING' ? 'warning' : 'info';
+import { useAlerts } from '@/features/secondary/use-secondary';
+import { actionableAlerts, alertLevels, presentAlert } from '@/features/alerts/alert-presentation';
+import { FinancialAlertCard } from '@/features/alerts/financial-alert-card';
+import { spacing, typography } from '@/theme';
 export default function AlertsScreen() {
   const q = useAlerts();
-  const seen = useSeenAlert();
-  const feedback = useFeedback();
-  if (q.isPending)
-    return (
-      <Screen>
-        <ScreenHeader title="Alertas" />
-        <SkeletonRow />
-      </Screen>
-    );
-  if (q.isError)
-    return (
-      <Screen>
-        <ScreenHeader title="Alertas" />
-        <ErrorState onRetry={() => void q.refetch()} />
-      </Screen>
-    );
-  const alerts = q.data.filter((x) => x.code !== 'ALL_GOOD');
+  const alerts = actionableAlerts(q.data ?? []);
   return (
-    <Screen scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
-      <ScreenHeader title="Alertas" back onBack={() => router.back()} />
-      {alerts.length ? (
-        alerts.map((x) => (
-          <AlertCard
-            key={x.code}
-            severity={severity(x.severity)}
-            title={titles[x.code ?? ''] ?? 'Aviso financiero'}
-            description={x.message ?? ''}
-            actionLabel="Marcar como vista"
-            onAction={() =>
-              seen.mutate(x.code!, {
-                onError: () => {
-                  void q.refetch();
-                  feedback.show(
-                    'No pudimos actualizar la alerta. Revisa tu conexión e inténtalo nuevamente.',
-                  );
-                },
-              })
-            }
-          />
-        ))
+    <Screen scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()} style={{ gap: spacing.lg }}>
+      <ScreenHeader title="Alertas" subtitle="Lo que merece tu atención." back onBack={() => router.back()} />
+      {q.isPending ? (
+        <SkeletonRow />
+      ) : q.isError ? (
+        <ErrorState onRetry={() => void q.refetch()} />
+      ) : alerts.length ? (
+        alertLevels.map((level) => {
+          const group = alerts.filter((alert) => presentAlert(alert).level === level);
+          return group.length ? (
+            <View key={level} style={{ gap: spacing.md }}>
+              <Text accessibilityRole="header" style={typography.sectionTitle}>
+                {level}
+              </Text>
+              {group.map((alert, index) => (
+                <FinancialAlertCard key={`${presentAlert(alert).key}:${index}`} alert={alert} />
+              ))}
+            </View>
+          ) : null;
+        })
       ) : (
-        <EmptyState title="Todo está al día" description="No tienes alertas financieras pendientes." />
+        <EmptyState
+          tone="success"
+          title={q.data?.some((alert) => alert.code === 'ALL_GOOD') ? 'Todo en orden' : 'Todo en calma'}
+          description={
+            q.data?.some((alert) => alert.code === 'ALL_GOOD')
+              ? 'No encontramos alertas importantes para este período.'
+              : 'No hay alertas que necesiten tu atención.'
+          }
+        />
       )}
     </Screen>
   );

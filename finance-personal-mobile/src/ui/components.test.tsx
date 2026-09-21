@@ -40,6 +40,7 @@ vi.mock('@expo/vector-icons/Ionicons', () => ({
   default: (props: Record<string, unknown>) => React.createElement('Ionicons', props),
 }));
 vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }),
   SafeAreaView: ({ children }: { children?: React.ReactNode }) =>
     React.createElement('SafeAreaView', undefined, children),
 }));
