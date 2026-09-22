@@ -20,8 +20,16 @@ export function EmptyState({
   const presentation = emptyTone[tone];
   return (
     <View style={[styles.center, { backgroundColor: presentation.backgroundColor }]}>
-      <Ionicons name={presentation.icon} size={28} color={presentation.color} />
-      <Text style={[typography.sectionTitle, styles.centerTitle]}>{title}</Text>
+      <View
+        style={styles.emptyIcon}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Ionicons name={presentation.icon} size={26} color={presentation.color} />
+      </View>
+      <Text accessibilityRole="header" style={[typography.cardTitle, styles.centerTitle]}>
+        {title}
+      </Text>
       <Text style={[typography.bodySecondary, styles.centerText]}>{description}</Text>
       {actionLabel && (
         <View style={styles.emptyAction}>
@@ -130,9 +138,17 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.xxl,
+    padding: spacing.xl,
     borderRadius: radius.large,
     backgroundColor: colors.surfaceSecondary,
+  },
+  emptyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.large,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centerText: { textAlign: 'center' },
   centerTitle: { textAlign: 'center' },

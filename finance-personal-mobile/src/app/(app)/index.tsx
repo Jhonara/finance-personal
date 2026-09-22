@@ -1,4 +1,7 @@
 import { openForm } from '@/features/forms/form-session';
+import { HomeMetrics } from '@/features/dashboard/home-metrics';
+import { HomeModules } from '@/features/dashboard/home-modules';
+import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
 import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
@@ -9,13 +12,7 @@ import {
   formatDashboardPeriod,
   shiftDashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
-import {
-  alertPresentation,
-  budgetCurrency,
-  currencyEntries,
-  toBudget,
-  toTransaction,
-} from '@/features/dashboard/dashboard-adapter';
+import { budgetCurrency, currencyEntries, toTransaction } from '@/features/dashboard/dashboard-adapter';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { dashboardGreeting } from '@/features/dashboard/dashboard-greeting';
 import { useCurrentUser } from '@/features/profile/use-current-user';
@@ -29,7 +26,7 @@ import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, spacing, typography } from '@/theme';
 import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
-import { AccountCard, AlertCard, BudgetProgress, StatCard, TransactionRow } from '@/ui/financial';
+import { AccountCard, TransactionRow } from '@/ui/financial';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
 import { IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
@@ -38,6 +35,7 @@ import { GuidedSetupCard } from '@/ui/guided-setup-card';
 import { BrandSurface } from '@/ui/brand-surface';
 
 export default function HomeScreen() {
+  const reducedMotion = useReducedMotion();
   const [period, setPeriod] = useState(currentDashboardPeriod);
   const [quickActions, setQuickActions] = useState(false);
   const [showFabHint, setShowFabHint] = useState(false);
@@ -76,6 +74,10 @@ export default function HomeScreen() {
   }, [currentUser.data?.id, dashboard.isSuccess, dashboardAccounts.length, hasGuidedMovement]);
   useEffect(() => {
     if (!dashboard.isSuccess) return;
+    if (reducedMotion) {
+      [greetingEntrance, summaryEntrance, flowEntrance, fabEntrance].forEach((value) => value.setValue(1));
+      return;
+    }
     [greetingEntrance, summaryEntrance, flowEntrance, fabEntrance].forEach((value) => value.setValue(0));
     const animation = Animated.stagger(65, [
       Animated.timing(greetingEntrance, {
@@ -107,6 +109,7 @@ export default function HomeScreen() {
     return () => animation.stop();
   }, [
     dashboard.isSuccess,
+    reducedMotion,
     fabEntrance,
     flowEntrance,
     greetingEntrance,
@@ -122,7 +125,9 @@ export default function HomeScreen() {
         onPress={() => setPeriod((value) => shiftDashboardPeriod(value, -1))}
         tone="primary"
       />
-      <Text style={typography.cardTitle}>{formatDashboardPeriod(period)}</Text>
+      <Text style={[typography.cardTitle, { flex: 1, textAlign: 'center' }]}>
+        {formatDashboardPeriod(period)}
+      </Text>
       <IconButton
         name="chevron-forward"
         accessibilityLabel="Mes siguiente"
@@ -158,9 +163,6 @@ export default function HomeScreen() {
   const accounts = (data.accounts ?? []).filter((account) => account.active);
   const currency = budgetCurrency(data);
   const netWorth = currencyEntries(data.netWorthByCurrency);
-  const assets = currencyEntries(data.assetsByCurrency);
-  const liabilities = currencyEntries(data.liabilitiesByCurrency);
-  const budgets = data.budgets?.items ?? [];
   const recent = data.recentTransactions ?? [];
   const hasAccounts = accounts.length > 0;
   return (
@@ -238,72 +240,14 @@ export default function HomeScreen() {
             <Text style={typography.moneyLarge}>
               {formatPrivateMoney(entry.amount, entry.currency, hidden)}
             </Text>
-            <Text style={typography.bodySecondary}>
-              {(data.netCashFlow ?? data.balance ?? 0) >= 0
-                ? 'Vas construyendo una base estable este mes.'
-                : 'Revisa tu flujo de este mes con calma.'}
-            </Text>
+            <Text style={typography.bodySecondary}>Tu balance entre lo que tienes y lo que debes.</Text>
           </BrandSurface>
         ))}
-        <Animated.View style={fadeSlide(flowEntrance, 6, -6)}>
-          <View style={styles.stats}>
-            {assets.map((entry) => (
-              <StatCard
-                key={`assets-${entry.currency}`}
-                label="Activos"
-                tone="income"
-                icon="wallet-outline"
-                value={entry.amount}
-                currency={entry.currency}
-                supportingText={entry.currency}
-                privacyHidden={hidden}
-              />
-            ))}
-            {liabilities.map((entry) => (
-              <StatCard
-                key={`liabilities-${entry.currency}`}
-                label="Pasivos"
-                tone="info"
-                icon="document-text-outline"
-                value={entry.amount}
-                currency={entry.currency}
-                supportingText={entry.currency}
-                privacyHidden={hidden}
-              />
-            ))}
-          </View>
-          <View style={styles.stats}>
-            <StatCard
-              label="Ingresos"
-              value={data.totalIncome ?? 0}
-              currency={currency}
-              supportingText="Este mes"
-              privacyHidden={hidden}
-              icon="arrow-down-outline"
-              tone="income"
-            />
-            <StatCard
-              label="Gastos"
-              value={data.totalExpense ?? 0}
-              currency={currency}
-              supportingText="Este mes"
-              privacyHidden={hidden}
-              icon="arrow-up-outline"
-              tone="expense"
-            />
-            <StatCard
-              label="Flujo neto"
-              compact
-              value={data.netCashFlow ?? data.balance ?? 0}
-              currency={currency}
-              supportingText="Este mes"
-              privacyHidden={hidden}
-              icon="swap-horizontal-outline"
-              tone="info"
-            />
-          </View>
+        <Animated.View style={fadeSlide(flowEntrance, 6)}>
+          <HomeMetrics data={data} />
         </Animated.View>
         <FinancialProgressSection dashboard={data} period={period} />
+        <HomeModules data={data} period={period} />
         <SectionHeader
           title="Cuentas"
           actionLabel={hasAccounts ? 'Ver todas' : 'Crear cuenta'}
@@ -319,6 +263,11 @@ export default function HomeScreen() {
                 currency={account.currency ?? currency}
                 balance={account.balance ?? 0}
                 active
+                onPress={
+                  account.id
+                    ? () => router.push({ pathname: '/(app)/account-detail', params: { id: account.id! } })
+                    : undefined
+                }
                 privacyHidden={hidden}
               />
             ))}
@@ -333,33 +282,13 @@ export default function HomeScreen() {
           />
         )}
         <SectionHeader
-          title="Presupuesto mensual"
-          actionLabel="Ver detalle"
-          onAction={() => router.push('/(app)/budgets')}
-        />
-        {budgets.length ? (
-          <View style={styles.list}>
-            {budgets.slice(0, 2).map((budget) => (
-              <BudgetProgress key={budget.id} {...toBudget(budget)} privacyHidden={hidden} />
-            ))}
-          </View>
-        ) : (
-          <EmptyState
-            title="Dale un límite a tus gastos"
-            description="Define cuánto quieres destinar a una categoría este mes."
-            actionLabel="Crear presupuesto"
-            onAction={() => router.push('/(app)/budgets')}
-            tone="warning"
-          />
-        )}
-        <SectionHeader
           title="Movimientos recientes"
           actionLabel="Ver todos"
           onAction={() => router.push('/(app)/transactions')}
         />
         {recent.length ? (
           <View style={styles.list}>
-            {recent.map((transaction) => (
+            {recent.slice(0, 3).map((transaction) => (
               <TransactionRow
                 key={transaction.transactionId}
                 {...toTransaction(transaction)}
@@ -376,18 +305,6 @@ export default function HomeScreen() {
             tone="info"
           />
         )}
-        {data.alerts?.filter((alert) => alert.code !== 'ALL_GOOD').length ? (
-          <>
-            <SectionHeader title="Atención" />
-            <View style={styles.list}>
-              {data.alerts
-                .filter((alert) => alert.code !== 'ALL_GOOD')
-                .map((alert, index) => (
-                  <AlertCard key={`${alert.code}-${index}`} {...alertPresentation(alert)} />
-                ))}
-            </View>
-          </>
-        ) : null}
       </Animated.View>
       <QuickActionModal
         visible={quickActions}

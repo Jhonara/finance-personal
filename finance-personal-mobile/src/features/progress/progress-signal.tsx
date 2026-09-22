@@ -7,6 +7,7 @@ import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Progress } from '@/ui/progress';
+import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { financialProgress, type FinancialProgressSignal } from './financial-progress';
 import { useCachedProgressCredits } from './use-cached-progress-credits';
 
@@ -19,6 +20,7 @@ const tones = {
 
 export function ProgressSignal({ signal, width }: { signal: FinancialProgressSignal; width: number }) {
   const { hidden } = usePrivacy();
+  const reducedMotion = useReducedMotion();
   const amount = signal.amount
     ? formatPrivateMoney(signal.amount.value, signal.amount.currency, hidden)
     : undefined;
@@ -29,7 +31,12 @@ export function ProgressSignal({ signal, width }: { signal: FinancialProgressSig
       <Text style={typography.cardTitle}>{signal.title}</Text>
       {amount ? <Text style={typography.moneySmall}>{amount}</Text> : null}
       {signal.percentage !== undefined ? (
-        <Progress value={signal.percentage} color={colors.primary} label={signal.accessibility} />
+        <Progress
+          value={signal.percentage}
+          color={colors.primary}
+          label={signal.accessibility}
+          animated={!reducedMotion}
+        />
       ) : null}
       <Text style={styles.supporting}>{signal.supporting}</Text>
       {signal.destination ? <Text style={styles.link}>Ver detalle →</Text> : null}
@@ -42,7 +49,7 @@ export function ProgressSignal({ signal, width }: { signal: FinancialProgressSig
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint="Abre el detalle de esta señal"
-      style={style}
+      style={({ pressed }) => [style, pressed && { opacity: 0.8 }]}
       onPress={() => router.push(signal.destination!)}
     >
       {content}
@@ -62,6 +69,7 @@ export function FinancialProgressSection({
   period: DashboardPeriod;
 }) {
   const cachedCredits = useCachedProgressCredits();
+  const reducedMotion = useReducedMotion();
   const signals = financialProgress({ dashboard, period, cachedCredits });
   const { width } = useWindowDimensions();
   const entrance = useRef(new Animated.Value(0)).current;
@@ -70,13 +78,17 @@ export function FinancialProgressSection({
   useEffect(() => {
     if (!visible || appeared.current) return;
     appeared.current = true;
-    const animation = Animated.timing(entrance, { toValue: 1, duration: 220, useNativeDriver: true });
+    const animation = Animated.timing(entrance, {
+      toValue: 1,
+      duration: reducedMotion ? 0 : 220,
+      useNativeDriver: true,
+    });
     animation.start();
     return () => {
       animation.stop();
       entrance.setValue(1);
     };
-  }, [visible, entrance]);
+  }, [visible, entrance, reducedMotion]);
   if (!visible) return null;
   const cardWidth = Math.max(
     160,
@@ -86,6 +98,7 @@ export function FinancialProgressSection({
     <Animated.View
       style={{
         gap: spacing.md,
+        marginTop: spacing.xxl,
         opacity: entrance,
         transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
       }}

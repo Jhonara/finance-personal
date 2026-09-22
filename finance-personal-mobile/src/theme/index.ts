@@ -1,19 +1,19 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export const colors = {
-  background: '#F7F8F6',
+  background: '#F5F8FA',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   surfaceSecondary: '#F1F4F5',
   textPrimary: '#202D32',
-  textSecondary: '#718087',
-  textMuted: '#89979D',
+  textSecondary: '#53666F',
+  textMuted: '#61747C',
   border: '#DDE4E6',
   divider: '#E9EDEE',
   primary: '#315D6B',
   primaryStrong: '#234754',
   primaryPressed: '#234754',
-  primarySoft: '#E4F1F4',
+  primarySoft: '#E2F1F3',
   accent: '#6674D9',
   accentSoft: '#EEF0FF',
   success: '#2D936C',

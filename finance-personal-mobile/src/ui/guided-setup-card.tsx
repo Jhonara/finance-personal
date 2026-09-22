@@ -124,7 +124,7 @@ function SetupRow({
         size={22}
         color={step.resolutionLabel ? colors.info : step.completed ? colors.success : colors.primary}
       />
-      <View style={styles.grow}>
+      <View style={[styles.grow, styles.stepText]}>
         <Text style={[typography.cardTitle, step.completed && styles.doneText]}>{step.title}</Text>
         {!compact ? <Text style={typography.caption}>{step.description}</Text> : null}
         {step.resolutionLabel ? <Text style={styles.resolution}>{step.resolutionLabel}</Text> : null}
@@ -168,11 +168,13 @@ const styles = StyleSheet.create({
   steps: { gap: spacing.sm },
   step: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radius.medium,
   },
+  stepText: { minWidth: 140 },
   stepRecommended: { backgroundColor: colors.primarySoft },
   stepDone: { backgroundColor: colors.successSoft },
   stepResolved: { backgroundColor: colors.infoSoft },

@@ -6,22 +6,24 @@ export function Progress({
   value,
   color = colors.primary,
   label = 'Progreso',
+  animated = true,
 }: {
   value: number;
   color?: string;
   label?: string;
+  animated?: boolean;
 }) {
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   const progress = useRef(new Animated.Value(clamped)).current;
   useEffect(() => {
     const animation = Animated.timing(progress, {
       toValue: clamped,
-      duration: motion.slow,
+      duration: animated ? motion.slow : 0,
       useNativeDriver: false,
     });
     animation.start();
     return () => animation.stop();
-  }, [clamped, progress]);
+  }, [clamped, progress, animated]);
   return (
     <View
       accessible

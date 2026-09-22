@@ -33,7 +33,11 @@ vi.mock('react-native', () => {
   const animation = () => ({ start: vi.fn(), stop: vi.fn() });
   return {
     ActivityIndicator: primitive('ActivityIndicator'),
-    useWindowDimensions: () => ({ width: 360, height: 640 }),
+    useWindowDimensions: () => ({ width: 360, height: 640, fontScale: 1 }),
+    AccessibilityInfo: {
+      isReduceMotionEnabled: async () => false,
+      addEventListener: () => ({ remove: vi.fn() }),
+    },
     KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
       visible ? children : null,
@@ -863,5 +867,80 @@ describe('Tu progreso on Home', () => {
         expect.objectContaining({ params: expect.objectContaining({ year: 2026, month: 3 }) }),
       ),
     );
+  });
+});
+
+describe('Home visual hub', () => {
+  it('promotes budgets, savings and credits from Dashboard without new requests', async () => {
+    dashboard = {
+      ...dashboard,
+      savings: [{ id: 2, name: 'Moto', progressPercent: 70 }],
+      credits: [
+        { id: 3, name: 'Casa', status: 'ACTIVE' },
+        { id: 4, status: 'PAID' },
+      ],
+      budgets: { items: [{ id: 1, categoryName: 'Comida', percentageUsed: 38, ...period }] },
+      alerts: [{ code: 'ALL_GOOD' }, { code: 'BUDGET_WARNING' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    expect(textContent(tree.toJSON())).toContain('Tu plan financiero');
+    expect(textContent(tree.toJSON())).toContain('Comida · 38% utilizado');
+    expect(textContent(tree.toJSON())).toContain('1 activo · 1 pagado');
+    expect(textContent(tree.toJSON())).toContain('1 aviso por revisar');
+    for (const [label, target] of [
+      ['Ver ahorros', '/(app)/savings'],
+      ['Ver créditos', '/(app)/credits'],
+      ['Ver alertas: 1 por revisar', '/(app)/alerts'],
+    ] as const) {
+      await act(async () => press(tree, label));
+      expect(mocks.push).toHaveBeenLastCalledWith(target);
+    }
+    await act(async () => press(tree, 'Ver presupuestos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/budgets', params: period });
+    expect(
+      mocks.get.mock.calls.every(([url]) =>
+        ['/dashboard/month', '/accounts', '/transactions', '/me'].includes(url),
+      ),
+    ).toBe(true);
+  });
+  it('keeps compact module access for empty data and omits irrelevant alerts', async () => {
+    dashboard = {
+      accounts: [],
+      budgets: { items: [] },
+      savings: [],
+      credits: [],
+      alerts: [{ code: 'ALL_GOOD' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    expect(textContent(tree.toJSON())).toContain('Crea una meta.');
+    expect(textContent(tree.toJSON())).toContain('Registra un crédito.');
+    expect(textContent(tree.toJSON())).not.toContain('Tu progreso');
+    expect(textContent(tree.toJSON())).not.toContain('avisos por revisar');
+    expect(textContent(tree.toJSON())).toContain('Configura tus finanzas');
+  });
+  it('keeps Home metrics private without hiding module navigation', async () => {
+    mocks.hidden = true;
+    dashboard = {
+      ...dashboard,
+      totalIncome: 928431,
+      totalExpense: 431,
+      netCashFlow: 928000,
+      netWorthByCurrency: { COP: 1234567 },
+      assetsByCurrency: { COP: 1234567 },
+      liabilitiesByCurrency: { COP: 0 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content =
+      textContent(tree.toJSON()) +
+      tree.root
+        .findAll((node) => typeof node.props.accessibilityLabel === 'string')
+        .map((node) => node.props.accessibilityLabel)
+        .join(' ');
+    expect(content).not.toMatch(/928[.,]?431|1[.,]?234[.,]?567/);
+    expect(content).toContain('Ver créditos');
+    expect(content).toContain('••••••');
   });
 });

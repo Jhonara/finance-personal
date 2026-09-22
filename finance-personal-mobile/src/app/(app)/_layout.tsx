@@ -24,7 +24,14 @@ export default function AppLayout() {
   const options = (label: string, icon: keyof typeof Ionicons.glyphMap) => ({
     title: label,
     tabBarLabel: ({ color }: { color: ColorValue }) => (
-      <Text style={{ ...typography.caption, fontSize: 10, color, textAlign: 'center' }}>{label}</Text>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+        style={{ ...typography.caption, fontSize: 10, color, textAlign: 'center', width: '100%' }}
+      >
+        {label}
+      </Text>
     ),
     tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => (
       <Ionicons name={icon} color={color} size={size} />

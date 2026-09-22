@@ -49,10 +49,31 @@ import { AccountCard, TransactionRow } from './financial';
 import { EmptyState, ErrorState } from './states';
 import { FloatingActionButton } from './actions';
 import { ModalSelector } from './modal-selector';
-import { Button, Card, MoneyInput } from './primitives';
-import { colors } from '@/theme';
+import { Button, Card, MoneyInput, Screen } from './primitives';
+import { colors, sizes, spacing } from '@/theme';
 
 describe('Finance Calm components', () => {
+  it('lets content extend behind a transparent FAB overlay with scroll room for the final row', async () => {
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <Screen scroll floatingAction={<FloatingActionButton onPress={() => undefined} />}>
+          <Button>Última fila</Button>
+        </Screen>,
+      );
+    });
+    const scroll = tree.root.find((node) => (node.type as unknown) === 'ScrollView');
+    const padding = Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean));
+    expect(padding.paddingBottom).toBeGreaterThanOrEqual(sizes.fab + spacing.xl);
+    expect(textContent(scroll)).toContain('Última fila');
+    const overlay = tree.root.find(
+      (node) => (node.type as unknown) === 'View' && node.props.pointerEvents === 'box-none',
+    );
+    expect(overlay.props.style.position).toBe('absolute');
+    expect(overlay.props.style.backgroundColor).toBeUndefined();
+    expect(overlay.props.style.bottom).toBe(0);
+    await act(async () => tree.unmount());
+  });
   it('disables Button when loading', async () => {
     let tree: ReturnType<typeof create>;
     await act(async () => {

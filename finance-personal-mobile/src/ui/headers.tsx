@@ -24,7 +24,11 @@ export function ScreenHeader({
     <View style={styles.header}>
       {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={onBack} /> : null}
       <View style={styles.grow}>
-        <Text numberOfLines={titleNumberOfLines} style={[typography.screenTitle, styles.title]}>
+        <Text
+          accessibilityRole="header"
+          numberOfLines={titleNumberOfLines}
+          style={[typography.screenTitle, styles.title]}
+        >
           {title}
         </Text>
         {subtitle && <Text style={typography.bodySecondary}>{subtitle}</Text>}
@@ -45,13 +49,15 @@ export function SectionHeader({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={typography.sectionTitle}>{title}</Text>
+      <Text accessibilityRole="header" style={[typography.sectionTitle, styles.title]}>
+        {title}
+      </Text>
       {actionLabel && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
           onPress={onAction}
-          style={({ pressed }) => pressed && styles.pressed}
+          style={({ pressed }) => [styles.sectionAction, pressed && styles.pressed]}
         >
           <Text style={styles.action}>{actionLabel}</Text>
         </Pressable>
@@ -93,7 +99,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing.xxl,
     paddingBottom: spacing.md,
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
+  sectionAction: { minHeight: 48, justifyContent: 'center' },
   action: { ...typography.label, color: colors.primary },
   listItem: {
     minHeight: 56,

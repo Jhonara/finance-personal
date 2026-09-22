@@ -61,7 +61,7 @@ export function Screen({
     <View style={[styles.fill, padded && styles.padding, style]}>{children}</View>
   );
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={floatingAction ? ['top', 'left', 'right'] : undefined}>
       {keyboard ? (
         <KeyboardAvoidingView
           style={styles.fill}
@@ -72,7 +72,11 @@ export function Screen({
       ) : (
         content
       )}
-      {floatingAction ? <View style={styles.floatingDock}>{floatingAction}</View> : null}
+      {floatingAction ? (
+        <View pointerEvents="box-none" style={styles.floatingDock}>
+          {floatingAction}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -344,8 +348,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   fill: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: spacing.huge },
-  floatingSpace: { paddingBottom: spacing.lg },
-  floatingDock: { height: sizes.fab + spacing.xl * 2 },
+  floatingSpace: { paddingBottom: sizes.fab + spacing.xl * 2 },
+  floatingDock: { position: 'absolute', bottom: 0, left: 0, right: 0, height: sizes.fab + spacing.xl * 2 },
   padding: { paddingHorizontal: spacing.lg },
   button: {
     minHeight: sizes.button,
