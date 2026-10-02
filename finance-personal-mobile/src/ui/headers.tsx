@@ -3,8 +3,53 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
+import { BrandAvatar, BrandLogo, BrandMark } from './brand-identity';
 import { IconButton } from './primitives';
+
+export function HomeBrandHeader({
+  title,
+  subtitle,
+  profileName,
+  privacyHidden,
+  onPrivacy,
+  onProfile,
+}: {
+  title: string;
+  subtitle: string;
+  profileName?: string;
+  privacyHidden: boolean;
+  onPrivacy(): void;
+  onProfile(): void;
+}) {
+  return (
+    <View style={styles.homeHeader}>
+      <View style={styles.brandRow}>
+        <BrandLogo compact />
+        <View style={styles.headerActions}>
+          <IconButton
+            name={privacyHidden ? 'eye-off-outline' : 'eye-outline'}
+            accessibilityLabel={privacyHidden ? 'Mostrar importes' : 'Ocultar importes'}
+            onPress={onPrivacy}
+          />
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir perfil y preferencias"
+            onPress={onProfile}
+            style={styles.profileAction}
+          >
+            <BrandAvatar size={40}>
+              <Text style={styles.profileInitial}>
+                {profileName?.trim().slice(0, 1).toUpperCase() || 'P'}
+              </Text>
+            </BrandAvatar>
+          </MotionPressable>
+        </View>
+      </View>
+      <ScreenHeader title={title} subtitle={subtitle} titleNumberOfLines={2} />
+    </View>
+  );
+}
 
 export function ScreenHeader({
   title,
@@ -13,6 +58,7 @@ export function ScreenHeader({
   onBack,
   rightAction,
   titleNumberOfLines,
+  brand = false,
 }: {
   title: string;
   subtitle?: string;
@@ -20,10 +66,12 @@ export function ScreenHeader({
   onBack?: () => void;
   rightAction?: ReactNode;
   titleNumberOfLines?: number;
+  brand?: boolean;
 }) {
   return (
     <View style={styles.header}>
       {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={onBack} /> : null}
+      {brand ? <BrandMark size={32} /> : null}
       <View style={styles.grow}>
         <Text
           accessibilityRole="header"
@@ -91,6 +139,23 @@ export function MoreListItem({
 }
 
 const styles = StyleSheet.create({
+  homeHeader: { gap: spacing.xs },
+  brandRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  profileAction: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileInitial: { ...typography.label, color: colors.primaryStrong },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   grow: { flex: 1 },
   title: { flexShrink: 1 },

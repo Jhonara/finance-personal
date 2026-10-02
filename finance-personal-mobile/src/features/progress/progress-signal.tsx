@@ -1,6 +1,6 @@
 import { MotionPressable } from '@/ui/motion';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { BrandSurface } from '@/ui/brand-surface';
+import { FinancialCompanion } from '@/ui/brand-identity';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -38,7 +38,16 @@ export function ProgressSignal({
     <BrandSurface tone="insight" style={styles.content}>
       <View style={styles.topline}>
         <Text style={styles.eyebrow}>{signal.eyebrow}</Text>
-        <Ionicons name="sparkles-outline" size={20} color={colors.accent} accessible={false} />
+        <FinancialCompanion
+          state={
+            signal.amount && signal.amount.value < 0
+              ? 'attention'
+              : signal.kind === 'budget'
+                ? 'thinking'
+                : 'happy'
+          }
+          size={38}
+        />
       </View>
       <Text style={typography.cardTitle}>{signal.title}</Text>
       {amount ? <Text style={typography.moneySmall}>{amount}</Text> : null}

@@ -1,9 +1,9 @@
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { useEffect, useRef } from 'react';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from '@/ui/primitives';
+import { FinancialCompanion } from '@/ui/brand-identity';
 import type { SavingsCelebration } from './savings-celebrations';
 
 export function SavingCelebration({
@@ -55,7 +55,7 @@ export function SavingCelebration({
               },
             ]}
           >
-            <Ionicons name="checkmark-circle-outline" size={46} color={colors.success} />
+            <FinancialCompanion state="celebrate" size={58} />
             <Text accessibilityLiveRegion="polite" accessibilityRole="header" style={typography.screenTitle}>
               {celebration.title}
             </Text>

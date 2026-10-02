@@ -5,6 +5,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { firstRunStorage } from '@/features/onboarding/first-run-storage';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { Button } from './primitives';
+import { FinancialCompanion } from './brand-identity';
+import { useReducedMotion } from './use-reduced-motion';
 
 const slides = [
   {
@@ -33,6 +35,7 @@ export function FirstRunGuide({
   replay?: boolean;
   onClose?: () => void;
 }) {
+  const reduced = useReducedMotion();
   const [visible, setVisible] = useState(replay);
   const [slide, setSlide] = useState(0);
   useEffect(() => {
@@ -56,12 +59,16 @@ export function FirstRunGuide({
   };
   const current = slides[slide] ?? slides[0]!;
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={close}>
+    <Modal transparent visible={visible} animationType={reduced ? 'none' : 'fade'} onRequestClose={close}>
       <View style={styles.overlay}>
         <View accessibilityViewIsModal style={styles.card}>
           <ScrollView contentContainerStyle={{ gap: spacing.md }}>
             <View style={styles.icon}>
-              <Ionicons name={current.icon} size={28} color={colors.primary} />
+              {slide === 0 ? (
+                <FinancialCompanion state="happy" size={56} />
+              ) : (
+                <Ionicons name={current.icon} size={28} color={colors.primary} />
+              )}
             </View>
             <Text style={typography.sectionTitle}>{current.title}</Text>
             <Text style={[typography.bodySecondary, styles.copy]}>{current.copy}</Text>
@@ -105,7 +112,9 @@ export function FirstRunFabHint({
   return (
     <View accessibilityLiveRegion="polite" style={styles.hint}>
       <Text style={typography.cardTitle}>Registra tu primer movimiento</Text>
-      <Text style={typography.caption}>Usa el botón + para añadir un ingreso, gasto o transferencia.</Text>
+      <Text style={typography.caption}>
+        Usa el + del centro para añadir un ingreso, gasto o transferencia.
+      </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Cerrar ayuda de movimientos"
@@ -118,7 +127,7 @@ export function FirstRunFabHint({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'center', padding: spacing.xl, backgroundColor: 'rgba(32,45,50,0.38)' },
+  overlay: { flex: 1, justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.overlay },
   card: {
     maxHeight: '90%',
     gap: spacing.md,
@@ -144,10 +153,8 @@ const styles = StyleSheet.create({
   skip: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   skipText: { ...typography.label, color: colors.primary },
   hint: {
-    position: 'absolute',
-    right: spacing.xl,
-    bottom: 88,
-    maxWidth: 245,
+    marginTop: spacing.lg,
+    alignSelf: 'stretch',
     gap: spacing.xs,
     padding: spacing.md,
     borderRadius: radius.medium,

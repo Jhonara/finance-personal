@@ -4,26 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Animated, Modal, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
-
-export function FloatingActionButton({
-  onPress,
-  reducedMotion = false,
-}: {
-  onPress: () => void;
-  reducedMotion?: boolean;
-}) {
-  return (
-    <MotionPressable
-      accessibilityRole="button"
-      accessibilityLabel="Nuevo movimiento"
-      onPress={onPress}
-      style={({ pressed }) => [styles.fab, pressed && (reducedMotion ? { opacity: 0.86 } : styles.pressed)]}
-    >
-      <Ionicons name="add" color={colors.surface} size={28} />
-    </MotionPressable>
-  );
-}
+import { colors, radius, shadows, spacing, typography } from '@/theme';
 
 export function QuickActionModal({
   visible,
@@ -92,7 +73,7 @@ export function QuickActionModal({
               onPress={(event) => event.stopPropagation()}
             >
               <View style={styles.handle} />
-              <Text style={typography.sectionTitle}>Nuevo movimiento</Text>
+              <Text style={typography.sectionTitle}>Registrar</Text>
               {actions.map((action) => (
                 <MotionPressable
                   key={action.label}
@@ -125,20 +106,7 @@ export function QuickActionModal({
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    right: spacing.xl,
-    bottom: spacing.xl,
-    width: sizes.fab,
-    height: sizes.fab,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.coralStrong,
-    ...shadows.floating,
-  },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(30,42,49,0.28)' },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   sheet: {
     gap: spacing.md,
     padding: spacing.xxl,

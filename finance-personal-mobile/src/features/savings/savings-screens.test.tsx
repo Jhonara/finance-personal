@@ -53,6 +53,7 @@ vi.mock('react-native', () => {
     RefreshControl: host('RefreshControl'),
     StyleSheet: { create: (styles: object) => styles },
     Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
+    useWindowDimensions: () => ({ width: 320, height: 700, fontScale: 1 }),
     Animated: {
       Text: host('Text'),
       View: host('AnimatedView'),
@@ -88,7 +89,7 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => mocks.params,
   Redirect: () => null,
   Tabs: Object.assign(
-    ({ children }: React.PropsWithChildren) => React.createElement('Tabs', undefined, children),
+    ({ children, ...props }: React.PropsWithChildren<object>) => React.createElement('Tabs', props, children),
     { Screen: (props: object) => React.createElement('TabRoute', props) },
   ),
 }));
@@ -389,13 +390,20 @@ describe('Goal detail and contributions', () => {
   });
 });
 
-it('keeps exactly four visible tabs and all Savings routes internal', async () => {
+it('keeps exactly five visible tabs and all Savings routes internal', async () => {
   client.setQueryData(secondaryKeys.savings, []);
   const tree = await render(<AppLayout />);
   const routes = tree.root.findAll((node) => (node.type as unknown) === 'TabRoute');
   expect(
     routes.filter((route) => route.props.options.href !== null).map((route) => route.props.options.title),
-  ).toEqual(['Inicio', 'Movimientos', 'Cuentas', 'Más']);
+  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Más']);
+  const shell = tree.root.find((node) => (node.type as unknown) === 'Tabs');
+  expect(shell.props.screenOptions.tabBarStyle).toMatchObject({ height: 88, paddingBottom: 24 });
+  const movements = routes.find((route) => route.props.name === 'transactions');
+  expect(movements?.props.options.tabBarLabel({ color: '#000' }).props.children).toBe('Movi\nmientos');
+  expect(routes.find((route) => route.props.name === 'action')?.props.options.tabBarButton).toBeTypeOf(
+    'function',
+  );
   for (const name of ['savings', 'saving-detail', 'saving-form'])
     expect(routes.find((route) => route.props.name === name)!.props.options.href).toBe(null);
 });

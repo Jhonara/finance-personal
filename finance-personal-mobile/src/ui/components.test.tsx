@@ -2,6 +2,8 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, create } from 'react-test-renderer';
 
+const motionMocks = vi.hoisted(() => ({ reduced: false, timing: vi.fn() }));
+
 function textContent(value: unknown): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   if (Array.isArray(value)) return value.map(textContent).join('');
@@ -28,7 +30,7 @@ vi.mock('react-native', () => {
       );
   return {
     AccessibilityInfo: {
-      isReduceMotionEnabled: async () => false,
+      isReduceMotionEnabled: async () => motionMocks.reduced,
       addEventListener: () => ({ remove: vi.fn() }),
     },
     Animated: {
@@ -40,10 +42,13 @@ vi.mock('react-native', () => {
           return 1;
         }
       },
-      timing: () => ({
-        start: (cb?: (result: { finished: boolean }) => void) => cb?.({ finished: true }),
-        stop: vi.fn(),
-      }),
+      timing: () => {
+        motionMocks.timing();
+        return {
+          start: (cb?: (result: { finished: boolean }) => void) => cb?.({ finished: true }),
+          stop: vi.fn(),
+        };
+      },
     },
     ActivityIndicator: primitive('ActivityIndicator'),
     KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
@@ -68,83 +73,39 @@ vi.mock('react-native-safe-area-context', () => ({
 
 import { AccountCard, TransactionRow } from './financial';
 import { EmptyState, ErrorState } from './states';
-import { FloatingActionButton } from './actions';
+import { CenterActionButton } from './center-action';
+import { BrandMark } from './brand-identity';
 import { ModalSelector } from './modal-selector';
 import { Button, Card, MoneyInput, Screen } from './primitives';
-import { colors, sizes, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
+
+const actionMocks = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('@/features/quick-actions/quick-action-provider', () => ({
+  useQuickActions: () => ({ open: actionMocks.open, active: false, openedCount: 0 }),
+}));
+vi.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children }: React.PropsWithChildren) =>
+    React.createElement('Gradient', undefined, children),
+}));
 
 describe('Finance Calm components', () => {
-  it.each([1, 2, 3])(
-    'places the Home FAB after all content for %s accounts without a fixed band',
-    async (count) => {
-      let tree!: ReturnType<typeof create>;
-      await act(async () => {
-        tree = create(
-          <Screen scroll actionInScroll floatingAction={<FloatingActionButton onPress={() => undefined} />}>
-            {Array.from({ length: count }, (_, i) => (
-              <Button key={i}>Cuenta {i + 1}</Button>
-            ))}
-            <Button>Último movimiento</Button>
-          </Screen>,
-        );
-      });
-      const scroll = tree.root.find((node) => (node.type as unknown) === 'ScrollView');
-      const fab = scroll.findByType(FloatingActionButton);
-      const slot = fab.parent!;
-      expect(slot.props.style.position).toBe('relative');
-      expect(slot.props.style.backgroundColor).toBeUndefined();
-      const last = scroll.children[scroll.children.length - 1];
-      expect(last && typeof last !== 'string' && last.findAllByType(FloatingActionButton).length === 1).toBe(
-        true,
-      );
-      expect(slot.props.style.height).toBe(sizes.fab + spacing.xl * 2);
-      expect(Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean)).paddingBottom).toBe(
-        spacing.lg,
-      );
-      await act(async () => tree.unmount());
-    },
-  );
-  it('keeps the Home FAB as the only persistent bottom action', async () => {
+  it('keeps Home content scrollable without an independent bottom action', async () => {
     let tree!: ReturnType<typeof create>;
     await act(async () => {
       tree = create(
-        <Screen scroll floatingAction={<FloatingActionButton onPress={() => undefined} />}>
+        <Screen scroll>
           <Button>Última fila</Button>
         </Screen>,
       );
     });
     const scroll = tree.root.find((node) => (node.type as unknown) === 'ScrollView');
-    const footer = tree.root.find(
-      (node) => (node.type as unknown) === 'View' && node.props.pointerEvents === 'box-none',
-    );
-    expect(footer.props.style.position).toBe('absolute');
-    expect(footer.props.style.backgroundColor).toBeUndefined();
-    expect(textContent(footer)).not.toContain('Registrar movimiento');
-    expect(textContent(scroll)).not.toContain('Registrar movimiento');
-    expect(Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean)).paddingBottom).toBe(
-      sizes.fab + spacing.xl * 2,
-    );
-    await act(async () => tree.unmount());
-  });
-  it('lets content extend behind a transparent FAB overlay with scroll room for the final row', async () => {
-    let tree!: ReturnType<typeof create>;
-    await act(async () => {
-      tree = create(
-        <Screen scroll floatingAction={<FloatingActionButton onPress={() => undefined} />}>
-          <Button>Última fila</Button>
-        </Screen>,
-      );
-    });
-    const scroll = tree.root.find((node) => (node.type as unknown) === 'ScrollView');
-    const padding = Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean));
-    expect(padding.paddingBottom).toBeGreaterThanOrEqual(sizes.fab + spacing.xl);
     expect(textContent(scroll)).toContain('Última fila');
-    const overlay = tree.root.find(
-      (node) => (node.type as unknown) === 'View' && node.props.pointerEvents === 'box-none',
+    expect(scroll.findAll((node) => node.props.accessibilityLabel === 'Registrar movimiento')).toHaveLength(
+      0,
     );
-    expect(overlay.props.style.position).toBe('absolute');
-    expect(overlay.props.style.backgroundColor).toBeUndefined();
-    expect(overlay.props.style.bottom).toBe(0);
+    expect(Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean)).paddingBottom).toBe(
+      spacing.huge,
+    );
     await act(async () => tree.unmount());
   });
   it('disables Button when loading', async () => {
@@ -265,14 +226,32 @@ describe('Finance Calm components', () => {
     expect(styles).toContainEqual(expect.objectContaining({ backgroundColor }));
   });
 
-  it('keeps the FAB a labelled touch target', async () => {
+  it('keeps the center action a labelled touch target', async () => {
     let tree: ReturnType<typeof create>;
     await act(async () => {
-      tree = create(<FloatingActionButton onPress={() => undefined} />);
+      tree = create(<CenterActionButton />);
     });
-    expect(
-      tree!.root.find((node) => node.props.accessibilityLabel === 'Nuevo movimiento').props.accessibilityRole,
-    ).toBe('button');
+    const action = tree!.root.find((node) => node.props.accessibilityLabel === 'Registrar movimiento');
+    expect(action.props.accessibilityRole).toBe('button');
+    await act(async () => action.props.onPress());
+    expect(actionMocks.open).toHaveBeenCalledOnce();
+  });
+
+  it('skips brand entrance and center rotation with reduced motion', async () => {
+    motionMocks.reduced = true;
+    motionMocks.timing.mockClear();
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <>
+          <BrandMark />
+          <CenterActionButton />
+        </>,
+      );
+    });
+    expect(motionMocks.timing).not.toHaveBeenCalled();
+    await act(async () => tree.unmount());
+    motionMocks.reduced = false;
   });
 
   it('marks the selected ModalSelector option', async () => {

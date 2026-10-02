@@ -1,6 +1,6 @@
 import { MotionPressable, ScreenEntry } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from 'react';
+import { useState, type ComponentProps, type PropsWithChildren } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -30,8 +30,6 @@ export function Screen({
   style,
   refreshing,
   onRefresh,
-  floatingAction,
-  actionInScroll = false,
   entry = false,
 }: PropsWithChildren<{
   scroll?: boolean;
@@ -40,18 +38,11 @@ export function Screen({
   style?: ViewStyle;
   refreshing?: boolean;
   onRefresh?: () => void;
-  floatingAction?: ReactNode;
-  actionInScroll?: boolean;
   entry?: boolean;
 }>) {
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={[
-        styles.scroll,
-        padded && styles.padding,
-        style,
-        floatingAction ? (actionInScroll ? { paddingBottom: spacing.lg } : styles.floatingSpace) : undefined,
-      ]}
+      contentContainerStyle={[styles.scroll, padded && styles.padding, style]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         onRefresh ? (
@@ -60,7 +51,6 @@ export function Screen({
       }
     >
       {entry ? <ScreenEntry>{children}</ScreenEntry> : children}
-      {floatingAction && actionInScroll ? <View style={styles.inlineAction}>{floatingAction}</View> : null}
     </ScrollView>
   ) : (
     <View style={[styles.fill, padded && styles.padding, style]}>
@@ -68,7 +58,7 @@ export function Screen({
     </View>
   );
   return (
-    <SafeAreaView style={styles.safe} edges={floatingAction ? ['top', 'left', 'right'] : undefined}>
+    <SafeAreaView style={styles.safe}>
       {keyboard ? (
         <KeyboardAvoidingView
           style={styles.fill}
@@ -79,11 +69,6 @@ export function Screen({
       ) : (
         content
       )}
-      {floatingAction && !actionInScroll ? (
-        <View pointerEvents="box-none" style={styles.floatingDock}>
-          {floatingAction}
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -355,9 +340,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   fill: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: spacing.huge },
-  floatingSpace: { paddingBottom: sizes.fab + spacing.xl * 2 },
-  inlineAction: { position: 'relative', height: sizes.fab + spacing.xl * 2 },
-  floatingDock: { position: 'absolute', bottom: 0, left: 0, right: 0, height: sizes.fab + spacing.xl * 2 },
   padding: { paddingHorizontal: spacing.lg },
   button: {
     minHeight: sizes.button,

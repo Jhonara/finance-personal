@@ -95,6 +95,9 @@ vi.mock('@/privacy/privacy-provider', () => ({
   usePrivacy: () => ({ hidden: mocks.hidden, toggle: vi.fn() }),
 }));
 vi.mock('@/feedback/feedback-provider', () => ({ useFeedback: () => ({ show: mocks.feedback }) }));
+vi.mock('@/features/quick-actions/quick-action-provider', () => ({
+  useQuickActions: () => ({ open: vi.fn(), openedCount: 0, active: false }),
+}));
 
 import AccountForm from '@/app/(app)/account-form';
 import BudgetForm from '@/app/(app)/budget-form';

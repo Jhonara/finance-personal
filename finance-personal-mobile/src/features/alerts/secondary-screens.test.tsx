@@ -415,12 +415,13 @@ describe('More, preferences and session UI', () => {
     });
     expect(mocks.feedback).toHaveBeenCalledWith(expect.stringContaining('no pudimos confirmar'), 'warning');
   });
-  it('retains exactly four tabs with alerts and all detail routes hidden', async () => {
+  it('retains five brand tabs with alerts and all detail routes hidden', async () => {
     const tree = await render(<AppLayout />);
     const tabs = tree.root.findAll((node) => String(node.type) === 'TabRoute');
     expect(tabs.filter((node) => node.props.options.href !== null).map((node) => node.props.name)).toEqual([
       'index',
       'transactions',
+      'action',
       'accounts',
       'more',
     ]);

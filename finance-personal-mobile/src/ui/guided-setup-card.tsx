@@ -6,6 +6,7 @@ import type { SetupStep } from '@/features/onboarding/first-run-progress';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from './primitives';
 import { BrandSurface } from './brand-surface';
+import { FinancialCompanion } from './brand-identity';
 
 export function GuidedSetupCard({
   steps,
@@ -41,18 +42,8 @@ export function GuidedSetupCard({
   return (
     <BrandSurface style={[styles.card, allDone && styles.complete]}>
       <View style={styles.header}>
-        <Animated.View
-          style={[
-            styles.headerIcon,
-            allDone && styles.headerIconDone,
-            { transform: [{ scale: completionScale }] },
-          ]}
-        >
-          <Ionicons
-            name={allDone ? 'checkmark-circle-outline' : 'compass-outline'}
-            size={22}
-            color={allDone ? colors.success : colors.primary}
-          />
+        <Animated.View style={[{ transform: [{ scale: completionScale }] }]}>
+          <FinancialCompanion state={allDone ? 'happy' : 'thinking'} size={42} />
         </Animated.View>
         <View style={styles.grow}>
           <Text accessibilityLiveRegion="polite" style={typography.sectionTitle}>
@@ -155,15 +146,6 @@ const styles = StyleSheet.create({
   complete: { backgroundColor: colors.successSoft, borderColor: colors.successSoft },
   header: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
   grow: { flex: 1, gap: spacing.xxs },
-  headerIcon: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-  },
-  headerIconDone: { backgroundColor: colors.successSoft },
   progressLabel: { ...typography.label, color: colors.textSecondary },
   track: {
     height: 8,

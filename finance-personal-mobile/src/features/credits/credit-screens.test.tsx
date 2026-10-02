@@ -51,6 +51,7 @@ vi.mock('react-native', () => {
     RefreshControl: host('RefreshControl'),
     StyleSheet: { create: (styles: object) => styles },
     Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
+    useWindowDimensions: () => ({ width: 320, height: 700, fontScale: 1 }),
     Animated: {
       Text: host('Text'),
       View: host('AnimatedView'),
@@ -519,12 +520,13 @@ describe('Credit screens with real hooks and forms', () => {
     await fill(tree, 'Monto adicional (opcional)', '200');
     expect(text(tree.toJSON())).not.toContain('Escenario simulado');
   });
-  it('keeps credits internal routes hidden and four primary tabs', async () => {
+  it('keeps credits internal routes hidden and five primary tabs', async () => {
     const tree = await render(<AppLayout />);
     const routes = tree.root.findAll((n) => (n.type as unknown) === 'TabRoute');
     expect(routes.filter((n) => n.props.options?.href !== null).map((n) => n.props.name)).toEqual([
       'index',
       'transactions',
+      'action',
       'accounts',
       'more',
     ]);

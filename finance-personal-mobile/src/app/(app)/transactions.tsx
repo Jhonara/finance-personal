@@ -1,4 +1,3 @@
-import { MotionModal as Modal } from '@/ui/motion-modal';
 import { openForm } from '@/features/forms/form-session';
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -8,10 +7,10 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { useTransactions } from '@/features/transactions/use-transactions';
 import { useAccounts } from '@/features/accounts/use-accounts';
+import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { filterCount, type TransactionFilters } from '@/features/transactions/filters';
 import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
 import { usePrivacy } from '@/privacy/privacy-provider';
-import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
 import { TransactionRow } from '@/ui/financial';
 import { ScreenHeader } from '@/ui/headers';
 import { Button, Screen } from '@/ui/primitives';
@@ -25,7 +24,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 
 export default function TransactionsScreen() {
-  const [quickActions, setQuickActions] = useState(false);
+  const { open: openQuickActions } = useQuickActions();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
   const [filters, setFilters] = useState<TransactionFilters>(
@@ -38,23 +37,12 @@ export default function TransactionsScreen() {
     }, [year, month]),
   );
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
-  const [noAccountsOpen, setNoAccountsOpen] = useState(false);
   const { hidden } = usePrivacy();
   const accounts = useAccounts();
   const transactions = useTransactions(filters);
   const items = transactions.data?.pages.flatMap((page) => page.content ?? []) ?? [];
   const groups = useMemo(() => groupTransactionsByDate(items), [items]);
   const hasAccounts = Boolean(accounts.data?.some((account) => account.active));
-  const canTransfer = Boolean(
-    accounts.data?.some(
-      (account, index, all) =>
-        account.active &&
-        all.some(
-          (candidate, candidateIndex) =>
-            candidateIndex !== index && candidate.active && candidate.currency === account.currency,
-        ),
-    ),
-  );
   const activeFilters = filterCount(filters);
   if (transactions.isPending)
     return (
@@ -73,17 +61,7 @@ export default function TransactionsScreen() {
       </Screen>
     );
   return (
-    <Screen
-      entry
-      scroll
-      refreshing={transactions.isRefetching}
-      onRefresh={() => void transactions.refetch()}
-      floatingAction={
-        <FloatingActionButton
-          onPress={() => (hasAccounts ? setQuickActions(true) : setNoAccountsOpen(true))}
-        />
-      }
-    >
+    <Screen entry scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
       <ScreenHeader title="Movimientos" subtitle="Historial" />
       <View style={styles.filterCard}>
         <Button
@@ -175,51 +153,15 @@ export default function TransactionsScreen() {
               : 'Crea una cuenta primero para registrar tu saldo y tus movimientos.'
           }
           actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
-          onAction={() => (hasAccounts ? setQuickActions(true) : openForm('/(app)/account-form'))}
+          onAction={() => (hasAccounts ? openQuickActions() : openForm('/(app)/account-form'))}
           tone="info"
         />
       )}
-      <QuickActionModal
-        visible={quickActions}
-        onClose={() => setQuickActions(false)}
-        onExpense={() => {
-          setQuickActions(false);
-          openForm('/(app)/new-expense');
-        }}
-        onIncome={() => {
-          setQuickActions(false);
-          openForm('/(app)/new-income');
-        }}
-        onTransfer={() => {
-          setQuickActions(false);
-          openForm('/(app)/new-transfer');
-        }}
-        canTransfer={canTransfer}
-      />
       <TransactionDetailSheet
         transaction={selectedTransaction}
         privacyHidden={hidden}
         onClose={() => setSelectedTransaction(undefined)}
       />
-      <Modal transparent visible={noAccountsOpen} onRequestClose={() => setNoAccountsOpen(false)}>
-        <View style={styles.noAccountsOverlay}>
-          <View style={styles.noAccountsCard}>
-            <Text style={typography.sectionTitle}>Primero crea una cuenta</Text>
-            <Text style={typography.bodySecondary}>Necesitas una cuenta para registrar tus movimientos.</Text>
-            <Button
-              onPress={() => {
-                setNoAccountsOpen(false);
-                openForm('/(app)/account-form');
-              }}
-            >
-              Crear cuenta
-            </Button>
-            <Button variant="ghost" onPress={() => setNoAccountsOpen(false)}>
-              Cancelar
-            </Button>
-          </View>
-        </View>
-      </Modal>
       <TransactionFiltersModal
         visible={filtersOpen}
         filters={filters}
@@ -269,18 +211,6 @@ const styles = StyleSheet.create({
   group: { gap: spacing.xxs },
   groupHeader: { ...typography.label, color: colors.textSecondary, paddingTop: spacing.sm },
   loadMore: { ...typography.label, alignSelf: 'center', padding: spacing.md, color: colors.primary },
-  noAccountsOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-    backgroundColor: 'rgba(32,45,50,0.32)',
-  },
-  noAccountsCard: {
-    gap: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.large,
-    backgroundColor: colors.surface,
-  },
 });
 
 function filterChips(filters: TransactionFilters, accounts: Array<{ id?: number; name?: string }>) {

@@ -1,6 +1,7 @@
 import { openForm } from '@/features/forms/form-session';
 import { HomeMetrics, FinancialPanorama } from '@/features/dashboard/home-metrics';
 import { HomeModules } from '@/features/dashboard/home-modules';
+import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,9 +25,8 @@ import { useGuidedSetupVisibility } from '@/features/onboarding/use-guided-setup
 import { useFeedback } from '@/feedback/feedback-provider';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { colors, motion, radius, spacing, typography } from '@/theme';
-import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
 import { AccountCard, TransactionRow } from '@/ui/financial';
-import { ScreenHeader, SectionHeader } from '@/ui/headers';
+import { HomeBrandHeader, SectionHeader } from '@/ui/headers';
 import { Card, IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
 import { FirstRunFabHint, FirstRunGuide } from '@/ui/first-run-guide';
@@ -35,7 +35,7 @@ import { GuidedSetupCard } from '@/ui/guided-setup-card';
 export default function HomeScreen() {
   const reducedMotion = useReducedMotion();
   const [period, setPeriod] = useState(currentDashboardPeriod);
-  const [quickActions, setQuickActions] = useState(false);
+  const { open: openQuickActions, openedCount } = useQuickActions();
   const [showFabHint, setShowFabHint] = useState(false);
   const greetingEntrance = useRef(new Animated.Value(0)).current;
   const summaryEntrance = useRef(new Animated.Value(0)).current;
@@ -43,7 +43,6 @@ export default function HomeScreen() {
   const planEntrance = useRef(new Animated.Value(0)).current;
   const insightEntrance = useRef(new Animated.Value(0)).current;
   const restEntrance = useRef(new Animated.Value(0)).current;
-  const fabEntrance = useRef(new Animated.Value(0)).current;
   const { hidden, toggle } = usePrivacy();
   const dashboard = useDashboardMonth(period);
   const currentUser = useCurrentUser();
@@ -68,11 +67,15 @@ export default function HomeScreen() {
   const greeting = dashboardGreeting(new Date(), currentUser.data?.name);
   useEffect(() => {
     const userId = currentUser.data?.id;
-    if (!userId || !dashboard.isSuccess || !dashboardAccounts.length || hasGuidedMovement) return;
+    if (!userId || !dashboard.isSuccess || !dashboardAccounts.length || hasGuidedMovement || openedCount > 0)
+      return;
     void firstRunStorage
       .read(firstRunStorage.hintKey(userId, 'fab'))
       .then((value) => setShowFabHint(value !== 'done'));
-  }, [currentUser.data?.id, dashboard.isSuccess, dashboardAccounts.length, hasGuidedMovement]);
+  }, [currentUser.data?.id, dashboard.isSuccess, dashboardAccounts.length, hasGuidedMovement, openedCount]);
+  useEffect(() => {
+    if (openedCount > 0 || hasGuidedMovement) setShowFabHint(false);
+  }, [openedCount, hasGuidedMovement]);
   useFocusEffect(
     useCallback(() => {
       if (!dashboard.isSuccess) return;
@@ -83,7 +86,6 @@ export default function HomeScreen() {
         planEntrance,
         insightEntrance,
         restEntrance,
-        fabEntrance,
       ];
       if (reducedMotion) {
         sections.forEach((value) => value.setValue(1));
@@ -112,7 +114,6 @@ export default function HomeScreen() {
       planEntrance,
       insightEntrance,
       restEntrance,
-      fabEntrance,
       period.year,
       period.month,
     ]),
@@ -136,10 +137,20 @@ export default function HomeScreen() {
       />
     </View>
   );
+  const header = (
+    <HomeBrandHeader
+      title={greeting}
+      subtitle="Tu dinero, claro y en movimiento."
+      profileName={currentUser.data?.name}
+      privacyHidden={hidden}
+      onPrivacy={() => void toggle()}
+      onProfile={() => router.push('/(app)/more')}
+    />
+  );
   if (dashboard.isPending)
     return (
       <Screen scroll>
-        <ScreenHeader title={greeting} subtitle="Tu dinero, claro y en movimiento." />
+        {header}
         {periodControl}
         <SkeletonCard />
         <View style={styles.stats}>
@@ -154,7 +165,7 @@ export default function HomeScreen() {
   if (dashboard.isError)
     return (
       <Screen>
-        <ScreenHeader title={greeting} subtitle="Tu dinero, claro y en movimiento." />
+        {header}
         {periodControl}
         <ErrorState onRetry={() => void dashboard.refetch()} />
       </Screen>
@@ -165,55 +176,9 @@ export default function HomeScreen() {
   const recent = data.recentTransactions ?? [];
   const hasAccounts = accounts.length > 0;
   return (
-    <Screen
-      scroll
-      refreshing={dashboard.isRefetching}
-      onRefresh={() => void dashboard.refetch()}
-      actionInScroll
-      floatingAction={
-        <Animated.View
-          pointerEvents="box-none"
-          style={[
-            styles.fabAnimation,
-            {
-              opacity: fabEntrance,
-              transform: [{ scale: fabEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
-            },
-          ]}
-        >
-          <FirstRunFabHint
-            userId={currentUser.data?.id}
-            visible={showFabHint}
-            onDismiss={() => setShowFabHint(false)}
-          />
-          <FloatingActionButton
-            reducedMotion={reducedMotion}
-            onPress={() => {
-              setShowFabHint(false);
-              if (currentUser.data?.id)
-                void firstRunStorage.mark(firstRunStorage.hintKey(currentUser.data.id, 'fab'));
-              if (hasAccounts) setQuickActions(true);
-              else openForm('/(app)/account-form');
-            }}
-          />
-        </Animated.View>
-      }
-    >
+    <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
       <FirstRunGuide userId={currentUser.data?.id} />
-      <Animated.View style={fadeSlide(greetingEntrance, 10)}>
-        <ScreenHeader
-          title={greeting}
-          titleNumberOfLines={2}
-          subtitle="Tu dinero, claro y en movimiento."
-          rightAction={
-            <IconButton
-              name={hidden ? 'eye-off-outline' : 'eye-outline'}
-              accessibilityLabel={hidden ? 'Mostrar importes' : 'Ocultar importes'}
-              onPress={() => void toggle()}
-            />
-          }
-        />
-      </Animated.View>
+      <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
       {periodControl}
       {guidedSetup.visible ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
@@ -228,7 +193,7 @@ export default function HomeScreen() {
             onAction={(id: SetupStepId) => {
               if (id === 'account') openForm('/(app)/account-form');
               if (id === 'openingBalance') router.push('/(app)/accounts');
-              if (id === 'movement') setQuickActions(true);
+              if (id === 'movement') openQuickActions();
               if (id === 'budget') openForm('/(app)/budget-form');
             }}
           />
@@ -302,27 +267,16 @@ export default function HomeScreen() {
               title="Tu historial empieza con un movimiento"
               description="Registra un ingreso, gasto o transferencia."
               actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
-              onAction={() => (hasAccounts ? setQuickActions(true) : openForm('/(app)/account-form'))}
+              onAction={() => (hasAccounts ? openQuickActions() : openForm('/(app)/account-form'))}
               tone="info"
             />
           )}
         </Animated.View>
       </>
-      <QuickActionModal
-        visible={quickActions}
-        onClose={() => setQuickActions(false)}
-        onExpense={() => {
-          setQuickActions(false);
-          openForm('/(app)/new-expense');
-        }}
-        onIncome={() => {
-          setQuickActions(false);
-          openForm('/(app)/new-income');
-        }}
-        onTransfer={() => {
-          setQuickActions(false);
-          openForm('/(app)/new-transfer');
-        }}
+      <FirstRunFabHint
+        userId={currentUser.data?.id}
+        visible={showFabHint}
+        onDismiss={() => setShowFabHint(false)}
       />
     </Screen>
   );
@@ -343,7 +297,6 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   recentList: { paddingHorizontal: spacing.md },
-  fabAnimation: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
 });
 
 function fadeSlide(value: Animated.Value, fromY: number, fromX = 0) {

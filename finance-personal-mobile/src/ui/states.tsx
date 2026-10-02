@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 import { Button } from './primitives';
+import { FinancialCompanion } from './brand-identity';
 
 export function EmptyState({
   title,
@@ -26,7 +27,11 @@ export function EmptyState({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <Ionicons name={presentation.icon} size={26} color={presentation.color} />
+        {tone === 'primary' ? (
+          <FinancialCompanion state="neutral" size={48} />
+        ) : (
+          <Ionicons name={presentation.icon} size={26} color={presentation.color} />
+        )}
       </View>
       <Text accessibilityRole="header" style={[typography.cardTitle, styles.centerTitle]}>
         {title}
