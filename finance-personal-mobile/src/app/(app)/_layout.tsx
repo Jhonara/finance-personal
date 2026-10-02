@@ -4,7 +4,7 @@ import { ActivityIndicator, Text, View, type ColorValue } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAuth } from '@/auth/auth-provider';
-import { colors, radius, sizes, spacing, typography } from '@/theme';
+import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 
 export default function AppLayout() {
   const { state } = useAuth();
@@ -21,7 +21,11 @@ export default function AppLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  const options = (label: string, icon: keyof typeof Ionicons.glyphMap) => ({
+  const options = (
+    label: string,
+    icon: keyof typeof Ionicons.glyphMap,
+    selectedIcon: keyof typeof Ionicons.glyphMap,
+  ) => ({
     title: label,
     tabBarLabel: ({ color }: { color: ColorValue }) => (
       <Text
@@ -33,8 +37,8 @@ export default function AppLayout() {
         {label}
       </Text>
     ),
-    tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => (
-      <Ionicons name={icon} color={color} size={size} />
+    tabBarIcon: ({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) => (
+      <Ionicons name={focused ? selectedIcon : icon} color={color} size={size} />
     ),
   });
   return (
@@ -47,8 +51,11 @@ export default function AppLayout() {
           height: sizes.tabBar + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: spacing.xs,
-          borderTopColor: colors.border,
+          borderTopWidth: 0,
+          borderTopLeftRadius: radius.large,
+          borderTopRightRadius: radius.large,
           backgroundColor: colors.surface,
+          ...shadows.floating,
         },
         tabBarItemStyle: { borderRadius: radius.pill, marginVertical: spacing.xs, paddingHorizontal: 2 },
         tabBarActiveBackgroundColor: colors.primarySoft,
@@ -60,10 +67,13 @@ export default function AppLayout() {
         },
       }}
     >
-      <Tabs.Screen name="index" options={options('Inicio', 'home-outline')} />
-      <Tabs.Screen name="transactions" options={options('Movimientos', 'swap-horizontal-outline')} />
-      <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline')} />
-      <Tabs.Screen name="more" options={options('Más', 'grid-outline')} />
+      <Tabs.Screen name="index" options={options('Inicio', 'home-outline', 'home')} />
+      <Tabs.Screen
+        name="transactions"
+        options={options('Movimientos', 'swap-horizontal-outline', 'swap-horizontal')}
+      />
+      <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline', 'wallet')} />
+      <Tabs.Screen name="more" options={options('Más', 'grid-outline', 'grid')} />
       <Tabs.Screen name="new-expense" options={{ href: null }} />
       <Tabs.Screen name="new-income" options={{ href: null }} />
       <Tabs.Screen name="new-transfer" options={{ href: null }} />

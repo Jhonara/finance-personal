@@ -2,13 +2,9 @@ import { useRef, useState, type PropsWithChildren } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/auth/auth-provider';
 import { useCurrentUser } from '@/features/profile/use-current-user';
 import { profileInitials } from '@/features/profile/profile-presentation';
-import { getAlerts } from '@/features/secondary/secondary-api';
-import { secondaryKeys } from '@/features/secondary/use-secondary';
-import { actionableAlerts } from '@/features/alerts/alert-presentation';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { BrandSurface } from '@/ui/brand-surface';
@@ -34,7 +30,6 @@ export default function MoreScreen() {
   const { logout, logoutAll } = useAuth();
   const { hidden, toggle } = usePrivacy();
   const feedback = useFeedback();
-  const alerts = useQuery({ queryKey: secondaryKeys.alerts, queryFn: getAlerts, enabled: false });
   const [replay, setReplay] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -124,42 +119,12 @@ export default function MoreScreen() {
           </>
         )}
       </BrandSurface>
-      <Section title="Organiza tu dinero">
+      <Section title="Organización">
         <SettingsRow
           icon="pricetags-outline"
           title="Categorías"
           subtitle="Organiza ingresos y gastos."
           onPress={() => router.push('/(app)/categories')}
-        />
-        <SettingsRow
-          icon="pie-chart-outline"
-          tone="warning"
-          title="Presupuestos"
-          subtitle="Define límites para tu mes."
-          onPress={() => router.push('/(app)/budgets')}
-        />
-        <SettingsRow
-          icon="ribbon-outline"
-          tone="accent"
-          title="Ahorros"
-          subtitle="Sigue tus metas y aportes."
-          onPress={() => router.push('/(app)/savings')}
-        />
-        <SettingsRow
-          icon="card-outline"
-          title="Créditos"
-          subtitle="Controla tus deudas y pagos."
-          onPress={() => router.push('/(app)/credits')}
-        />
-      </Section>
-      <Section title="Mantente informado">
-        <SettingsRow
-          icon="notifications-outline"
-          tone="info"
-          title="Alertas"
-          subtitle="Revisa lo que necesita atención."
-          badge={alerts.data ? actionableAlerts(alerts.data).length : undefined}
-          onPress={() => router.push('/(app)/alerts')}
         />
       </Section>
       <Section title="Preferencias">

@@ -46,6 +46,7 @@ vi.mock('react-native', () => {
     TextInput: host('TextInput'),
     View: host('View'),
     RefreshControl: host('RefreshControl'),
+    useWindowDimensions: () => ({ width: 360, height: 640, fontScale: 1, scale: 1 }),
     StyleSheet: { create: (styles: object) => styles },
     Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
     Animated: {
@@ -99,6 +100,7 @@ vi.mock('@/feedback/feedback-provider', () => ({ useFeedback: () => ({ show: moc
 import AlertsScreen from '@/app/(app)/alerts';
 import MoreScreen from '@/app/(app)/more';
 import AppLayout from '@/app/(app)/_layout';
+import { HomeModules } from '@/features/dashboard/home-modules';
 import { PrivacyProvider, usePrivacy } from '@/privacy/privacy-provider';
 import { FirstRunGuide } from '@/ui/first-run-guide';
 import { presentAlert } from './alert-presentation';
@@ -326,16 +328,30 @@ describe('More, preferences and session UI', () => {
     expect(output).not.toContain('Apariencia');
     expect(output).not.toContain('Google');
   });
-  it.each([
-    ['Categorías', 'categories'],
-    ['Presupuestos', 'budgets'],
-    ['Ahorros', 'savings'],
-    ['Créditos', 'credits'],
-    ['Alertas', 'alerts'],
-  ])('opens %s', async (label, route) => {
+  it('keeps secondary organization in Más', async () => {
     const tree = await render(<MoreScreen />);
-    await press(tree, label);
-    expect(mocks.push).toHaveBeenCalledWith(`/(app)/${route}`);
+    await press(tree, 'Categorías');
+    expect(mocks.push).toHaveBeenCalledWith('/(app)/categories');
+    for (const label of ['Presupuestos', 'Ahorros', 'Créditos', 'Alertas']) {
+      expect(buttons(tree, label)).toHaveLength(0);
+    }
+  });
+  it.each([
+    ['presupuestos', 'budgets'],
+    ['ahorros', 'savings'],
+    ['créditos', 'credits'],
+    ['alertas', 'alerts'],
+  ])('opens %s from Tu plan on Home', async (label, route) => {
+    const tree = await render(<HomeModules data={{}} period={{ year: 2026, month: 10 }} />);
+    await press(tree, `Ver ${label}`);
+    if (route === 'budgets') {
+      expect(mocks.push).toHaveBeenCalledWith({
+        pathname: '/(app)/budgets',
+        params: { year: 2026, month: 10 },
+      });
+    } else {
+      expect(mocks.push).toHaveBeenCalledWith(`/(app)/${route}`);
+    }
   });
   it('uses the existing privacy provider and persists the same preference', async () => {
     function Probe() {

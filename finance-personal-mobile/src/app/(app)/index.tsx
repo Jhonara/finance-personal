@@ -23,11 +23,11 @@ import { firstRunStorage } from '@/features/onboarding/first-run-storage';
 import { useGuidedSetupVisibility } from '@/features/onboarding/use-guided-setup-visibility';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { usePrivacy } from '@/privacy/privacy-provider';
-import { colors, motion, spacing, typography } from '@/theme';
+import { colors, motion, radius, spacing, typography } from '@/theme';
 import { FloatingActionButton, QuickActionModal } from '@/ui/actions';
 import { AccountCard, TransactionRow } from '@/ui/financial';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
-import { IconButton, Screen } from '@/ui/primitives';
+import { Card, IconButton, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
 import { FirstRunFabHint, FirstRunGuide } from '@/ui/first-run-guide';
 import { GuidedSetupCard } from '@/ui/guided-setup-card';
@@ -139,7 +139,7 @@ export default function HomeScreen() {
   if (dashboard.isPending)
     return (
       <Screen scroll>
-        <ScreenHeader title={greeting} subtitle="Tu resumen financiero" />
+        <ScreenHeader title={greeting} subtitle="Tu dinero, claro y en movimiento." />
         {periodControl}
         <SkeletonCard />
         <View style={styles.stats}>
@@ -154,7 +154,7 @@ export default function HomeScreen() {
   if (dashboard.isError)
     return (
       <Screen>
-        <ScreenHeader title={greeting} subtitle="Tu resumen financiero" />
+        <ScreenHeader title={greeting} subtitle="Tu dinero, claro y en movimiento." />
         {periodControl}
         <ErrorState onRetry={() => void dashboard.refetch()} />
       </Screen>
@@ -204,7 +204,7 @@ export default function HomeScreen() {
         <ScreenHeader
           title={greeting}
           titleNumberOfLines={2}
-          subtitle="Tu resumen financiero"
+          subtitle="Tu dinero, claro y en movimiento."
           rightAction={
             <IconButton
               name={hidden ? 'eye-off-outline' : 'eye-outline'}
@@ -287,15 +287,16 @@ export default function HomeScreen() {
             onAction={() => router.push('/(app)/transactions')}
           />
           {recent.length ? (
-            <View style={styles.list}>
+            <Card style={styles.recentList}>
               {recent.slice(0, 3).map((transaction) => (
                 <TransactionRow
                   key={transaction.transactionId}
                   {...toTransaction(transaction)}
                   privacyHidden={hidden}
+                  onPress={() => router.push({ pathname: '/(app)/transactions', params: period })}
                 />
               ))}
-            </View>
+            </Card>
           ) : (
             <EmptyState
               title="Tu historial empieza con un movimiento"
@@ -336,9 +337,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
     padding: spacing.xs,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
+  recentList: { paddingHorizontal: spacing.md },
   fabAnimation: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
 });
 

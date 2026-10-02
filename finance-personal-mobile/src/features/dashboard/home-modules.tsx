@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { DashboardMonth } from '@/api/dashboard-api';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { formatDashboardPeriod, type DashboardPeriod } from './dashboard-period';
 import { homeColumns, homePlan } from './home-plan';
@@ -78,8 +78,8 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
             onPress={tile.onPress}
             style={({ pressed }) => [
               styles.tile,
-              { backgroundColor: tile.surface, flexBasis: columns === 1 ? '100%' : '47%' },
-              pressed && { opacity: 0.86, transform: [{ scale: reducedMotion ? 1 : 0.98 }] },
+              { flexBasis: columns === 1 ? '100%' : '47%' },
+              pressed && { opacity: 0.88, transform: [{ scale: reducedMotion ? 1 : 0.98 }] },
             ]}
           >
             <View
@@ -87,10 +87,10 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              <View style={styles.badge}>
+              <View style={[styles.badge, { backgroundColor: tile.surface }]}>
                 <Ionicons name={tile.icon} size={23} color={tile.color} />
               </View>
-              <Ionicons name="arrow-forward" size={18} color={tile.color} />
+              <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />
             </View>
             <Text style={typography.cardTitle}>{tile.title}</Text>
             <Text style={styles.summary}>{tile.summary}</Text>
@@ -103,15 +103,26 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
 const styles = StyleSheet.create({
   section: { gap: spacing.md, marginTop: spacing.xxl },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  tile: { flexGrow: 1, minWidth: 0, padding: spacing.md, borderRadius: radius.large, gap: spacing.sm },
+  tile: {
+    flexGrow: 1,
+    minWidth: 0,
+    minHeight: 136,
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: radius.large,
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    ...shadows.card,
+  },
   icons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   badge: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: radius.medium,
-    backgroundColor: colors.brandGlow,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summary: { ...typography.bodySecondary, color: colors.textPrimary },
+  summary: { ...typography.bodySecondary, color: colors.textSecondary },
 });

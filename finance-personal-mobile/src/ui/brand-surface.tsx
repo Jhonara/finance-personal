@@ -12,7 +12,7 @@ export function BrandSurface({
     <LinearGradient
       colors={
         tone === 'panorama'
-          ? [colors.primarySoft, colors.brandMist, colors.infoSoft]
+          ? [colors.heroStart, colors.primaryStrong, colors.heroEnd]
           : tone === 'insight'
             ? [colors.lavenderSoft, colors.infoSoft, colors.brandMist]
             : tone === 'credit'
@@ -27,14 +27,14 @@ export function BrandSurface({
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={styles.orb}
+        style={[styles.orb, tone === 'panorama' && styles.heroOrb]}
       />
       {tone === 'panorama' || tone === 'insight' ? (
         <View
           pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={styles.ring}
+          style={[styles.ring, tone === 'panorama' && styles.heroRing]}
         />
       ) : null}
       {children}
@@ -57,6 +57,14 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     backgroundColor: colors.brandGlow,
   },
+  heroOrb: {
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    right: -55,
+    top: -80,
+    backgroundColor: colors.heroSoft,
+  },
   ring: {
     position: 'absolute',
     width: 150,
@@ -67,4 +75,5 @@ const styles = StyleSheet.create({
     right: -85,
     bottom: -70,
   },
+  heroRing: { borderColor: colors.heroSoft, right: -65, bottom: -95 },
 });

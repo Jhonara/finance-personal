@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.coralStrong,
     ...shadows.floating,
   },
   pressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },

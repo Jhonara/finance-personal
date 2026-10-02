@@ -7,7 +7,7 @@ export function Chip({
   tone = 'neutral',
 }: {
   children: string;
-  tone?: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  tone?: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'coral';
 }) {
   return (
     <View accessibilityRole="text" style={[styles.chip, toneStyles[tone]]}>
@@ -33,6 +33,8 @@ const toneStyles = {
   warning: { backgroundColor: colors.warningSoft },
   danger: { backgroundColor: colors.dangerSoft },
   info: { backgroundColor: colors.infoSoft },
+  accent: { backgroundColor: colors.accentSoft },
+  coral: { backgroundColor: colors.coralSoft },
 } as const;
 
 const toneTextStyles = {
@@ -42,4 +44,6 @@ const toneTextStyles = {
   warning: { color: colors.warning },
   danger: { color: colors.danger },
   info: { color: colors.info },
+  accent: { color: colors.accent },
+  coral: { color: colors.coralStrong },
 } as const;

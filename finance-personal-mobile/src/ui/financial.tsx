@@ -94,20 +94,24 @@ export function AccountCard({
       style={({ pressed }) => [pressed && styles.pressed]}
     >
       <Card style={[styles.account, !active && styles.inactive]}>
-        <View style={styles.accountLeading}>
-          <View style={styles.accountIcon}>
-            <Ionicons name={accountIcon} size={18} color={colors.primary} />
+        <View style={styles.accountTop}>
+          <View style={styles.accountLeading}>
+            <View style={styles.accountIcon}>
+              <Ionicons name={accountIcon} size={20} color={colors.primary} />
+            </View>
+            <View style={styles.accountName}>
+              <Text numberOfLines={1} style={typography.cardTitle}>
+                {name}
+              </Text>
+              <Text numberOfLines={1} style={typography.caption}>
+                {friendlyType} · {currency}
+                {!active ? ' · Inactiva' : ''}
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={typography.cardTitle}>{name}</Text>
-            <Text style={typography.caption}>
-              {friendlyType} · {currency}
-              {!active ? ' · Inactiva' : ''}
-            </Text>
-          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </View>
         <AccountBalanceAmount balance={resolvedBalance} currency={currency} hidden={privacyHidden} />
-        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       </Card>
     </MotionPressable>
   );
@@ -154,13 +158,22 @@ export function TransactionRow({
         />
       </View>
       <View style={styles.grow}>
-        <Text style={typography.cardTitle}>{title}</Text>
-        <Text style={typography.caption}>{detail}</Text>
+        <Text numberOfLines={1} style={typography.cardTitle}>
+          {title}
+        </Text>
+        <Text numberOfLines={2} style={typography.caption}>
+          {detail}
+        </Text>
         {statusLabel && statusLabel !== 'Registrado' ? (
           <Text style={styles.transactionStatus}>{statusLabel}</Text>
         ) : null}
       </View>
-      <Text style={[typography.moneySmall, { color: toneColors[presentation.tone] }]}>
+      <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+        numberOfLines={1}
+        style={[typography.moneySmall, styles.transactionAmount, { color: toneColors[presentation.tone] }]}
+      >
         {privacyHidden
           ? formatPrivateMoney(amount, currency, true)
           : `${amountPrefix}${formatPrivateMoney(amount, currency, false)}`}
@@ -256,13 +269,18 @@ const styles = StyleSheet.create({
   },
   account: {
     padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.lg,
   },
   inactive: { opacity: 0.62 },
   pressed: { opacity: 0.75 },
+  accountTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   accountLeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  accountName: { flex: 1, gap: spacing.xs },
   accountIcon: {
     width: 36,
     height: 36,
@@ -281,6 +299,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   transactionPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
+  transactionAmount: { maxWidth: '38%' },
   transactionStatus: { ...typography.caption, color: colors.warning },
   transactionIcon: {
     width: 40,
