@@ -19,7 +19,7 @@ export default function AccountsScreen() {
   const dashboard = useDashboardMonth(currentDashboardPeriod());
   if (accounts.isPending)
     return (
-      <Screen>
+      <Screen entry>
         <ScreenHeader title="Cuentas" />
         <SkeletonRow />
         <SkeletonRow />
@@ -27,7 +27,7 @@ export default function AccountsScreen() {
     );
   if (accounts.isError)
     return (
-      <Screen>
+      <Screen entry>
         <ScreenHeader title="Cuentas" />
         <ErrorState onRetry={() => void accounts.refetch()} />
       </Screen>
@@ -35,7 +35,7 @@ export default function AccountsScreen() {
   const active = accounts.data.filter((account) => account.active);
   const inactive = accounts.data.filter((account) => !account.active);
   return (
-    <Screen scroll>
+    <Screen entry scroll>
       <ScreenHeader
         title="Cuentas"
         subtitle="Dónde manejas tu dinero"

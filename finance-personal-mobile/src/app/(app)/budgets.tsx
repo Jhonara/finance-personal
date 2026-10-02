@@ -1,7 +1,8 @@
+import { MotionPressable } from '@/ui/motion';
 import { openForm } from '@/features/forms/form-session';
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import {
   currentDashboardPeriod,
   dashboardPeriodFromParams,
@@ -34,7 +35,7 @@ export default function BudgetsScreen() {
   const { hidden } = usePrivacy();
   if (q.isPending)
     return (
-      <Screen>
+      <Screen entry>
         <ScreenHeader title="Presupuestos" />
         <SkeletonRow />
         <SkeletonRow />
@@ -42,7 +43,7 @@ export default function BudgetsScreen() {
     );
   if (q.isError)
     return (
-      <Screen>
+      <Screen entry>
         <ScreenHeader title="Presupuestos" />
         <ErrorState onRetry={() => void q.refetch()} />
       </Screen>
@@ -52,7 +53,7 @@ export default function BudgetsScreen() {
   const remaining = q.data.reduce((sum, budget) => sum + (budget.remainingAmount ?? 0), 0);
   const percentage = total > 0 ? (spent / total) * 100 : 0;
   return (
-    <Screen scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
+    <Screen entry scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
       <ScreenHeader
         title="Presupuestos"
         subtitle="Planea cuánto quieres gastar"
@@ -112,7 +113,7 @@ export default function BudgetsScreen() {
       ) : null}
       {q.data.length ? (
         q.data.map((x) => (
-          <Pressable
+          <MotionPressable
             key={x.id}
             accessibilityRole="button"
             onPress={() =>
@@ -144,7 +145,7 @@ export default function BudgetsScreen() {
               status={status(x.status)}
               privacyHidden={hidden}
             />
-          </Pressable>
+          </MotionPressable>
         ))
       ) : (
         <EmptyState

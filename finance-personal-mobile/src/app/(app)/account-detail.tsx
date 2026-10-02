@@ -1,9 +1,10 @@
+import { MotionModal as Modal } from '@/ui/motion-modal';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { localDateFromNative } from '@/utils/local-date';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useAccountUpdateMutation, useOpeningBalanceMutation } from '@/features/mutations';
 import { usePrivacy } from '@/privacy/privacy-provider';

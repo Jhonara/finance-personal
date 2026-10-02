@@ -1,6 +1,8 @@
+import { Progress } from './progress';
+import { MotionPressable } from '@/ui/motion';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -85,7 +87,7 @@ export function AccountCard({
   const resolvedBalance: AccountBalance =
     typeof balance === 'number' ? { status: 'known', amount: balance } : balance;
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${friendlyType}, ${accountBalanceLabel(resolvedBalance, currency, privacyHidden)}`}
       onPress={onPress}
@@ -107,7 +109,7 @@ export function AccountCard({
         <AccountBalanceAmount balance={resolvedBalance} currency={currency} hidden={privacyHidden} />
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       </Card>
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -138,7 +140,7 @@ export function TransactionRow({
       ? subtitle
       : `${presentation.label} · ${subtitle}`;
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${detail}.`}
       onPress={onPress}
@@ -163,7 +165,7 @@ export function TransactionRow({
           ? formatPrivateMoney(amount, currency, true)
           : `${amountPrefix}${formatPrivateMoney(amount, currency, false)}`}
       </Text>
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -197,13 +199,7 @@ export function BudgetProgress({
         <Text style={typography.cardTitle}>{label}</Text>
         <Text style={[typography.caption, { color }]}>{presentation.label}</Text>
       </View>
-      <View
-        accessible
-        accessibilityLabel={`${Math.round(percentage)} por ciento utilizado`}
-        style={styles.track}
-      >
-        <View style={[styles.fill, { width: `${Math.min(percentage, 100)}%`, backgroundColor: color }]} />
-      </View>
+      <Progress value={percentage} color={color} label={`${Math.round(percentage)} por ciento utilizado`} />
       <Text style={typography.bodySecondary}>
         {formatPrivateMoney(spent, 'COP', privacyHidden)} de {formatPrivateMoney(limit, 'COP', privacyHidden)}{' '}
         · Restante {formatPrivateMoney(remaining, 'COP', privacyHidden)}
@@ -238,9 +234,9 @@ export function AlertCard({
         <Text style={typography.cardTitle}>{title}</Text>
         <Text style={typography.bodySecondary}>{description}</Text>
         {actionLabel && (
-          <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction}>
+          <MotionPressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction}>
             <Text style={[typography.label, { color }]}>{actionLabel}</Text>
-          </Pressable>
+          </MotionPressable>
         )}
       </View>
     </View>

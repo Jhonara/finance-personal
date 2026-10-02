@@ -1,7 +1,8 @@
+import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { useEffect, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from '@/ui/primitives';
 import type { SavingsCelebration } from './savings-celebrations';
 
@@ -12,17 +13,27 @@ export function SavingCelebration({
   celebration?: SavingsCelebration;
   onClose(): void;
 }) {
+  const reduced = useReducedMotion();
   const entrance = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!celebration) return;
+    if (reduced) {
+      entrance.setValue(1);
+      return;
+    }
     entrance.setValue(0);
-    const animation = Animated.timing(entrance, { toValue: 1, duration: 280, useNativeDriver: true });
+    const animation = Animated.timing(entrance, {
+      toValue: 1,
+      duration: motion.normal,
+      easing: motion.ease,
+      useNativeDriver: true,
+    });
     animation.start();
     return () => animation.stop();
-  }, [celebration, entrance]);
+  }, [celebration, entrance, reduced]);
   if (!celebration) return null;
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Animated.View
@@ -31,7 +42,16 @@ export function SavingCelebration({
               styles.panel,
               {
                 opacity: entrance,
-                transform: [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }],
+                transform: reduced
+                  ? []
+                  : [
+                      {
+                        scale: entrance.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [motion.pressScale, 1],
+                        }),
+                      },
+                    ],
               },
             ]}
           >

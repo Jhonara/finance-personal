@@ -99,7 +99,7 @@ export default function MoreScreen() {
     }
   };
   return (
-    <Screen scroll style={{ gap: spacing.xxl }}>
+    <Screen entry scroll style={{ gap: spacing.xxl }}>
       <ScreenHeader title="Más" subtitle="Tu perfil, preferencias y accesos." />
       <BrandSurface style={{ gap: spacing.md }}>
         {profile.isPending ? (

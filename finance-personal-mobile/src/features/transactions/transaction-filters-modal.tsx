@@ -1,5 +1,6 @@
+import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccounts } from '@/features/accounts/use-accounts';

@@ -1,4 +1,5 @@
-import { Text, type StyleProp, type TextStyle } from 'react-native';
+import { type StyleProp, type TextStyle } from 'react-native';
+import { MoneyText } from './motion';
 import type { AccountBalance } from '@/features/accounts/account-balances';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { typography } from '@/theme';
@@ -22,8 +23,8 @@ export function AccountBalanceAmount({
 }) {
   if (balance.status === 'loading') return <Skeleton width={96} height={24} />;
   return (
-    <Text style={balance.status === 'known' ? style : typography.caption}>
+    <MoneyText style={balance.status === 'known' ? style : typography.caption}>
       {accountBalanceLabel(balance, currency, hidden)}
-    </Text>
+    </MoneyText>
   );
 }

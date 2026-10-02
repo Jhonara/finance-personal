@@ -9,6 +9,9 @@ function textContent(value: unknown): string {
   return '';
 }
 
+vi.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void | (() => void)) => React.useEffect(effect, [effect]),
+}));
 vi.mock('react-native', () => {
   const primitive =
     (name: string) =>
@@ -24,6 +27,24 @@ vi.mock('react-native', () => {
         typeof children === 'function' ? children({ pressed: false }) : children,
       );
   return {
+    AccessibilityInfo: {
+      isReduceMotionEnabled: async () => false,
+      addEventListener: () => ({ remove: vi.fn() }),
+    },
+    Animated: {
+      View: primitive('AnimatedView'),
+      Text: primitive('Text'),
+      Value: class {
+        setValue() {}
+        interpolate() {
+          return 1;
+        }
+      },
+      timing: () => ({
+        start: (cb?: (result: { finished: boolean }) => void) => cb?.({ finished: true }),
+        stop: vi.fn(),
+      }),
+    },
     ActivityIndicator: primitive('ActivityIndicator'),
     KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
     Modal: primitive('Modal'),
@@ -53,6 +74,58 @@ import { Button, Card, MoneyInput, Screen } from './primitives';
 import { colors, sizes, spacing } from '@/theme';
 
 describe('Finance Calm components', () => {
+  it.each([1, 2, 3])(
+    'places the Home FAB after all content for %s accounts without a fixed band',
+    async (count) => {
+      let tree!: ReturnType<typeof create>;
+      await act(async () => {
+        tree = create(
+          <Screen scroll actionInScroll floatingAction={<FloatingActionButton onPress={() => undefined} />}>
+            {Array.from({ length: count }, (_, i) => (
+              <Button key={i}>Cuenta {i + 1}</Button>
+            ))}
+            <Button>Último movimiento</Button>
+          </Screen>,
+        );
+      });
+      const scroll = tree.root.find((node) => (node.type as unknown) === 'ScrollView');
+      const fab = scroll.findByType(FloatingActionButton);
+      const slot = fab.parent!;
+      expect(slot.props.style.position).toBe('relative');
+      expect(slot.props.style.backgroundColor).toBeUndefined();
+      const last = scroll.children[scroll.children.length - 1];
+      expect(last && typeof last !== 'string' && last.findAllByType(FloatingActionButton).length === 1).toBe(
+        true,
+      );
+      expect(slot.props.style.height).toBe(sizes.fab + spacing.xl * 2);
+      expect(Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean)).paddingBottom).toBe(
+        spacing.lg,
+      );
+      await act(async () => tree.unmount());
+    },
+  );
+  it('keeps the Home FAB as the only persistent bottom action', async () => {
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <Screen scroll floatingAction={<FloatingActionButton onPress={() => undefined} />}>
+          <Button>Última fila</Button>
+        </Screen>,
+      );
+    });
+    const scroll = tree.root.find((node) => (node.type as unknown) === 'ScrollView');
+    const footer = tree.root.find(
+      (node) => (node.type as unknown) === 'View' && node.props.pointerEvents === 'box-none',
+    );
+    expect(footer.props.style.position).toBe('absolute');
+    expect(footer.props.style.backgroundColor).toBeUndefined();
+    expect(textContent(footer)).not.toContain('Registrar movimiento');
+    expect(textContent(scroll)).not.toContain('Registrar movimiento');
+    expect(Object.assign({}, ...scroll.props.contentContainerStyle.filter(Boolean)).paddingBottom).toBe(
+      sizes.fab + spacing.xl * 2,
+    );
+    await act(async () => tree.unmount());
+  });
   it('lets content extend behind a transparent FAB overlay with scroll room for the final row', async () => {
     let tree!: ReturnType<typeof create>;
     await act(async () => {

@@ -1,6 +1,7 @@
+import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 
 type Props = {
@@ -41,7 +42,7 @@ export function SettingsRow({
   return control ? (
     <View style={styles.row}>{content}</View>
   ) : (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityHint={danger ? 'Acción de cierre de sesión. Solicita confirmación.' : subtitle}
@@ -50,7 +51,7 @@ export function SettingsRow({
       style={({ pressed }) => [styles.row, (pressed || disabled) && { opacity: 0.65 }]}
     >
       {content}
-    </Pressable>
+    </MotionPressable>
   );
 }
 const styles = StyleSheet.create({

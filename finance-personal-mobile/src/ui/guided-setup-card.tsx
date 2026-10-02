@@ -1,8 +1,9 @@
+import { useReducedMotion } from './use-reduced-motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import type { SetupStep } from '@/features/onboarding/first-run-progress';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from './primitives';
 import { BrandSurface } from './brand-surface';
 
@@ -17,20 +18,26 @@ export function GuidedSetupCard({
   onAction(id: SetupStep['id']): void;
   onContinue(): void;
 }) {
+  const reduced = useReducedMotion();
   const allDone = completed === steps.length;
   const compact = completed >= steps.length - 1;
   const completionScale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!allDone) return;
-    completionScale.setValue(0.85);
-    const celebration = Animated.spring(completionScale, {
+    if (reduced) {
+      completionScale.setValue(1);
+      return;
+    }
+    completionScale.setValue(motion.pressScale);
+    const celebration = Animated.timing(completionScale, {
       toValue: 1,
-      friction: 6,
+      duration: motion.normal,
+      easing: motion.ease,
       useNativeDriver: true,
     });
     celebration.start();
     return () => celebration.stop();
-  }, [allDone, completionScale]);
+  }, [allDone, completionScale, reduced]);
   return (
     <BrandSurface style={[styles.card, allDone && styles.complete]}>
       <View style={styles.header}>

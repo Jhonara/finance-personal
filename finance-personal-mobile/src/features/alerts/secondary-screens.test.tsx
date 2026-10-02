@@ -49,6 +49,7 @@ vi.mock('react-native', () => {
     StyleSheet: { create: (styles: object) => styles },
     Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
     Animated: {
+      Text: host('Text'),
       View: host('AnimatedView'),
       Value: class {
         setValue() {}

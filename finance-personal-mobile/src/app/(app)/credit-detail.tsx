@@ -1,6 +1,7 @@
+import { MotionModal as Modal } from '@/ui/motion-modal';
 import { formatLocalDate } from '@/utils/local-date';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Text } from 'react-native';
+import { Alert, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Credit, CreditPayment } from '@/features/secondary/secondary-api';

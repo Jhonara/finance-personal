@@ -1,6 +1,7 @@
+import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '@/theme';
 import { IconButton } from './primitives';
@@ -53,14 +54,14 @@ export function SectionHeader({
         {title}
       </Text>
       {actionLabel && (
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
           onPress={onAction}
           style={({ pressed }) => [styles.sectionAction, pressed && styles.pressed]}
         >
           <Text style={styles.action}>{actionLabel}</Text>
-        </Pressable>
+        </MotionPressable>
       )}
     </View>
   );
@@ -76,7 +77,7 @@ export function MoreListItem({
   onPress?: () => void;
 }) {
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
@@ -85,7 +86,7 @@ export function MoreListItem({
       <Ionicons name={icon} size={22} color={colors.primary} />
       <Text style={[typography.body, styles.grow]}>{label}</Text>
       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-    </Pressable>
+    </MotionPressable>
   );
 }
 

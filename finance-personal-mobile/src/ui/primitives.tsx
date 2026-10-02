@@ -1,10 +1,10 @@
+import { MotionPressable, ScreenEntry } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -31,6 +31,8 @@ export function Screen({
   refreshing,
   onRefresh,
   floatingAction,
+  actionInScroll = false,
+  entry = false,
 }: PropsWithChildren<{
   scroll?: boolean;
   padded?: boolean;
@@ -39,6 +41,8 @@ export function Screen({
   refreshing?: boolean;
   onRefresh?: () => void;
   floatingAction?: ReactNode;
+  actionInScroll?: boolean;
+  entry?: boolean;
 }>) {
   const content = scroll ? (
     <ScrollView
@@ -46,7 +50,7 @@ export function Screen({
         styles.scroll,
         padded && styles.padding,
         style,
-        floatingAction ? styles.floatingSpace : undefined,
+        floatingAction ? (actionInScroll ? { paddingBottom: spacing.lg } : styles.floatingSpace) : undefined,
       ]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
@@ -55,10 +59,13 @@ export function Screen({
         ) : undefined
       }
     >
-      {children}
+      {entry ? <ScreenEntry>{children}</ScreenEntry> : children}
+      {floatingAction && actionInScroll ? <View style={styles.inlineAction}>{floatingAction}</View> : null}
     </ScrollView>
   ) : (
-    <View style={[styles.fill, padded && styles.padding, style]}>{children}</View>
+    <View style={[styles.fill, padded && styles.padding, style]}>
+      {entry ? <ScreenEntry>{children}</ScreenEntry> : children}
+    </View>
   );
   return (
     <SafeAreaView style={styles.safe} edges={floatingAction ? ['top', 'left', 'right'] : undefined}>
@@ -72,7 +79,7 @@ export function Screen({
       ) : (
         content
       )}
-      {floatingAction ? (
+      {floatingAction && !actionInScroll ? (
         <View pointerEvents="box-none" style={styles.floatingDock}>
           {floatingAction}
         </View>
@@ -101,7 +108,7 @@ export function Button({
 }>) {
   const blocked = isButtonDisabled(disabled, loading);
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       disabled={blocked}
@@ -132,7 +139,7 @@ export function Button({
           {children}
         </Text>
       )}
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -148,7 +155,7 @@ export function IconButton({
   tone?: 'default' | 'primary';
 }) {
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
@@ -163,7 +170,7 @@ export function IconButton({
         size={sizes.icon}
         color={tone === 'primary' ? colors.primary : colors.textPrimary}
       />
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -214,7 +221,7 @@ export function Input({
           secureTextEntry={isPassword && !passwordVisible}
         />
         {isPassword && (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             onPress={() => setPasswordVisible((visible) => !visible)}
@@ -224,7 +231,7 @@ export function Input({
               size={sizes.icon}
               color={colors.textSecondary}
             />
-          </Pressable>
+          </MotionPressable>
         )}
       </View>
       {error ? (
@@ -310,7 +317,7 @@ export function SelectField({
   return (
     <View style={styles.field}>
       <Text style={typography.label}>{label}</Text>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={label}
         disabled={disabled}
@@ -324,7 +331,7 @@ export function SelectField({
       >
         <Text style={[typography.body, !value && styles.placeholder]}>{value ?? placeholder}</Text>
         <Ionicons name="chevron-down" size={sizes.icon} color={colors.textSecondary} />
-      </Pressable>
+      </MotionPressable>
     </View>
   );
 }
@@ -349,6 +356,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: spacing.huge },
   floatingSpace: { paddingBottom: sizes.fab + spacing.xl * 2 },
+  inlineAction: { position: 'relative', height: sizes.fab + spacing.xl * 2 },
   floatingDock: { position: 'absolute', bottom: 0, left: 0, right: 0, height: sizes.fab + spacing.xl * 2 },
   padding: { paddingHorizontal: spacing.lg },
   button: {

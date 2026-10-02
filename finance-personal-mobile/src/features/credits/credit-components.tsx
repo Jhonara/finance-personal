@@ -1,6 +1,7 @@
+import { MotionPressable } from '@/ui/motion';
 import { formatLocalDate } from '@/utils/local-date';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { Credit, CreditPlan, CreditSimulation } from '@/features/secondary/secondary-api';
 import { Card } from '@/ui/primitives';
 import { BrandSurface } from '@/ui/brand-surface';
@@ -49,7 +50,7 @@ export function CreditCard({
   onPress(): void;
 }) {
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={creditLabel(credit, hidden)}
       onPress={onPress}
@@ -98,7 +99,7 @@ export function CreditCard({
         <CreditProgress credit={credit} />
         {credit.status === 'PAID' && <Text style={typography.caption}>Esta deuda ya está completada.</Text>}
       </Card>
-    </Pressable>
+    </MotionPressable>
   );
 }
 export function CreditHero({ credit, hidden }: { credit: Credit; hidden: boolean }) {

@@ -1,5 +1,6 @@
+import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useState } from 'react';
-import { Modal, Text } from 'react-native';
+import { Text } from 'react-native';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Credit, CreditPayment } from '@/features/secondary/secondary-api';

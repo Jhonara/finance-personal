@@ -1,5 +1,6 @@
+import { useModalMotion } from './use-modal-motion';
 import { formatLocalDate } from '@/utils/local-date';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { PresentedTransaction } from '@/features/transactions/transaction-presentation';
@@ -19,6 +20,7 @@ export function TransactionDetailSheet({
   onClose(): void;
 }) {
   const insets = useSafeAreaInsets();
+  const sheetMotion = useModalMotion(Boolean(transaction), onClose);
   if (!transaction) return null;
   const presentation =
     Object.entries(transactionPresentation).find(([type]) => type === transaction.type)?.[1] ??
@@ -32,50 +34,58 @@ export function TransactionDetailSheet({
     ['Cuenta destino', transaction.destinationAccountName],
   ].filter((field): field is [string, string] => Boolean(field[1]));
   return (
-    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
-          onPress={(event) => event.stopPropagation()}
-        >
-          <View style={styles.handle} />
-          <View style={styles.titleRow}>
-            <View style={[styles.icon, { backgroundColor: `${tone}1A` }]}>
-              <Ionicons name={presentation.icon as keyof typeof Ionicons.glyphMap} size={22} color={tone} />
-            </View>
-            <View style={styles.grow}>
-              <Text style={typography.sectionTitle}>{transaction.title}</Text>
-              {transaction.title !== transaction.typeLabel ? (
-                <Text style={typography.caption}>{transaction.typeLabel}</Text>
-              ) : null}
-            </View>
-          </View>
-          <ScrollView contentContainerStyle={styles.fields}>
-            <Text style={[typography.moneyMedium, { color: tone }]}>
-              {privacyHidden
-                ? '$ ••••••'
-                : transaction.amountPrefix +
-                  formatPrivateMoney(transaction.amount ?? 0, transaction.currency ?? 'COP', false)}
-            </Text>
-            <Text style={typography.bodySecondary}>
-              {[transaction.accountName, transaction.currency].filter(Boolean).join(' · ')}
-            </Text>
-            <Text style={typography.bodySecondary}>{formatLocalDate(transaction.effectiveDate)}</Text>
-            {fields.map(([label, value]) => (
-              <View key={label} style={styles.field}>
-                <Text style={typography.caption}>{label}</Text>
-                <Text style={typography.body}>{value}</Text>
+    <Modal transparent visible={sheetMotion.present} animationType="none" onRequestClose={sheetMotion.close}>
+      <Animated.View style={[{ flex: 1 }, sheetMotion.overlay]}>
+        <Pressable style={styles.overlay} onPress={sheetMotion.close}>
+          <Animated.View style={[{ flexShrink: 1 }, sheetMotion.sheet]}>
+            <Pressable
+              style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
+              onPress={(event) => event.stopPropagation()}
+            >
+              <View style={styles.handle} />
+              <View style={styles.titleRow}>
+                <View style={[styles.icon, { backgroundColor: `${tone}1A` }]}>
+                  <Ionicons
+                    name={presentation.icon as keyof typeof Ionicons.glyphMap}
+                    size={22}
+                    color={tone}
+                  />
+                </View>
+                <View style={styles.grow}>
+                  <Text style={typography.sectionTitle}>{transaction.title}</Text>
+                  {transaction.title !== transaction.typeLabel ? (
+                    <Text style={typography.caption}>{transaction.typeLabel}</Text>
+                  ) : null}
+                </View>
               </View>
-            ))}
-            {transaction.type === 'REVERSAL' && transaction.reversalOfId ? (
-              <Text style={styles.reversal}>Revierte una operación anterior</Text>
-            ) : null}
-          </ScrollView>
-          <Button variant="ghost" onPress={onClose}>
-            Cerrar
-          </Button>
+              <ScrollView contentContainerStyle={styles.fields}>
+                <Text style={[typography.moneyMedium, { color: tone }]}>
+                  {privacyHidden
+                    ? '$ ••••••'
+                    : transaction.amountPrefix +
+                      formatPrivateMoney(transaction.amount ?? 0, transaction.currency ?? 'COP', false)}
+                </Text>
+                <Text style={typography.bodySecondary}>
+                  {[transaction.accountName, transaction.currency].filter(Boolean).join(' · ')}
+                </Text>
+                <Text style={typography.bodySecondary}>{formatLocalDate(transaction.effectiveDate)}</Text>
+                {fields.map(([label, value]) => (
+                  <View key={label} style={styles.field}>
+                    <Text style={typography.caption}>{label}</Text>
+                    <Text style={typography.body}>{value}</Text>
+                  </View>
+                ))}
+                {transaction.type === 'REVERSAL' && transaction.reversalOfId ? (
+                  <Text style={styles.reversal}>Revierte una operación anterior</Text>
+                ) : null}
+              </ScrollView>
+              <Button variant="ghost" onPress={sheetMotion.close}>
+                Cerrar
+              </Button>
+            </Pressable>
+          </Animated.View>
         </Pressable>
-      </Pressable>
+      </Animated.View>
     </Modal>
   );
 }

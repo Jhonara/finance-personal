@@ -1,5 +1,6 @@
+import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Button, Card } from '@/ui/primitives';
 import { Progress } from '@/ui/progress';
@@ -27,7 +28,7 @@ export function SavingGoalCard({
   const tone = savingTones[goal.tone];
   return (
     <Card style={styles.card}>
-      <Pressable
+      <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={savingsAccessibility(goal, hidden)}
         onPress={onOpen}
@@ -47,7 +48,7 @@ export function SavingGoalCard({
           {savingsAmount(goal.currentAmount, hidden)} <Text style={typography.caption}>ahorrados</Text>
         </Text>
         <Text style={typography.bodySecondary}>de {savingsAmount(goal.targetAmount, hidden)}</Text>
-      </Pressable>
+      </MotionPressable>
       <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
       {goal.percentage !== undefined ? (
         <Progress value={goal.percentage} color={tone.color} label={`Progreso de ${goal.name}`} />

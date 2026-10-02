@@ -1,9 +1,10 @@
+import { MotionModal as Modal } from '@/ui/motion-modal';
 import { openForm } from '@/features/forms/form-session';
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period';
 
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTransactions } from '@/features/transactions/use-transactions';
 import { useAccounts } from '@/features/accounts/use-accounts';
@@ -57,7 +58,7 @@ export default function TransactionsScreen() {
   const activeFilters = filterCount(filters);
   if (transactions.isPending)
     return (
-      <Screen scroll>
+      <Screen entry scroll>
         <ScreenHeader title="Movimientos" />
         <SkeletonRow />
         <SkeletonRow />
@@ -66,13 +67,14 @@ export default function TransactionsScreen() {
     );
   if (transactions.isError)
     return (
-      <Screen>
+      <Screen entry>
         <ScreenHeader title="Movimientos" />
         <ErrorState onRetry={() => void transactions.refetch()} />
       </Screen>
     );
   return (
     <Screen
+      entry
       scroll
       refreshing={transactions.isRefetching}
       onRefresh={() => void transactions.refetch()}

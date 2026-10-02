@@ -30,7 +30,10 @@ vi.mock('react-native', () => {
         props,
         typeof children === 'function' ? children({ pressed: false }) : children,
       );
-  const animation = () => ({ start: vi.fn(), stop: vi.fn() });
+  const animation = () => ({
+    start: (cb?: (result: { finished: boolean }) => void) => cb?.({ finished: true }),
+    stop: vi.fn(),
+  });
   return {
     ActivityIndicator: primitive('ActivityIndicator'),
     useWindowDimensions: () => ({ width: 360, height: 640, fontScale: 1 }),
@@ -50,6 +53,7 @@ vi.mock('react-native', () => {
     StyleSheet: { create: (styles: object) => styles },
     Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
     Animated: {
+      Text: primitive('Text'),
       View: primitive('AnimatedView'),
       Value: class {
         setValue() {}
@@ -106,7 +110,8 @@ import TransactionsScreen from '@/app/(app)/transactions';
 import { FinancialProgressSection, ProgressSignal } from '@/features/progress/progress-signal';
 import { financialProgress } from '@/features/progress/financial-progress';
 import { secondaryKeys } from '@/features/secondary/use-secondary';
-import { AccountCard } from '@/ui/financial';
+import { AccountCard, TransactionRow } from '@/ui/financial';
+import { HomeModules } from '@/features/dashboard/home-modules';
 import { GuidedSetupCard } from '@/ui/guided-setup-card';
 import { useCreateBudget } from './secondary/use-secondary';
 import { dashboardKeys } from './dashboard/use-dashboard-month';
@@ -621,6 +626,7 @@ it('keeps November authoritative when September and October resolve out of order
     netWorthByCurrency: { COP: month * 500000 },
     accounts: [{ ...account, name: `Cuenta mes ${month}`, balance: month * 500000 }],
     budgets: {
+      overallPercentage: month,
       items: [
         {
           id: month,
@@ -669,7 +675,7 @@ it('keeps November authoritative when September and October resolve out of order
       requests.get(9)!.resolve({ data: monthData(9) });
     });
     expect(textContent(tree.toJSON())).toContain('Cuenta mes 11');
-    expect(textContent(tree.toJSON())).toContain('Presupuesto mes 11');
+    expect(textContent(tree.toJSON())).toContain('11% utilizado');
     expect(textContent(tree.toJSON())).toContain('Movimiento mes 11');
     expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 10');
     expect(textContent(tree.toJSON())).not.toContain('Movimiento mes 9');
@@ -677,10 +683,11 @@ it('keeps November authoritative when September and October resolve out of order
       .findAllByType(ProgressSignal)
       .find((node) => node.props.signal.kind === 'flow');
     expect(monthlySignal?.props.signal.destination.params).toEqual({ year: 2026, month: 11 });
-    expect(
-      tree.root.findAllByType(ProgressSignal).find((node) => node.props.signal.kind === 'budget')?.props
-        .signal.destination.params,
-    ).toEqual({ year: 2026, month: 11 });
+    await act(async () => press(tree, 'Ver presupuestos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/budgets',
+      params: { year: 2026, month: 11 },
+    });
     await act(async () => press(tree, 'Mes anterior'));
     await act(async () => press(tree, 'Mes anterior'));
     await settled(() =>
@@ -688,7 +695,7 @@ it('keeps November authoritative when September and October resolve out of order
     );
     expect(textContent(tree.toJSON()).toLowerCase()).toContain('septiembre de 2026');
     expect(textContent(tree.toJSON())).toContain('Cuenta mes 9');
-    expect(textContent(tree.toJSON())).toContain('Presupuesto mes 9');
+    expect(textContent(tree.toJSON())).toContain('9% utilizado');
     expect(textContent(tree.toJSON())).toContain('Movimiento mes 9');
     expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 11');
     expect(
@@ -779,7 +786,7 @@ it('preserves budget detail amounts and edit identity through the visual summary
   );
 });
 
-describe('Tu progreso on Home', () => {
+describe('Para ti on Home', () => {
   const useful = {
     accounts: [account],
     totalIncome: 1000,
@@ -795,10 +802,14 @@ describe('Tu progreso on Home', () => {
   it('hides amounts from visual and accessible content while keeping percentages', async () => {
     mocks.hidden = true;
     const tree = await render(<FinancialProgressSection dashboard={useful} period={period} />);
-    expect(textContent(tree.toJSON())).toContain('Moto está al 81%');
+    expect(textContent(tree.toJSON())).toContain('Este mes llevas flujo positivo');
     expect(JSON.stringify(tree.toJSON())).not.toContain('900');
     expect(JSON.stringify(tree.toJSON())).toContain('Importe oculto');
-    expect(JSON.stringify(tree.toJSON())).toContain('81 por ciento completada');
+    const savings = await render(
+      <FinancialProgressSection dashboard={{ savings: useful.savings }} period={period} />,
+    );
+    expect(textContent(savings.toJSON())).toContain('Moto está al 81%');
+    expect(JSON.stringify(savings.toJSON())).toContain('81 por ciento completada');
   });
   it('shows backend amount when visible and navigates using real signal targets', async () => {
     const tree = await render(<FinancialProgressSection dashboard={useful} period={period} />);
@@ -806,7 +817,13 @@ describe('Tu progreso on Home', () => {
     const buttons = tree.root.findAll((node) => (node.type as unknown) === 'Pressable');
     await act(async () => buttons[0]!.props.onPress());
     expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/transactions', params: period });
-    await act(async () => buttons[1]!.props.onPress());
+    expect(buttons).toHaveLength(1);
+    const savings = await render(
+      <FinancialProgressSection dashboard={{ savings: useful.savings }} period={period} />,
+    );
+    await act(async () =>
+      savings.root.findAll((node) => (node.type as unknown) === 'Pressable')[0]!.props.onPress(),
+    );
     expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/saving-detail', params: { id: 1 } });
     expect(buttons.every((node) => node.props.accessibilityRole === 'button')).toBe(true);
   });
@@ -871,6 +888,46 @@ describe('Tu progreso on Home', () => {
 });
 
 describe('Home visual hub', () => {
+  it('orders the Home sections, caps previews and presents one full-width insight without a carousel', async () => {
+    dashboard = {
+      accounts: Array.from({ length: 5 }, (_, i) => ({ ...account, id: i + 1 })),
+      totalIncome: 1000,
+      totalExpense: 100,
+      netCashFlow: 900,
+      budgets: { overallPercentage: 38, items: [{ status: 'OK', ...period }] },
+      savings: [{ id: 1, progressPercent: 40 }],
+      recentTransactions: Array.from({ length: 5 }, (_, i) => ({
+        transactionId: i + 1,
+        amount: 10,
+        type: 'EXPENSE',
+        currency: 'COP',
+        description: `Reciente ${i}`,
+      })),
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    expect(
+      tree.root.findByType(HomeModules).findAll((node) => (node.type as unknown) === 'Pressable'),
+    ).toHaveLength(4);
+    expect(tree.root.findAllByType(ProgressSignal)).toHaveLength(1);
+    expect(tree.root.findAllByType(AccountCard)).toHaveLength(3);
+    expect(tree.root.findAllByType(TransactionRow)).toHaveLength(3);
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'ScrollView' && node.props.horizontal),
+    ).toHaveLength(0);
+    const content = textContent(tree.toJSON());
+    const titles = [
+      'Panorama financiero',
+      'Este mes',
+      'Tu plan',
+      'Para ti',
+      'Cuentas',
+      'Movimientos recientes',
+    ];
+    const positions = titles.map((title) => content.indexOf(title));
+    expect(positions.every((value) => value >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
   it('promotes budgets, savings and credits from Dashboard without new requests', async () => {
     dashboard = {
       ...dashboard,
@@ -879,19 +936,22 @@ describe('Home visual hub', () => {
         { id: 3, name: 'Casa', status: 'ACTIVE' },
         { id: 4, status: 'PAID' },
       ],
-      budgets: { items: [{ id: 1, categoryName: 'Comida', percentageUsed: 38, ...period }] },
+      budgets: {
+        overallPercentage: 38,
+        items: [{ id: 1, categoryName: 'Comida', percentageUsed: 38, ...period }],
+      },
       alerts: [{ code: 'ALL_GOOD' }, { code: 'BUDGET_WARNING' }],
     };
     const tree = await render(<HomeScreen />);
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
-    expect(textContent(tree.toJSON())).toContain('Tu plan financiero');
-    expect(textContent(tree.toJSON())).toContain('Comida · 38% utilizado');
-    expect(textContent(tree.toJSON())).toContain('1 activo · 1 pagado');
-    expect(textContent(tree.toJSON())).toContain('1 aviso por revisar');
+    expect(textContent(tree.toJSON())).toContain('Tu plan');
+    expect(textContent(tree.toJSON())).toContain('38% utilizado');
+    expect(textContent(tree.toJSON())).toContain('1 activo');
+    expect(textContent(tree.toJSON())).toContain('1 por revisar');
     for (const [label, target] of [
       ['Ver ahorros', '/(app)/savings'],
       ['Ver créditos', '/(app)/credits'],
-      ['Ver alertas: 1 por revisar', '/(app)/alerts'],
+      ['Ver alertas', '/(app)/alerts'],
     ] as const) {
       await act(async () => press(tree, label));
       expect(mocks.push).toHaveBeenLastCalledWith(target);
@@ -914,9 +974,9 @@ describe('Home visual hub', () => {
     };
     const tree = await render(<HomeScreen />);
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
-    expect(textContent(tree.toJSON())).toContain('Crea una meta.');
-    expect(textContent(tree.toJSON())).toContain('Registra un crédito.');
-    expect(textContent(tree.toJSON())).not.toContain('Tu progreso');
+    expect(textContent(tree.toJSON())).toContain('Ver tus metas');
+    expect(textContent(tree.toJSON())).toContain('Ver tus créditos');
+    expect(textContent(tree.toJSON())).not.toContain('Para ti');
     expect(textContent(tree.toJSON())).not.toContain('avisos por revisar');
     expect(textContent(tree.toJSON())).toContain('Configura tus finanzas');
   });

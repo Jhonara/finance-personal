@@ -1,48 +1,106 @@
-import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { colors, motion, radius, shadows, spacing, typography } from '@/theme';
 
+import { useReducedMotion } from '@/ui/use-reduced-motion';
 type FeedbackTone = 'success' | 'error' | 'info' | 'warning';
 const C = createContext<{ show(message: string, tone?: FeedbackTone): void } | null>(null);
 export const FeedbackProvider = ({ children }: PropsWithChildren) => {
+  const reduced = useReducedMotion();
+  const entrance = useRef(new Animated.Value(1)).current;
   const insets = useSafeAreaInsets();
   const [feedback, setFeedback] = useState<{ message: string; tone: FeedbackTone } | null>(null);
   useEffect(() => {
     if (!feedback) return;
-    const timer = setTimeout(() => setFeedback(null), 3200);
-    return () => clearTimeout(timer);
-  }, [feedback]);
+    entrance.setValue(reduced ? 1 : 0);
+    const incoming = Animated.timing(entrance, {
+      toValue: 1,
+      duration: reduced ? 0 : motion.normal,
+      easing: motion.ease,
+      useNativeDriver: true,
+    });
+    incoming.start();
+    let outgoing: Animated.CompositeAnimation | undefined;
+    const timer = setTimeout(() => {
+      if (reduced) {
+        setFeedback(null);
+        return;
+      }
+      outgoing = Animated.timing(entrance, {
+        toValue: 0,
+        duration: motion.fast,
+        easing: motion.ease,
+        useNativeDriver: true,
+      });
+      outgoing.start(({ finished }) => {
+        if (finished) setFeedback((current) => (current === feedback ? null : current));
+      });
+    }, motion.feedbackHold);
+    return () => {
+      clearTimeout(timer);
+      incoming.stop();
+      outgoing?.stop();
+    };
+  }, [feedback, reduced, entrance]);
   return (
     <C.Provider value={{ show: (message, tone = 'info') => setFeedback({ message, tone }) }}>
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>{children}</View>
         {feedback ? (
-          <View
+          <Animated.View
             accessibilityLiveRegion="polite"
             style={[
               styles.feedback,
+              {
+                opacity: entrance,
+                transform: reduced
+                  ? []
+                  : [
+                      {
+                        translateY: entrance.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [motion.distance, 0],
+                        }),
+                      },
+                    ],
+              },
               toneStyles[feedback.tone],
               { marginBottom: Math.max(insets.bottom, spacing.sm) },
             ]}
           >
-            <Ionicons
-              name={
-                feedback.tone === 'success'
-                  ? 'checkmark-circle'
-                  : feedback.tone === 'error'
-                    ? 'alert-circle'
-                    : 'information-circle'
-              }
-              size={22}
-              color={toneTextStyles[feedback.tone].color}
-            />
+            <Animated.View
+              style={{
+                transform: reduced
+                  ? []
+                  : [
+                      {
+                        scale: entrance.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [motion.pressScale, 1],
+                        }),
+                      },
+                    ],
+              }}
+            >
+              <Ionicons
+                name={
+                  feedback.tone === 'success'
+                    ? 'checkmark-circle'
+                    : feedback.tone === 'error'
+                      ? 'alert-circle'
+                      : 'information-circle'
+                }
+                size={22}
+                color={toneTextStyles[feedback.tone].color}
+              />
+            </Animated.View>
             <Text style={[typography.bodySecondary, toneTextStyles[feedback.tone], { flex: 1 }]}>
               {feedback.message}
             </Text>
-          </View>
+          </Animated.View>
         ) : null}
       </View>
     </C.Provider>

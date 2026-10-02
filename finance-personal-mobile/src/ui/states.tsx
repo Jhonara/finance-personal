@@ -1,3 +1,4 @@
+import { MotionEntry } from './motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -111,7 +112,11 @@ export function Skeleton({
   width?: number | `${number}%`;
   height?: number;
 }) {
-  return <View accessibilityLabel="Cargando" style={[styles.skeleton, { width, height }]} />;
+  return (
+    <MotionEntry>
+      <View accessibilityLabel="Cargando" style={[styles.skeleton, { width, height }]} />
+    </MotionEntry>
+  );
 }
 export function SkeletonCard() {
   return (

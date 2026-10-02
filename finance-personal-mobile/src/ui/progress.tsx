@@ -1,3 +1,4 @@
+import { useReducedMotion } from './use-reduced-motion';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { colors, motion, radius } from '@/theme';
@@ -13,17 +14,23 @@ export function Progress({
   label?: string;
   animated?: boolean;
 }) {
+  const reduced = useReducedMotion();
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   const progress = useRef(new Animated.Value(clamped)).current;
   useEffect(() => {
+    if (reduced || !animated) {
+      progress.setValue(clamped);
+      return;
+    }
     const animation = Animated.timing(progress, {
       toValue: clamped,
-      duration: animated ? motion.slow : 0,
+      duration: motion.slow,
+      easing: motion.ease,
       useNativeDriver: false,
     });
     animation.start();
     return () => animation.stop();
-  }, [clamped, progress, animated]);
+  }, [clamped, progress, animated, reduced]);
   return (
     <View
       accessible

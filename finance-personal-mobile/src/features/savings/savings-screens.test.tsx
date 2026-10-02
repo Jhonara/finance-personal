@@ -32,8 +32,15 @@ vi.mock('react-native', () => {
         props,
         typeof children === 'function' ? children({ pressed: false }) : children,
       );
-  const animation = () => ({ start: vi.fn(), stop: vi.fn() });
+  const animation = () => ({
+    start: (cb?: (result: { finished: boolean }) => void) => cb?.({ finished: true }),
+    stop: vi.fn(),
+  });
   return {
+    AccessibilityInfo: {
+      isReduceMotionEnabled: async () => false,
+      addEventListener: () => ({ remove: vi.fn() }),
+    },
     ActivityIndicator: host('ActivityIndicator'),
     KeyboardAvoidingView: host('KeyboardAvoidingView'),
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
@@ -47,6 +54,7 @@ vi.mock('react-native', () => {
     StyleSheet: { create: (styles: object) => styles },
     Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
     Animated: {
+      Text: host('Text'),
       View: host('AnimatedView'),
       Value: class {
         setValue() {}
