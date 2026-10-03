@@ -16,22 +16,28 @@ export function homePlan(data: DashboardMonth, period: DashboardPeriod) {
   );
   const used = data.budgets?.overallPercentage;
   const saving = financialProgress({ dashboard: data, period }).find((s) => s.kind === 'savings');
+  const budgetPercent =
+    monthly && items.length && typeof used === 'number' && Number.isFinite(used) && used >= 0
+      ? used
+      : undefined;
   const active = data.credits?.filter((c) => c.status === 'ACTIVE' || c.status === 'LATE').length;
   const paid = data.credits?.filter((c) => c.status === 'PAID').length;
   const alerts = data.alerts?.filter((a) => a.code && a.code !== 'ALL_GOOD');
   const clear = data.alerts !== undefined && data.alerts.every((a) => Boolean(a.code));
   return {
     budget:
-      monthly && items.length && typeof used === 'number' && Number.isFinite(used) && used >= 0
-        ? `${used.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% utilizado`
+      budgetPercent !== undefined
+        ? `${budgetPercent.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% utilizado`
         : 'Ver tus límites',
+    budgetPercent,
     saving: saving?.title.replace(/ está al (?=[\d.,]+%$)/, ' · ') ?? 'Ver tus metas',
+    savingPercent: saving?.percentage,
     credit: active
       ? `${active} ${active === 1 ? 'activo' : 'activos'}`
       : paid
         ? `${paid} ${paid === 1 ? 'pagado' : 'pagados'}`
         : 'Ver tus créditos',
-    alerts: alerts?.length ? `${alerts.length} por revisar` : clear ? 'Todo bien' : 'Ver tus alertas',
+    alerts: alerts?.length ? `${alerts.length} por revisar` : clear ? 'Sin avisos' : 'Ver tus alertas',
     alertState: alerts?.length
       ? alerts.some((alert) => presentAlert(alert).level === 'Importante')
         ? ('important' as const)

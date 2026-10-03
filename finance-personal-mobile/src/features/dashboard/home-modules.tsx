@@ -1,10 +1,12 @@
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { DashboardMonth } from '@/api/dashboard-api';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
+import { Progress } from '@/ui/progress';
 import { formatDashboardPeriod, type DashboardPeriod } from './dashboard-period';
 import { homeColumns, homePlan } from './home-plan';
 
@@ -12,6 +14,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
   const reducedMotion = useReducedMotion();
   const { width, fontScale } = useWindowDimensions();
   const columns = homeColumns(width, fontScale);
+  const tileWidth = columns === 1 ? width - spacing.lg * 2 : (width - spacing.lg * 2 - spacing.md) / 2;
   const plan = homePlan(data, period);
   const tiles = [
     {
@@ -22,6 +25,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
       surface: colors.warningSoft,
       onPress: () => router.push({ pathname: '/(app)/budgets', params: period }),
       context: formatDashboardPeriod(period),
+      progress: plan.budgetPercent,
     },
     {
       title: 'Ahorros',
@@ -30,6 +34,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
       color: colors.accent,
       surface: colors.lavenderSoft,
       onPress: () => router.push('/(app)/savings'),
+      progress: plan.savingPercent,
     },
     {
       title: 'Créditos',
@@ -38,6 +43,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
       color: colors.credit,
       surface: colors.creditSoft,
       onPress: () => router.push('/(app)/credits'),
+      progress: undefined,
     },
     {
       title: 'Alertas',
@@ -60,6 +66,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
               ? colors.successSoft
               : colors.infoSoft,
       onPress: () => router.push('/(app)/alerts'),
+      progress: undefined,
     },
   ] as const;
   return (
@@ -78,22 +85,41 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
             onPress={tile.onPress}
             style={({ pressed }) => [
               styles.tile,
-              { flexBasis: columns === 1 ? '100%' : '47%' },
+              { width: tileWidth, flexBasis: tileWidth },
               pressed && { opacity: 0.88, transform: [{ scale: reducedMotion ? 1 : 0.98 }] },
             ]}
           >
-            <View
-              style={styles.icons}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
+            <LinearGradient
+              colors={[tile.surface, colors.surface]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.tileSurface}
             >
-              <View style={[styles.badge, { backgroundColor: tile.surface }]}>
-                <Ionicons name={tile.icon} size={23} color={tile.color} />
+              <View style={[styles.orb, { backgroundColor: tile.surface }]} pointerEvents="none" />
+              <View
+                style={styles.icons}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <View style={[styles.badge, { backgroundColor: colors.surface }]}>
+                  <Ionicons name={tile.icon} size={23} color={tile.color} />
+                </View>
+                <Ionicons name="arrow-forward" size={18} color={tile.color} />
               </View>
-              <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />
-            </View>
-            <Text style={typography.cardTitle}>{tile.title}</Text>
-            <Text style={styles.summary}>{tile.summary}</Text>
+              <View style={styles.tileCopy}>
+                <Text numberOfLines={1} style={typography.cardTitle}>
+                  {tile.title}
+                </Text>
+                <Text numberOfLines={2} style={styles.summary}>
+                  {tile.summary}
+                </Text>
+              </View>
+              {tile.progress !== undefined ? (
+                <Progress value={tile.progress} color={tile.color} label={`${tile.title}: ${tile.summary}`} />
+              ) : (
+                <View style={[styles.accent, { backgroundColor: tile.color }]} />
+              )}
+            </LinearGradient>
           </MotionPressable>
         ))}
       </View>
@@ -104,19 +130,23 @@ const styles = StyleSheet.create({
   section: { gap: spacing.md, marginTop: spacing.xxl },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   tile: {
-    flexGrow: 1,
+    flexGrow: 0,
     minWidth: 0,
-    minHeight: 136,
-    justifyContent: 'space-between',
-    padding: spacing.md,
+    minHeight: 152,
     borderRadius: radius.large,
-    gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    overflow: 'hidden',
     ...shadows.card,
   },
+  tileSurface: {
+    flex: 1,
+    minHeight: 152,
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  orb: { position: 'absolute', width: 110, height: 110, borderRadius: 55, right: -52, top: -48 },
   icons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tileCopy: { gap: spacing.xs },
   badge: {
     width: 40,
     height: 40,
@@ -125,4 +155,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   summary: { ...typography.bodySecondary, color: colors.textSecondary },
+  accent: { width: 28, height: 4, borderRadius: radius.pill },
 });

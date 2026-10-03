@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   patch: vi.fn(),
   push: vi.fn(),
   feedback: vi.fn(),
+  quickOpen: vi.fn(),
   read: vi.fn(),
   write: vi.fn(),
   hidden: false,
@@ -96,7 +97,7 @@ vi.mock('@/privacy/privacy-provider', () => ({
 }));
 vi.mock('@/feedback/feedback-provider', () => ({ useFeedback: () => ({ show: mocks.feedback }) }));
 vi.mock('@/features/quick-actions/quick-action-provider', () => ({
-  useQuickActions: () => ({ open: vi.fn(), openedCount: 0, active: false }),
+  useQuickActions: () => ({ open: mocks.quickOpen, openedCount: 0, active: false }),
 }));
 
 import AccountForm from '@/app/(app)/account-form';
@@ -115,6 +116,7 @@ import { financialProgress } from '@/features/progress/financial-progress';
 import { secondaryKeys } from '@/features/secondary/use-secondary';
 import { AccountCard, TransactionRow } from '@/ui/financial';
 import { HomeModules } from '@/features/dashboard/home-modules';
+import { HomeAccountPreview } from '@/features/dashboard/home-account-preview';
 import { GuidedSetupCard } from '@/ui/guided-setup-card';
 import { useCreateBudget } from './secondary/use-secondary';
 import { dashboardKeys } from './dashboard/use-dashboard-month';
@@ -913,7 +915,7 @@ describe('Home visual hub', () => {
       tree.root.findByType(HomeModules).findAll((node) => (node.type as unknown) === 'Pressable'),
     ).toHaveLength(4);
     expect(tree.root.findAllByType(ProgressSignal)).toHaveLength(1);
-    expect(tree.root.findAllByType(AccountCard)).toHaveLength(3);
+    expect(tree.root.findAllByType(HomeAccountPreview)).toHaveLength(3);
     expect(tree.root.findAllByType(TransactionRow)).toHaveLength(3);
     expect(
       tree.root.findAll((node) => (node.type as unknown) === 'ScrollView' && node.props.horizontal),
@@ -930,6 +932,8 @@ describe('Home visual hub', () => {
     const positions = titles.map((title) => content.indexOf(title));
     expect(positions.every((value) => value >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    await act(async () => press(tree, 'Ver todos los movimientos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/transactions', params: period });
   });
   it('promotes budgets, savings and credits from Dashboard without new requests', async () => {
     dashboard = {
@@ -967,7 +971,7 @@ describe('Home visual hub', () => {
       ),
     ).toBe(true);
   });
-  it('keeps compact module access for empty data and omits irrelevant alerts', async () => {
+  it('gives a new user one account action and no false financial summary', async () => {
     dashboard = {
       accounts: [],
       budgets: { items: [] },
@@ -977,11 +981,38 @@ describe('Home visual hub', () => {
     };
     const tree = await render(<HomeScreen />);
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
-    expect(textContent(tree.toJSON())).toContain('Ver tus metas');
-    expect(textContent(tree.toJSON())).toContain('Ver tus créditos');
-    expect(textContent(tree.toJSON())).not.toContain('Para ti');
-    expect(textContent(tree.toJSON())).not.toContain('avisos por revisar');
-    expect(textContent(tree.toJSON())).toContain('Configura tus finanzas');
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Tu dinero empieza aquí.');
+    expect(content).toContain('Crear mi primera cuenta');
+    expect(content).toContain('Configura tus finanzas');
+    expect(content).not.toContain('Panorama financiero');
+    expect(content).not.toContain('Este mes');
+    expect(content).not.toContain('Tu plan');
+    expect(content).not.toContain('Para ti');
+    await act(async () => press(tree, 'Crear mi primera cuenta'));
+    expect(mocks.push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(app)/account-form' }));
+  });
+  it('invites the first movement without showing zero monthly cards', async () => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/dashboard/month') return { data: dashboard };
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+      if (url === '/transactions') return { data: { totalElements: 0 } };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    const tree = await render(<HomeScreen />);
+    await settled(() =>
+      expect(client.getQueryData(['onboarding', 'ordinary-movement-exists', 'INCOME'])).toBeDefined(),
+    );
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Panorama financiero');
+    expect(content).toContain('Registrar mi primer movimiento');
+    expect(content).toContain('Tu plan');
+    expect(content).not.toContain('Ingresos');
+    expect(content).not.toContain('Gastos');
+    expect(content).not.toContain('Flujo neto');
+    await act(async () => press(tree, 'Registrar mi primer movimiento'));
+    expect(mocks.quickOpen).toHaveBeenCalledOnce();
   });
   it('keeps Home metrics private without hiding module navigation', async () => {
     mocks.hidden = true;

@@ -6,7 +6,9 @@ describe('Home plan summaries', () => {
   it('uses functional copy when data is unavailable', () => {
     expect(homePlan({}, period)).toEqual({
       budget: 'Ver tus límites',
+      budgetPercent: undefined,
       saving: 'Ver tus metas',
+      savingPercent: undefined,
       credit: 'Ver tus créditos',
       alerts: 'Ver tus alertas',
       alertState: 'unknown',
@@ -15,7 +17,7 @@ describe('Home plan summaries', () => {
   it.each([{ alerts: [] }, { alerts: [{ code: 'ALL_GOOD' }] }])(
     'only shows clear state with known alerts %#',
     ({ alerts }) => {
-      expect(homePlan({ alerts }, period)).toMatchObject({ alerts: 'Todo bien', alertState: 'clear' });
+      expect(homePlan({ alerts }, period)).toMatchObject({ alerts: 'Sin avisos', alertState: 'clear' });
     },
   );
   it('does not imply everything is fine when alert codes are missing', () => {
