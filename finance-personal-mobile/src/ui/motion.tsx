@@ -1,5 +1,12 @@
 import { Children, useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { Animated, Pressable, type PressableProps, type TextProps } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  type PressableProps,
+  type TextProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { motion } from '@/theme';
 import { useReducedMotion } from './use-reduced-motion';
@@ -65,9 +72,13 @@ function useEntrance(revision: unknown, initiallyVisible = false) {
   };
 }
 
-export function MotionEntry({ children, revision }: PropsWithChildren<{ revision?: unknown }>) {
+export function MotionEntry({
+  children,
+  revision,
+  style: layout,
+}: PropsWithChildren<{ revision?: unknown; style?: StyleProp<ViewStyle> }>) {
   const style = useEntrance(revision);
-  return <Animated.View style={style}>{children}</Animated.View>;
+  return <Animated.View style={[layout, style]}>{children}</Animated.View>;
 }
 
 export function MoneyText({ children, style, ...props }: TextProps) {
@@ -79,12 +90,16 @@ export function MoneyText({ children, style, ...props }: TextProps) {
   );
 }
 
-export function ScreenEntry({ children }: PropsWithChildren) {
+export function ScreenEntry({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
   const [focus, setFocus] = useState(0);
   useFocusEffect(
     useCallback(() => {
       setFocus((value) => value + 1);
     }, []),
   );
-  return <MotionEntry revision={focus}>{children}</MotionEntry>;
+  return (
+    <MotionEntry revision={focus} style={style}>
+      {children}
+    </MotionEntry>
+  );
 }

@@ -3,57 +3,68 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { MotionPressable } from '@/ui/motion';
 import { colors, radius, spacing, typography } from '@/theme';
+import { useTour } from '@/features/onboarding/tour-context';
+import { TourTarget } from '@/ui/tour-target';
 
 export function HomeShortcuts() {
+  const tour = useTour();
   return (
-    <View style={styles.row}>
-      {[
-        {
-          title: 'Guía de inicio',
-          icon: 'compass-outline',
-          route: '/(app)/guide',
-          color: colors.success,
-          soft: colors.successSoft,
-        },
-        {
-          title: 'Créditos',
-          icon: 'card-outline',
-          route: '/(app)/credits',
-          color: colors.lavender,
-          soft: colors.lavenderSoft,
-        },
-        {
-          title: 'Mi plan',
-          icon: 'grid-outline',
-          route: '/(app)/plan',
-          color: colors.info,
-          soft: colors.infoSoft,
-        },
-      ].map((item) => (
-        <MotionPressable
-          key={item.title}
-          accessibilityRole="button"
-          accessibilityLabel={
-            item.title === 'Créditos' ? 'Abrir créditos y préstamos' : `Abrir ${item.title.toLowerCase()}`
-          }
-          onPress={() => router.push(item.route as '/(app)/guide' | '/(app)/credits' | '/(app)/plan')}
-          style={styles.item}
-        >
-          <View style={[styles.icon, { backgroundColor: item.soft }]}>
-            <Ionicons
-              name={item.icon as 'compass-outline' | 'card-outline' | 'grid-outline'}
-              size={23}
-              color={item.color}
-            />
-          </View>
-          <Text style={styles.label}>{item.title}</Text>
-        </MotionPressable>
-      ))}
-    </View>
+    <TourTarget id="home-shortcuts">
+      <View style={styles.row}>
+        {[
+          {
+            title: 'Recorrido',
+            icon: 'compass-outline',
+            route: '/(app)/guide',
+            color: colors.success,
+            soft: colors.successSoft,
+          },
+          {
+            title: 'Créditos',
+            icon: 'card-outline',
+            route: '/(app)/credits',
+            color: colors.lavender,
+            soft: colors.lavenderSoft,
+          },
+          {
+            title: 'Mi plan',
+            icon: 'grid-outline',
+            route: '/(app)/plan',
+            color: colors.info,
+            soft: colors.infoSoft,
+          },
+        ].map((item) => (
+          <MotionPressable
+            key={item.title}
+            accessibilityRole="button"
+            accessibilityLabel={
+              item.title === 'Créditos' ? 'Abrir créditos y préstamos' : `Abrir ${item.title.toLowerCase()}`
+            }
+            onPress={() =>
+              item.route === '/(app)/guide' && tour
+                ? tour.start()
+                : router.push(item.route as '/(app)/guide' | '/(app)/credits' | '/(app)/plan')
+            }
+            style={styles.item}
+          >
+            <View style={[styles.icon, { backgroundColor: item.soft }]}>
+              <Ionicons
+                name={item.icon as 'compass-outline' | 'card-outline' | 'grid-outline'}
+                size={23}
+                color={item.color}
+              />
+            </View>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.label}>
+              {item.title}
+            </Text>
+          </MotionPressable>
+        ))}
+      </View>
+    </TourTarget>
   );
 }
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  row: { flexDirection: 'row', gap: spacing.sm },
   item: {
     flex: 1,
     minWidth: 0,

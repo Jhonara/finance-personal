@@ -1,4 +1,5 @@
 import { openForm } from '@/features/forms/form-session';
+import { TourTarget } from '@/ui/tour-target';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -46,14 +47,16 @@ export default function CreditsScreen() {
           </Text>
         </View>
         {query.data?.length ? (
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel="Agregar crédito"
-            onPress={add}
-            style={styles.add}
-          >
-            <Text style={styles.addText}>+ Nuevo</Text>
-          </MotionPressable>
+          <TourTarget id="add-credit">
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Agregar crédito"
+              onPress={add}
+              style={styles.add}
+            >
+              <Text style={styles.addText}>+ Nuevo</Text>
+            </MotionPressable>
+          </TourTarget>
         ) : null}
       </View>
       <PlanTabs selected="credits" />
@@ -70,7 +73,9 @@ export default function CreditsScreen() {
           <Text style={styles.emptyText}>
             Registra un crédito para seguir el saldo pendiente, las cuotas y tus pagos.
           </Text>
-          <Button onPress={add}>Agregar crédito</Button>
+          <TourTarget id="add-credit">
+            <Button onPress={add}>Agregar crédito</Button>
+          </TourTarget>
         </View>
       ) : (
         <>
@@ -113,24 +118,30 @@ export default function CreditsScreen() {
               </View>
             ))}
           </LinearGradient>
-          {creditGroups(query.data).map((group) => (
-            <View key={group.title} style={styles.group}>
-              <View style={styles.groupHeading}>
-                <Text accessibilityRole="header" style={typography.sectionTitle}>
-                  {group.title}
-                </Text>
-                <Text style={typography.caption}>{group.credits.length}</Text>
-              </View>
-              {group.credits.map((credit, index) => (
-                <CreditCard
-                  key={credit.id ?? index}
-                  credit={credit}
-                  hidden={hidden}
-                  onPress={() => router.push({ pathname: '/(app)/credit-detail', params: { id: credit.id } })}
-                />
+          <TourTarget id="credit-list">
+            <View style={{ gap: spacing.lg }}>
+              {creditGroups(query.data).map((group) => (
+                <View key={group.title} style={styles.group}>
+                  <View style={styles.groupHeading}>
+                    <Text accessibilityRole="header" style={typography.sectionTitle}>
+                      {group.title}
+                    </Text>
+                    <Text style={typography.caption}>{group.credits.length}</Text>
+                  </View>
+                  {group.credits.map((credit, index) => (
+                    <CreditCard
+                      key={credit.id ?? index}
+                      credit={credit}
+                      hidden={hidden}
+                      onPress={() =>
+                        router.push({ pathname: '/(app)/credit-detail', params: { id: credit.id } })
+                      }
+                    />
+                  ))}
+                </View>
               ))}
             </View>
-          ))}
+          </TourTarget>
         </>
       )}
     </Screen>

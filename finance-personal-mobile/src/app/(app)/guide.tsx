@@ -24,6 +24,7 @@ import { ScreenHeader } from '@/ui/headers';
 import { Progress } from '@/ui/progress';
 import { ErrorState, Skeleton } from '@/ui/states';
 import { colors, radius, spacing, typography } from '@/theme';
+import { useTour } from '@/features/onboarding/tour-context';
 
 export default function GuideScreen() {
   const user = useCurrentUser();
@@ -67,6 +68,7 @@ function GuideJourney({
   topic?: string;
 }) {
   const client = useQueryClient();
+  const tour = useTour();
   const { open } = useQuickActions();
   const [progress, setProgress] = useState(initial);
   const [selected, setSelected] = useState<GuideTopicId>(isGuideTopic(topic) ? topic : initial.lastTopic);
@@ -112,6 +114,11 @@ function GuideJourney({
     <Screen>
       <ScreenHeader title="Guía de inicio" subtitle="Aprende a tu ritmo" back onBack={() => router.back()} />
       <ScrollView ref={scroll} contentContainerStyle={styles.content}>
+        {tour && (
+          <Button variant="secondary" onPress={() => tour.start(true)}>
+            Mostrarme los botones: iniciar recorrido
+          </Button>
+        )}
         <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.hero}>
           <View style={styles.heading}>
             <BrandMascot size={58} />

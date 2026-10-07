@@ -353,7 +353,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.xl,
     marginBottom: spacing.sm,
     gap: spacing.sm,
   },

@@ -1,4 +1,5 @@
 import { openForm } from '@/features/forms/form-session';
+import { TourTarget } from '@/ui/tour-target';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -37,12 +38,14 @@ export default function SavingsScreen() {
         onBack={() => router.back()}
         rightAction={
           query.data?.length ? (
-            <IconButton
-              name="add"
-              accessibilityLabel="Nueva meta"
-              onPress={() => openForm('/(app)/saving-form')}
-              tone="primary"
-            />
+            <TourTarget id="add-saving">
+              <IconButton
+                name="add"
+                accessibilityLabel="Nueva meta"
+                onPress={() => openForm('/(app)/saving-form')}
+                tone="primary"
+              />
+            </TourTarget>
           ) : undefined
         }
       />
@@ -113,13 +116,15 @@ export default function SavingsScreen() {
               )}
             </>
           ) : (
-            <EmptyState
-              title="¿Qué quieres lograr?"
-              description="Crea una meta y empieza a construirla paso a paso."
-              actionLabel="Crear mi primera meta"
-              tone="primary"
-              onAction={() => openForm('/(app)/saving-form')}
-            />
+            <TourTarget id="add-saving">
+              <EmptyState
+                title="¿Qué quieres lograr?"
+                description="Crea una meta y empieza a construirla paso a paso."
+                actionLabel="Crear mi primera meta"
+                tone="primary"
+                onAction={() => openForm('/(app)/saving-form')}
+              />
+            </TourTarget>
           )}
         </>
       )}

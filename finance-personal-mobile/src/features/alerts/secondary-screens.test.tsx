@@ -1,3 +1,7 @@
+vi.mock('@/ui/navigation-dock', () => ({ NavigationDock: () => null }));
+vi.mock('@/features/onboarding/interactive-tour', () => ({
+  InteractiveTourProvider: ({ children }: React.PropsWithChildren) => children,
+}));
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -443,7 +447,7 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
-    expect(text(tree.toJSON())).toContain('0 de 10 temas recorridos');
+    expect(text(tree.toJSON())).toContain('0 de 11 temas recorridos');
     await press(tree, 'Abrir Cuentas →');
     expect(mocks.push).toHaveBeenCalledWith('/(app)/accounts');
     expect(mocks.write).not.toHaveBeenCalled();
@@ -452,7 +456,7 @@ describe('Ecosystem guide and plan navigation', () => {
       guideKey(88),
       JSON.stringify({ reviewed: ['accounts'], lastTopic: 'movements' }),
     );
-    expect(text(tree.toJSON())).toContain('TEMA 2 DE 10');
+    expect(text(tree.toJSON())).toContain('TEMA 2 DE 11');
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
@@ -467,16 +471,16 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
-    expect(text(tree.toJSON())).toContain('TEMA 6 DE 10');
-    expect(text(tree.toJSON())).toContain('2 de 10 temas recorridos');
+    expect(text(tree.toJSON())).toContain('TEMA 7 DE 11');
+    expect(text(tree.toJSON())).toContain('2 de 11 temas recorridos');
     await act(async () => {
       client.setQueryData(currentUserKeys.current(), { ...profile, id: 99 });
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 40));
     });
-    expect(text(tree.toJSON())).toContain('0 de 10 temas recorridos');
-    expect(text(tree.toJSON())).toContain('TEMA 1 DE 10');
+    expect(text(tree.toJSON())).toContain('0 de 11 temas recorridos');
+    expect(text(tree.toJSON())).toContain('TEMA 1 DE 11');
   });
 
   it('keeps the topic on a storage failure and prevents duplicate next actions', async () => {
@@ -488,7 +492,7 @@ describe('Ecosystem guide and plan navigation', () => {
     );
     await press(tree, 'Entendido, siguiente tema');
     expect(text(tree.toJSON())).toContain('No pudimos guardar tu recorrido');
-    expect(text(tree.toJSON())).toContain('0 de 10 temas recorridos');
+    expect(text(tree.toJSON())).toContain('0 de 11 temas recorridos');
     let finish!: () => void;
     mocks.write.mockImplementationOnce(
       () =>
@@ -505,7 +509,7 @@ describe('Ecosystem guide and plan navigation', () => {
     await act(async () => {
       finish();
     });
-    expect(text(tree.toJSON())).toContain('1 de 10 temas recorridos');
+    expect(text(tree.toJSON())).toContain('1 de 11 temas recorridos');
   });
 
   it('places credits first in Plan and routes to the other modules using real summary data', async () => {

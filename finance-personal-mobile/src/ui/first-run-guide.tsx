@@ -8,6 +8,7 @@ import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { Button } from './primitives';
 import { FinancialCompanion } from './brand-identity';
 import { useReducedMotion } from './use-reduced-motion';
+import { useTour } from '@/features/onboarding/tour-context';
 
 const slides = [
   {
@@ -23,7 +24,7 @@ const slides = [
   {
     icon: 'trending-up-outline',
     title: 'Construye mejores hábitos',
-    copy: 'En Plan encontrarás ahorros, presupuestos y créditos. La guía te explica cada módulo, paso a paso y sin cambiar tus datos.',
+    copy: 'Recorramos las pantallas: verás qué botón usar en cada módulo, incluidas tus categorías. Puedes salir y retomarlo cuando quieras.',
   },
 ] as const;
 
@@ -37,6 +38,7 @@ export function FirstRunGuide({
   onClose?: () => void;
 }) {
   const reduced = useReducedMotion();
+  const tour = useTour();
   const [visible, setVisible] = useState(replay);
   const [slide, setSlide] = useState(0);
   useEffect(() => {
@@ -83,12 +85,19 @@ export function FirstRunGuide({
                 slide === slides.length - 1
                   ? () => {
                       close();
-                      if (!replay) router.push('/(app)/guide');
+                      if (!replay) {
+                        if (tour) tour.start(true);
+                        else router.push('/(app)/guide');
+                      }
                     }
                   : () => setSlide((value) => value + 1)
               }
             >
-              {slide === slides.length - 1 ? (replay ? 'Listo' : 'Abrir guía paso a paso') : 'Continuar'}
+              {slide === slides.length - 1
+                ? replay
+                  ? 'Listo'
+                  : 'Empezar recorrido interactivo'
+                : 'Continuar'}
             </Button>
             <Pressable
               accessibilityRole="button"

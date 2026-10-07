@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { TourTarget } from '@/ui/tour-target';
 import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ScreenHeader } from '@/ui/headers';
@@ -14,7 +15,14 @@ export default function AlertsScreen() {
   const important = alerts.some((alert) => presentAlert(alert).level === 'Importante');
   return (
     <Screen entry scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()} style={styles.screen}>
-      <ScreenHeader title="Alertas" subtitle="Lo que merece tu atención." back onBack={() => router.back()} />
+      <TourTarget id="alerts-heading">
+        <ScreenHeader
+          title="Alertas"
+          subtitle="Lo que merece tu atención."
+          back
+          onBack={() => router.back()}
+        />
+      </TourTarget>
       {q.isPending ? (
         <SkeletonRow />
       ) : q.isError ? (

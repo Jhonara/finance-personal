@@ -1,4 +1,5 @@
 import { openForm } from '@/features/forms/form-session';
+import { TourTarget } from '@/ui/tour-target';
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -133,14 +134,16 @@ export default function BudgetsScreen() {
         onBack={() => router.back()}
         rightAction={
           data?.length ? (
-            <Button
-              size="compact"
-              variant="secondary"
-              accessibilityLabel="Crear presupuesto"
-              onPress={create}
-            >
-              + Nuevo
-            </Button>
+            <TourTarget id="add-budget">
+              <Button
+                size="compact"
+                variant="secondary"
+                accessibilityLabel="Crear presupuesto"
+                onPress={create}
+              >
+                + Nuevo
+              </Button>
+            </TourTarget>
           ) : undefined
         }
       />
@@ -242,12 +245,14 @@ export default function BudgetsScreen() {
           </Text>
         </>
       ) : (
-        <EmptyState
-          title="Dale un límite a tus gastos"
-          description="Elige una categoría y define cuánto quieres gastar en este mes."
-          actionLabel="Crear presupuesto"
-          onAction={create}
-        />
+        <TourTarget id="add-budget">
+          <EmptyState
+            title="Dale un límite a tus gastos"
+            description="Elige una categoría y define cuánto quieres gastar en este mes."
+            actionLabel="Crear presupuesto"
+            onAction={create}
+          />
+        </TourTarget>
       )}
     </Screen>
   );

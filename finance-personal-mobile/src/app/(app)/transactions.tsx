@@ -1,4 +1,5 @@
 import { openForm } from '@/features/forms/form-session';
+import { TourTarget } from '@/ui/tour-target';
 import { useCallback, useMemo, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period';
@@ -124,44 +125,52 @@ export default function TransactionsScreen() {
         <Text accessibilityRole="header" style={styles.historyTitle}>
           Historial
         </Text>
-        <MotionPressable
-          accessibilityRole="button"
-          accessibilityLabel="Abrir filtros"
-          onPress={() => setFiltersOpen(true)}
-          style={styles.filterButton}
-        >
-          <Ionicons name="options-outline" size={18} color={colors.primary} />
-          <Text style={styles.filterButtonText}>
-            {activeFilters ? `Filtros · ${activeFilters}` : 'Filtros'}
-          </Text>
-        </MotionPressable>
-      </View>
-      <View style={styles.filterArea}>
-        {activeFilters ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {filterChips(filters, accounts.data ?? []).map((chip) => (
-              <MotionPressable
-                key={chip.key}
-                accessibilityRole="button"
-                accessibilityLabel={`Quitar filtro ${chip.label}`}
-                onPress={() => setFilters((current) => clearFilter(current, chip.key))}
-                style={styles.chip}
-              >
-                <Text style={styles.chipText}>{chip.label} ×</Text>
-              </MotionPressable>
-            ))}
-          </ScrollView>
-        ) : null}
-        {activeFilters ? (
+        <TourTarget id="movement-filters">
           <MotionPressable
             accessibilityRole="button"
-            accessibilityLabel="Limpiar filtros"
-            onPress={() => setFilters({})}
+            accessibilityLabel="Abrir filtros"
+            onPress={() => setFiltersOpen(true)}
+            style={styles.filterButton}
           >
-            <Text style={styles.clear}>Limpiar</Text>
+            <Ionicons name="options-outline" size={18} color={colors.primary} />
+            <Text style={styles.filterButtonText}>
+              {activeFilters ? `Filtros · ${activeFilters}` : 'Filtros'}
+            </Text>
           </MotionPressable>
-        ) : null}
+        </TourTarget>
       </View>
+      {activeFilters > 0 && (
+        <View style={styles.filterArea}>
+          {activeFilters ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chips}
+            >
+              {filterChips(filters, accounts.data ?? []).map((chip) => (
+                <MotionPressable
+                  key={chip.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Quitar filtro ${chip.label}`}
+                  onPress={() => setFilters((current) => clearFilter(current, chip.key))}
+                  style={styles.chip}
+                >
+                  <Text style={styles.chipText}>{chip.label} ×</Text>
+                </MotionPressable>
+              ))}
+            </ScrollView>
+          ) : null}
+          {activeFilters ? (
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Limpiar filtros"
+              onPress={() => setFilters({})}
+            >
+              <Text style={styles.clear}>Limpiar</Text>
+            </MotionPressable>
+          ) : null}
+        </View>
+      )}
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel="Organizar categorías"
@@ -279,7 +288,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
   },
   pageHeading: { flex: 1, gap: spacing.xs },
   eyebrow: {
@@ -338,7 +346,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.xl,
   },
   historyTitle: { ...typography.sectionTitle, fontSize: 18, lineHeight: 24 },
   filterButton: {

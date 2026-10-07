@@ -1,6 +1,8 @@
 import { useRef, useState, type PropsWithChildren } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { useTour } from '@/features/onboarding/tour-context';
+import { TourTarget } from '@/ui/tour-target';
 import Constants from 'expo-constants';
 import { useAuth } from '@/auth/auth-provider';
 import { useCurrentUser } from '@/features/profile/use-current-user';
@@ -26,6 +28,7 @@ function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   );
 }
 export default function MoreScreen() {
+  const tour = useTour();
   const profile = useCurrentUser();
   const { logout, logoutAll } = useAuth();
   const { hidden, toggle } = usePrivacy();
@@ -155,12 +158,20 @@ export default function MoreScreen() {
             />
           }
         />
-        <SettingsRow
-          icon="compass-outline"
-          title="Ver guía de inicio"
-          subtitle="Aprende cada módulo y retoma tu recorrido."
-          onPress={() => router.push('/(app)/guide')}
-        />
+        <TourTarget id="profile-guide">
+          <SettingsRow
+            icon="navigate-circle-outline"
+            title="Recorrido interactivo"
+            subtitle="Visita cada módulo y prueba sus controles."
+            onPress={() => tour?.start()}
+          />
+          <SettingsRow
+            icon="compass-outline"
+            title="Ver guía de inicio"
+            subtitle="Aprende cada módulo y retoma tu recorrido."
+            onPress={() => router.push('/(app)/guide')}
+          />
+        </TourTarget>
       </Section>
       <Section title="Cuenta">
         <SettingsRow

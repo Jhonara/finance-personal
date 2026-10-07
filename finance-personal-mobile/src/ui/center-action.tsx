@@ -6,8 +6,9 @@ import { useQuickActions } from '@/features/quick-actions/quick-action-provider'
 import { colors, motion, radius, typography } from '@/theme';
 import { MotionPressable } from './motion';
 import { useReducedMotion } from './use-reduced-motion';
+import { TourTarget } from './tour-target';
 
-export function CenterActionButton() {
+export function CenterActionButton({ dark = false }: { dark?: boolean }) {
   const { open, active } = useQuickActions();
   const reduced = useReducedMotion();
   const rotation = useRef(new Animated.Value(0)).current;
@@ -28,25 +29,27 @@ export function CenterActionButton() {
   }, [active, reduced, rotation]);
   return (
     <View style={styles.slot}>
-      <MotionPressable
-        accessibilityRole="button"
-        accessibilityLabel="Registrar movimiento"
-        accessibilityHint="Abre opciones de gasto, ingreso y transferencia"
-        accessibilityState={{ expanded: active }}
-        onPress={open}
-        style={styles.button}
-      >
-        <Animated.View
-          style={{
-            transform: reduced
-              ? []
-              : [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '32deg'] }) }],
-          }}
+      <TourTarget id="new-movement">
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel="Registrar movimiento"
+          accessibilityHint="Abre opciones de gasto, ingreso y transferencia"
+          accessibilityState={{ expanded: active }}
+          onPress={open}
+          style={[styles.button, dark && styles.dockButton]}
         >
-          <Ionicons name="add" size={28} color={colors.primaryStrong} />
-        </Animated.View>
-      </MotionPressable>
-      <Text pointerEvents="none" style={styles.label}>
+          <Animated.View
+            style={{
+              transform: reduced
+                ? []
+                : [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '32deg'] }) }],
+            }}
+          >
+            <Ionicons name="add" size={28} color={colors.primaryStrong} />
+          </Animated.View>
+        </MotionPressable>
+      </TourTarget>
+      <Text pointerEvents="none" style={[styles.label, dark && { color: '#D8F8EE' }]}>
         Nuevo
       </Text>
     </View>
@@ -54,6 +57,14 @@ export function CenterActionButton() {
 }
 
 const styles = StyleSheet.create({
+  dockButton: {
+    width: 54,
+    height: 54,
+    marginTop: -12,
+    borderWidth: 3,
+    borderColor: '#E1FFF3',
+    elevation: 10,
+  },
   slot: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'flex-start' },
   button: {
     width: 48,

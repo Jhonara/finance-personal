@@ -4,33 +4,36 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { MotionPressable } from '@/ui/motion';
 import { colors, spacing, typography } from '@/theme';
+import { TourTarget } from '@/ui/tour-target';
 
-export function CreditEntryCard({ summary }: { summary?: string }) {
+export function CreditEntryCard({ summary, tourId = 'home-credits' }: { summary?: string; tourId?: string }) {
   return (
-    <MotionPressable
-      accessibilityRole="button"
-      accessibilityLabel="Ver créditos"
-      accessibilityHint="Préstamos, pagos y simulación de abonos"
-      onPress={() => router.push('/(app)/credits')}
-    >
-      <LinearGradient colors={[colors.primaryStrong, '#214E60']} style={styles.card}>
-        <View style={styles.top}>
-          <View style={styles.icon}>
-            <Ionicons name="card-outline" size={27} color={colors.mint} />
+    <TourTarget id={tourId}>
+      <MotionPressable
+        accessibilityRole="button"
+        accessibilityLabel="Ver créditos"
+        accessibilityHint="Préstamos, pagos y simulación de abonos"
+        onPress={() => router.push('/(app)/credits')}
+      >
+        <LinearGradient colors={[colors.primaryStrong, '#214E60']} style={styles.card}>
+          <View style={styles.top}>
+            <View style={styles.icon}>
+              <Ionicons name="card-outline" size={27} color={colors.mint} />
+            </View>
+            <Text style={styles.badge}>{summary ?? 'TU PLAN DE PAGOS'}</Text>
+            <Ionicons name="arrow-forward" size={22} color={colors.surface} />
           </View>
-          <Text style={styles.badge}>{summary ?? 'TU PLAN DE PAGOS'}</Text>
-          <Ionicons name="arrow-forward" size={22} color={colors.surface} />
-        </View>
-        <Text style={styles.title}>Créditos y préstamos</Text>
-        <Text style={styles.copy}>
-          Tu casa, vehículo u otro préstamo. Revisa pagos y prueba abonos para entender tu deuda.
-        </Text>
-        <View style={styles.footer}>
-          <Ionicons name="calculator-outline" size={18} color={colors.mint} />
-          <Text style={styles.link}>Pagos · Amortización · Abonos</Text>
-        </View>
-      </LinearGradient>
-    </MotionPressable>
+          <Text style={styles.title}>Créditos y préstamos</Text>
+          <Text style={styles.copy}>
+            Tu casa, vehículo u otro préstamo. Revisa pagos y prueba abonos para entender tu deuda.
+          </Text>
+          <View style={styles.footer}>
+            <Ionicons name="calculator-outline" size={18} color={colors.mint} />
+            <Text style={styles.link}>Pagos · Amortización · Abonos</Text>
+          </View>
+        </LinearGradient>
+      </MotionPressable>
+    </TourTarget>
   );
 }
 const styles = StyleSheet.create({

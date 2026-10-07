@@ -32,6 +32,22 @@ export const guideTopics = [
     route: 'quick-action',
   },
   {
+    id: 'categories',
+    title: 'Categorías',
+    short: 'Cada movimiento tiene un lugar',
+    icon: 'pricetags-outline',
+    tone: 'coral',
+    intro: 'Las categorías agrupan tus ingresos y gastos. Las eliges al registrar y al crear presupuestos.',
+    steps: [
+      'En Perfil y ajustes, abre Categorías y elige Gastos o Ingresos.',
+      'Pulsa Crear categoría. Elige una sugerencia o escribe un nombre propio y confirma.',
+      'Usa esa categoría en tus movimientos. Puedes desactivarla si ya no la necesitas y reactivarla después.',
+    ],
+    tip: 'Las sugerencias no crean registros hasta que confirmas. Desactivar una categoría conserva tus movimientos anteriores.',
+    action: 'Abrir Categorías',
+    route: '/(app)/categories',
+  },
+  {
     id: 'transfers',
     title: 'Mover dinero entre cuentas',
     short: 'Sin duplicar ingresos',

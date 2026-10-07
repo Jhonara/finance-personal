@@ -109,6 +109,23 @@ describe('Finance Calm components', () => {
     );
     await act(async () => tree.unmount());
   });
+  it('keeps screen section spacing inside the animation wrapper', async () => {
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <Screen entry scroll style={{ gap: 24 }}>
+          <Button>Primero</Button>
+          <Button>Segundo</Button>
+        </Screen>,
+      );
+    });
+    const entry = tree.root
+      .findAll((node) => String(node.type) === 'AnimatedView')
+      .find((node) => Array.isArray(node.props.style) && node.props.style[0]?.gap === 24);
+    expect(entry).toBeDefined();
+    expect(textContent(entry)).toContain('PrimeroSegundo');
+    await act(async () => tree.unmount());
+  });
   it('disables Button when loading', async () => {
     let tree: ReturnType<typeof create>;
     await act(async () => {

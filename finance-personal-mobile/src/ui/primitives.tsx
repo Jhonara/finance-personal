@@ -1,6 +1,7 @@
 import { MotionPressable, ScreenEntry } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState, type ComponentProps, type PropsWithChildren } from 'react';
+import { useMemo, useRef, useState, type ComponentProps, type PropsWithChildren } from 'react';
+import { TourScrollContext, useTour } from '@/features/onboarding/tour-context';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,9 +41,23 @@ export function Screen({
   onRefresh?: () => void;
   entry?: boolean;
 }>) {
+  const tour = useTour();
+  const scrollRef = useRef<ScrollView>(null);
+  const offset = useRef(0);
+  const scrollContext = useMemo(() => ({ ref: scrollRef, offset }), []);
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={[styles.scroll, padded && styles.padding, style]}
+      ref={scrollRef}
+      onScroll={(event) => {
+        offset.current = event.nativeEvent.contentOffset.y;
+      }}
+      scrollEventThrottle={16}
+      contentContainerStyle={[
+        styles.scroll,
+        padded && styles.padding,
+        style,
+        tour?.active && { paddingBottom: 400 },
+      ]}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         onRefresh ? (
@@ -50,7 +65,11 @@ export function Screen({
         ) : undefined
       }
     >
-      {entry ? <ScreenEntry>{children}</ScreenEntry> : children}
+      {entry ? (
+        <ScreenEntry style={{ gap: style?.gap ?? spacing.lg, rowGap: style?.rowGap }}>{children}</ScreenEntry>
+      ) : (
+        children
+      )}
     </ScrollView>
   ) : (
     <View style={[styles.fill, padded && styles.padding, style]}>
@@ -58,18 +77,20 @@ export function Screen({
     </View>
   );
   return (
-    <SafeAreaView style={styles.safe}>
-      {keyboard ? (
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.select({ ios: 'padding', default: undefined })}
-        >
-          {content}
-        </KeyboardAvoidingView>
-      ) : (
-        content
-      )}
-    </SafeAreaView>
+    <TourScrollContext.Provider value={scrollContext}>
+      <SafeAreaView style={styles.safe}>
+        {keyboard ? (
+          <KeyboardAvoidingView
+            style={styles.fill}
+            behavior={Platform.select({ ios: 'padding', default: undefined })}
+          >
+            {content}
+          </KeyboardAvoidingView>
+        ) : (
+          content
+        )}
+      </SafeAreaView>
+    </TourScrollContext.Provider>
   );
 }
 
@@ -342,7 +363,7 @@ export function Card({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   fill: { flex: 1 },
-  scroll: { flexGrow: 1, paddingBottom: spacing.huge },
+  scroll: { flexGrow: 1, gap: spacing.lg, paddingBottom: spacing.huge },
   padding: { paddingHorizontal: spacing.lg },
   button: {
     minHeight: sizes.button,

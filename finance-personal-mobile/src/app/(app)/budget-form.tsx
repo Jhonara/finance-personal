@@ -16,6 +16,7 @@ import { Button, Card, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { categoryAppearance } from '@/features/categories/category-appearance';
 import { colors, radius, spacing, typography } from '@/theme';
 function BudgetForm() {
   const { id, version, limit, categoryId, categoryName, year, month, source } = useLocalSearchParams<{
@@ -100,7 +101,7 @@ function BudgetForm() {
                   >
                     <View style={[styles.choiceIcon, category === item.id && styles.choiceIconSelected]}>
                       <Ionicons
-                        name={category === item.id ? 'checkmark' : 'pricetag-outline'}
+                        name={category === item.id ? 'checkmark-circle' : categoryAppearance(item.name).icon}
                         size={18}
                         color={colors.primary}
                       />

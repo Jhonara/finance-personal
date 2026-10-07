@@ -1,4 +1,5 @@
 import { openForm } from '@/features/forms/form-session';
+import { TourTarget } from '@/ui/tour-target';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
@@ -162,15 +163,17 @@ export default function AccountsScreen() {
             color={colors.primaryStrong}
           />
         </MotionPressable>
-        <MotionPressable
-          accessibilityRole="button"
-          accessibilityLabel="Agregar cuenta"
-          onPress={() => openForm('/(app)/account-form')}
-          style={[styles.add, compactHeader && styles.addCompact]}
-        >
-          <Ionicons name="add" size={20} color={colors.surface} />
-          {!compactHeader ? <Text style={styles.addText}>Añadir</Text> : null}
-        </MotionPressable>
+        <TourTarget id="add-account">
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel="Agregar cuenta"
+            onPress={() => openForm('/(app)/account-form')}
+            style={[styles.add, compactHeader && styles.addCompact]}
+          >
+            <Ionicons name="add" size={20} color={colors.surface} />
+            {!compactHeader ? <Text style={styles.addText}>Añadir</Text> : null}
+          </MotionPressable>
+        </TourTarget>
       </View>
       {active.length ? (
         <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.overview}>

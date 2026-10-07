@@ -50,7 +50,7 @@ export default function PlanScreen() {
       <View style={styles.content}>
         <ScreenHeader title="Tu plan" subtitle="Ahorra, organiza y entiende tus deudas." />
         <MotionEntry>
-          <CreditEntryCard summary={summary?.credit} />
+          <CreditEntryCard summary={summary?.credit} tourId="plan-credits" />
         </MotionEntry>
         <Text accessibilityRole="header" style={typography.sectionTitle}>
           Dale un propósito a tu dinero

@@ -1,3 +1,7 @@
+vi.mock('@/ui/navigation-dock', () => ({ NavigationDock: () => null }));
+vi.mock('@/features/onboarding/interactive-tour', () => ({
+  InteractiveTourProvider: ({ children }: React.PropsWithChildren) => children,
+}));
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

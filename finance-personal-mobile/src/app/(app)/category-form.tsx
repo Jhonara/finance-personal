@@ -8,10 +8,13 @@ import { useFeedback } from '@/feedback/feedback-provider';
 import { Button, Input, Screen } from '@/ui/primitives';
 import { MovementFormHeader } from '@/ui/movement-form';
 import { colors, radius, spacing, typography } from '@/theme';
+import { categoryAppearance, categorySuggestions } from '@/features/categories/category-appearance';
+import { MotionPressable } from '@/ui/motion';
 function CategoryForm() {
   const activeSession = useFormSessionActive();
-  const { type = 'EXPENSE' } = useLocalSearchParams<{ type?: 'EXPENSE' | 'INCOME' }>();
-  const [name, setName] = useState('');
+  const params = useLocalSearchParams<{ type?: string; suggestedName?: string }>();
+  const type = params.type === 'INCOME' ? 'INCOME' : 'EXPENSE';
+  const [name, setName] = useState(params.suggestedName ?? '');
   const [error, setError] = useState('');
   const m = useCreateCategory();
   const f = useFeedback();
@@ -21,7 +24,7 @@ function CategoryForm() {
       <View style={styles.intro}>
         <View style={styles.icon}>
           <Ionicons
-            name={type === 'INCOME' ? 'trending-up-outline' : 'pricetag-outline'}
+            name={categoryAppearance(name, type).icon}
             size={24}
             color={type === 'INCOME' ? colors.success : colors.danger}
           />
@@ -31,6 +34,32 @@ function CategoryForm() {
             {type === 'INCOME' ? 'Organiza tus ingresos' : 'Organiza tus gastos'}
           </Text>
           <Text style={typography.bodySecondary}>La verás al registrar nuevos movimientos.</Text>
+        </View>
+      </View>
+      <View style={styles.section}>
+        <Text style={typography.cardTitle}>Elige una idea o escribe la tuya</Text>
+        <View style={styles.ideas}>
+          {categorySuggestions[type].map((idea) => {
+            const look = categoryAppearance(idea, type);
+            return (
+              <MotionPressable
+                key={idea}
+                accessibilityRole="button"
+                accessibilityState={{ selected: name === idea }}
+                onPress={() => {
+                  setName(idea);
+                  setError('');
+                }}
+                style={[
+                  styles.idea,
+                  { backgroundColor: look.soft, borderColor: name === idea ? colors.success : look.soft },
+                ]}
+              >
+                <Ionicons name={look.icon} size={27} color={look.ink} />
+                <Text style={[typography.caption, { color: look.ink, textAlign: 'center' }]}>{idea}</Text>
+              </MotionPressable>
+            );
+          })}
         </View>
       </View>
       <View style={styles.section}>
@@ -92,7 +121,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   copy: { flex: 1, gap: spacing.xs },
-  section: { padding: spacing.lg, borderRadius: radius.large, backgroundColor: colors.surface },
+  section: {
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderRadius: radius.large,
+    backgroundColor: colors.surface,
+  },
+  ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  idea: {
+    minWidth: 100,
+    flexGrow: 1,
+    flexBasis: '40%',
+    padding: spacing.md,
+    minHeight: 80,
+    gap: spacing.sm,
+    borderRadius: 18,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 export default withFormSession(CategoryForm);
