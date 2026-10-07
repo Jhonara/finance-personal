@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 import { BrandSurface } from '@/ui/brand-surface';
-import { FinancialCompanion } from '@/ui/brand-identity';
+import { HomeCompanion } from './home-brand';
 import { Button } from '@/ui/primitives';
 import { MotionPressable } from '@/ui/motion';
 
@@ -12,7 +12,7 @@ export function EmptyHome({ onCreateAccount }: { onCreateAccount(): void }) {
     <BrandSurface tone="panorama" style={styles.emptyHero}>
       <View style={styles.emptyTop}>
         <Text style={styles.eyebrow}>EMPECEMOS JUNTOS</Text>
-        <FinancialCompanion state="happy" size={72} />
+        <HomeCompanion size={100} />
       </View>
       <Text accessibilityRole="header" style={styles.emptyTitle}>
         Tu dinero empieza aquí.
@@ -36,7 +36,7 @@ export function EmptyHome({ onCreateAccount }: { onCreateAccount(): void }) {
 export function FirstMovementPrompt({ onRegister }: { onRegister(): void }) {
   return (
     <BrandSurface tone="insight" style={styles.prompt}>
-      <FinancialCompanion state="thinking" size={48} />
+      <HomeCompanion size={58} />
       <View style={styles.promptText}>
         <Text accessibilityRole="header" style={typography.cardTitle}>
           Tu panorama ya está tomando forma

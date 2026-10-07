@@ -114,6 +114,10 @@ public class DashboardService {
                 .collect(Collectors.groupingBy(java.util.Map.Entry::getKey,
                         Collectors.reducing(BigDecimal.ZERO, java.util.Map.Entry::getValue, BigDecimal::add)));
         var netWorthByCurrency = new java.util.TreeMap<String, BigDecimal>();
+        var overdueByCurrency = creditRepository.findByUserId(userId).stream()
+                .map(credit -> java.util.Map.entry(credit.getCurrency(), creditSnapshotService.snapshot(credit).overdueAmount()))
+                .collect(Collectors.groupingBy(java.util.Map.Entry::getKey,
+                        Collectors.reducing(BigDecimal.ZERO, java.util.Map.Entry::getValue, BigDecimal::add)));
         assetsByCurrency.forEach((currency, value) -> netWorthByCurrency.put(currency, value.subtract(liabilitiesByCurrency.getOrDefault(currency, BigDecimal.ZERO))));
         liabilitiesByCurrency.forEach((currency, value) -> netWorthByCurrency.putIfAbsent(currency, value.negate()));
         List<DashboardRecentTransactionResponse> recentTransactions = recentTransactions(userId, year, month);
@@ -125,7 +129,7 @@ public class DashboardService {
                 totalExpense,
                 balance,
                 balance,
-                netWorthByCurrency, assetsByCurrency, liabilitiesByCurrency,
+                netWorthByCurrency, assetsByCurrency, liabilitiesByCurrency, overdueByCurrency,
                 accounts,
                 budgets,
                 summary,

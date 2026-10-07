@@ -1,7 +1,7 @@
 import { useModalMotion } from './use-modal-motion';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './primitives';
@@ -41,24 +41,43 @@ export function ModalSelector({
   onSelect(id: number): void;
 }) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const sheetMotion = useModalMotion(visible, onClose);
   return (
     <Modal transparent animationType="none" visible={sheetMotion.present} onRequestClose={sheetMotion.close}>
       <Animated.View style={[{ flex: 1 }, sheetMotion.overlay]}>
         <MotionPressable feedback={false} style={styles.overlay} onPress={sheetMotion.close}>
-          <Animated.View style={[{ flexShrink: 1 }, sheetMotion.sheet]}>
+          <Animated.View style={[{ maxHeight: height - insets.top - spacing.xl }, sheetMotion.sheet]}>
             <MotionPressable
               feedback={false}
-              style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
+              style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
               onPress={(event) => event.stopPropagation()}
             >
               <View style={styles.handle} />
-              <Text style={typography.sectionTitle}>{label}</Text>
-              {subtitle ? <Text style={typography.bodySecondary}>{subtitle}</Text> : null}
+              <View style={styles.header}>
+                <View style={styles.heading}>
+                  <Text accessibilityRole="header" style={styles.title}>
+                    {label}
+                  </Text>
+                  <Text style={styles.subtitle}>{subtitle ?? 'Elige una opción para continuar.'}</Text>
+                </View>
+                <MotionPressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cerrar selector"
+                  onPress={sheetMotion.close}
+                  style={styles.close}
+                >
+                  <Ionicons name="close" size={20} color={colors.primaryStrong} />
+                </MotionPressable>
+              </View>
               {loading ? (
-                <Text style={typography.bodySecondary}>Cargando opciones…</Text>
+                <Text style={styles.loading}>Cargando opciones…</Text>
               ) : options.length ? (
-                <ScrollView style={styles.options} contentContainerStyle={styles.optionsContent}>
+                <ScrollView
+                  style={styles.options}
+                  contentContainerStyle={styles.optionsContent}
+                  showsVerticalScrollIndicator={false}
+                >
                   {options.map((o) => (
                     <MotionPressable
                       key={o.id}
@@ -77,26 +96,33 @@ export function ModalSelector({
                         o.disabled && styles.optionDisabled,
                       ]}
                     >
-                      <View style={styles.optionCopy}>
-                        <View style={styles.optionLabel}>
-                          {o.icon ? (
-                            <Ionicons name={o.icon} size={20} color={colors[o.tone ?? 'primary']} />
-                          ) : null}
-                          <Text
-                            style={[
-                              typography.body,
-                              { flexShrink: 1 },
-                              o.id === selectedId && styles.optionTextSelected,
-                            ]}
-                          >
-                            {o.label}
-                          </Text>
-                        </View>
-                        {o.subtitle ? <Text style={typography.caption}>{o.subtitle}</Text> : null}
+                      <View
+                        style={[styles.optionIcon, { backgroundColor: `${colors[o.tone ?? 'primary']}1A` }]}
+                      >
+                        <Ionicons
+                          name={o.icon ?? 'ellipse-outline'}
+                          size={20}
+                          color={colors[o.tone ?? 'primary']}
+                        />
                       </View>
-                      {o.id === selectedId && (
-                        <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                      )}
+                      <View style={styles.optionCopy}>
+                        <Text
+                          numberOfLines={2}
+                          style={[styles.optionTitle, o.id === selectedId && styles.optionTextSelected]}
+                        >
+                          {o.label}
+                        </Text>
+                        {o.subtitle ? (
+                          <Text numberOfLines={2} style={styles.optionSubtitle}>
+                            {o.subtitle}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Ionicons
+                        name={o.id === selectedId ? 'checkmark-circle' : 'chevron-forward'}
+                        size={21}
+                        color={o.id === selectedId ? colors.success : colors.textMuted}
+                      />
                     </MotionPressable>
                   ))}
                 </ScrollView>
@@ -107,16 +133,13 @@ export function ModalSelector({
                   </View>
                   <Text style={typography.cardTitle}>{emptyTitle}</Text>
                   <Text style={[typography.bodySecondary, styles.emptyText]}>{emptyDescription}</Text>
-                  {emptyActionLabel && onEmptyAction && (
-                    <Button variant="secondary" size="compact" onPress={onEmptyAction}>
-                      {emptyActionLabel}
-                    </Button>
-                  )}
                 </View>
               )}
-              <Button variant="ghost" size="compact" onPress={sheetMotion.close}>
-                Cancelar
-              </Button>
+              {emptyActionLabel && onEmptyAction ? (
+                <Button variant="secondary" size="compact" onPress={onEmptyAction}>
+                  {emptyActionLabel}
+                </Button>
+              ) : null}
             </MotionPressable>
           </Animated.View>
         </MotionPressable>
@@ -125,13 +148,12 @@ export function ModalSelector({
   );
 }
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(30,42,49,0.32)' },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   sheet: {
-    maxHeight: '86%',
     gap: spacing.md,
-    padding: spacing.xl,
-    borderTopLeftRadius: radius.large,
-    borderTopRightRadius: radius.large,
+    padding: spacing.lg,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     backgroundColor: colors.surface,
   },
   handle: {
@@ -141,11 +163,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.border,
   },
-  options: { maxHeight: 360 },
-  optionsContent: { gap: spacing.sm },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heading: { flex: 1, gap: spacing.xxs },
+  title: { ...typography.sectionTitle, color: colors.primaryStrong },
+  subtitle: { ...typography.caption, color: colors.textSecondary },
+  close: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  loading: { ...typography.bodySecondary, paddingVertical: spacing.lg },
+  options: { flexShrink: 1 },
+  optionsContent: { gap: spacing.sm, paddingBottom: spacing.xs },
   option: {
-    minHeight: 52,
-    paddingVertical: spacing.sm,
+    minHeight: 68,
+    paddingVertical: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -154,9 +189,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.medium,
     backgroundColor: colors.surfaceSecondary,
   },
+  optionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionCopy: { flex: 1, gap: spacing.xxs },
-  optionLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  optionSelected: { backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.primary },
+  optionTitle: { ...typography.label, color: colors.primaryStrong },
+  optionSubtitle: { ...typography.caption, color: colors.textSecondary },
+  optionSelected: { backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.success },
   optionTextSelected: { color: colors.primary, fontWeight: '700' },
   optionPressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
   optionDisabled: { opacity: 0.45 },

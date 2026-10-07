@@ -56,7 +56,6 @@ export const linkedCreditAlerts = (alerts: Alert[], id: number) =>
   );
 export function planRows(plan: CreditPlan) {
   return [
-    { label: 'Total pagado', planned: plan.plannedTotalToDate, real: plan.realTotalPaid, money: true },
     { label: 'Capital pagado', planned: plan.plannedCapitalPaid, real: plan.realCapitalPaid, money: true },
     {
       label: 'Intereses pagados',
@@ -64,6 +63,7 @@ export function planRows(plan: CreditPlan) {
       real: plan.realInterestPaid,
       money: true,
     },
+    { label: 'Total pagado', planned: plan.plannedTotalToDate, real: plan.realTotalPaid, money: true },
     {
       label: 'Cuotas del plan / pagos registrados',
       planned: plan.plannedInstallments,
@@ -77,7 +77,7 @@ export function simulationRows(result: CreditSimulation) {
     { label: 'Cuota estimada', value: result.installmentValue, money: true },
     { label: 'Total del escenario', value: result.totalPaid, money: true },
     { label: 'Intereses totales', value: result.totalInterest, money: true },
-    { label: 'Saldo tras la cuota indicada', value: result.balanceAfterLastPayment, money: true },
+    { label: 'Saldo considerado', value: result.balanceAfterLastPayment, money: true },
     { label: 'Cuotas restantes', value: result.remainingInstallments, money: false },
     { label: 'Cuotas ahorradas', value: result.savedInstallments, money: false },
   ].filter((row) => row.value !== undefined);

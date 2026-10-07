@@ -396,15 +396,23 @@ it('keeps exactly five visible tabs and all Savings routes internal', async () =
   const routes = tree.root.findAll((node) => (node.type as unknown) === 'TabRoute');
   expect(
     routes.filter((route) => route.props.options.href !== null).map((route) => route.props.options.title),
-  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Más']);
+  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Plan']);
   const shell = tree.root.find((node) => (node.type as unknown) === 'Tabs');
   expect(shell.props.screenOptions.tabBarStyle).toMatchObject({ height: 88, paddingBottom: 24 });
   const movements = routes.find((route) => route.props.name === 'transactions');
-  expect(movements?.props.options.tabBarLabel({ color: '#000' }).props.children).toBe('Movi\nmientos');
+  expect(movements?.props.options.tabBarLabel({ color: '#000' }).props.children).toBe('Movim.');
   expect(routes.find((route) => route.props.name === 'action')?.props.options.tabBarButton).toBeTypeOf(
     'function',
   );
-  for (const name of ['savings', 'saving-detail', 'saving-form'])
+  for (const name of [
+    'savings',
+    'saving-detail',
+    'saving-form',
+    'more',
+    'guide',
+    'credits',
+    'credit-amortization',
+  ])
     expect(routes.find((route) => route.props.name === name)!.props.options.href).toBe(null);
 });
 

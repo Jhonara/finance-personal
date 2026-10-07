@@ -49,7 +49,10 @@ export function SavingGoalCard({
         </Text>
         <Text style={typography.bodySecondary}>de {savingsAmount(goal.targetAmount, hidden)}</Text>
       </MotionPressable>
-      <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
+      <View style={styles.progressHeading}>
+        <Text style={typography.caption}>Avance de la meta</Text>
+        <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
+      </View>
       {goal.percentage !== undefined ? (
         <Progress value={goal.percentage} color={tone.color} label={`Progreso de ${goal.name}`} />
       ) : null}
@@ -59,15 +62,17 @@ export function SavingGoalCard({
       <Text style={typography.bodySecondary}>
         {goal.completed ? '¡Lo lograste! Completaste tu objetivo de ahorro.' : goal.copy}
       </Text>
-      <Button
-        size="compact"
-        variant="secondary"
-        tone={goal.completed ? 'success' : 'primary'}
-        onPress={goal.completed ? onOpen : onContribute}
-        accessibilityLabel={`${goal.completed ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
-      >
-        {goal.completed ? 'Ver meta' : 'Aportar'}
-      </Button>
+      <View style={styles.actionRow}>
+        <Button
+          size="compact"
+          variant="secondary"
+          tone={goal.completed ? 'success' : 'primary'}
+          onPress={goal.completed ? onOpen : onContribute}
+          accessibilityLabel={`${goal.completed ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
+        >
+          {goal.completed ? 'Ver meta' : 'Aportar a esta meta'}
+        </Button>
+      </View>
     </Card>
   );
 }
@@ -77,6 +82,13 @@ const styles = StyleSheet.create({
   content: { gap: spacing.xs },
   heading: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start', marginBottom: spacing.sm },
   grow: { flex: 1, minWidth: 0, gap: spacing.xs },
+  progressHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  actionRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: spacing.xs },
   badge: {
     width: 44,
     height: 44,

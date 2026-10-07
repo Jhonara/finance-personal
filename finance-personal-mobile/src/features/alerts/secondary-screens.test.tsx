@@ -15,7 +15,11 @@ const mocks = vi.hoisted(() => ({
   hidden: false,
   logout: vi.fn(),
   logoutAll: vi.fn(),
-  params: { id: '1', contribute: undefined as string | undefined },
+  params: { id: '1', contribute: undefined as string | undefined } as {
+    id: string;
+    contribute?: string;
+    topic?: string;
+  },
 }));
 vi.mock('react-native', () => {
   const host =
@@ -37,6 +41,7 @@ vi.mock('react-native', () => {
     Switch: host('Switch'),
     AccessibilityInfo: { isReduceMotionEnabled: async () => true, addEventListener: () => ({ remove() {} }) },
     ActivityIndicator: host('ActivityIndicator'),
+    Image: host('Image'),
     KeyboardAvoidingView: host('KeyboardAvoidingView'),
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
       visible ? children : null,
@@ -96,9 +101,17 @@ vi.mock('@/auth/auth-provider', () => ({
 }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.2.3' } } }));
 vi.mock('@/feedback/feedback-provider', () => ({ useFeedback: () => ({ show: mocks.feedback }) }));
+vi.mock('@/ui/journey-scene', () => ({
+  JourneyScene: ({ children }: React.PropsWithChildren) => React.createElement('View', undefined, children),
+}));
 
 import AlertsScreen from '@/app/(app)/alerts';
 import MoreScreen from '@/app/(app)/more';
+import GuideScreen from '@/app/(app)/guide';
+import PlanScreen from '@/app/(app)/plan';
+import { QuickActionProvider } from '@/features/quick-actions/quick-action-provider';
+import { guideKey } from '@/features/onboarding/ecosystem-guide';
+import { currentUserKeys } from '@/features/profile/profile-keys';
 import AppLayout from '@/app/(app)/_layout';
 import { HomeModules } from '@/features/dashboard/home-modules';
 import { PrivacyProvider, usePrivacy } from '@/privacy/privacy-provider';
@@ -154,6 +167,7 @@ async function press(tree: ReturnType<typeof create>, label: string, index = 0) 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.clearAllMocks();
+  mocks.params = { id: '1' };
   trees = [];
   alerts = [];
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -372,18 +386,12 @@ describe('More, preferences and session UI', () => {
     expect(tree.root.find((node) => String(node.type) === 'Switch').props.value).toBe(true);
     expect(mocks.write).toHaveBeenCalledWith('finance-personal.privacy-hidden.v1', 'true');
   });
-  it('replays the guide without modifying onboarding or setup storage', async () => {
+  it('opens the full guide without modifying onboarding or setup storage', async () => {
     const tree = await render(<MoreScreen />);
     mocks.write.mockClear();
     await press(tree, 'Ver guía de inicio');
-    expect(text(tree.toJSON())).toContain('Tu dinero, en un solo lugar');
-    await press(tree, 'Continuar');
-    await press(tree, 'Continuar');
-    await press(tree, 'Listo');
-    expect(text(tree.toJSON())).not.toContain('Construye mejores hábitos');
+    expect(mocks.push).toHaveBeenCalledWith('/(app)/guide');
     expect(mocks.write).not.toHaveBeenCalled();
-    await press(tree, 'Ver guía de inicio');
-    expect(text(tree.toJSON())).toContain('Tu dinero, en un solo lugar');
   });
   it('preserves automatic first-run completion behavior', async () => {
     const tree = await render(<FirstRunGuide userId={88} />);
@@ -423,7 +431,99 @@ describe('More, preferences and session UI', () => {
       'transactions',
       'action',
       'accounts',
-      'more',
+      'plan',
     ]);
+  });
+});
+
+describe('Ecosystem guide and plan navigation', () => {
+  it('opens real modules without marking financial tasks complete, then saves reading progress', async () => {
+    const tree = await render(
+      <QuickActionProvider>
+        <GuideScreen />
+      </QuickActionProvider>,
+    );
+    expect(text(tree.toJSON())).toContain('0 de 10 temas recorridos');
+    await press(tree, 'Abrir Cuentas →');
+    expect(mocks.push).toHaveBeenCalledWith('/(app)/accounts');
+    expect(mocks.write).not.toHaveBeenCalled();
+    await press(tree, 'Entendido, siguiente tema');
+    expect(mocks.write).toHaveBeenCalledWith(
+      guideKey(88),
+      JSON.stringify({ reviewed: ['accounts'], lastTopic: 'movements' }),
+    );
+    expect(text(tree.toJSON())).toContain('TEMA 2 DE 10');
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it('resumes the saved topic and does not leak progress to another signed-in user', async () => {
+    mocks.read.mockImplementation(async (key: string) =>
+      key === guideKey(88)
+        ? JSON.stringify({ reviewed: ['accounts', 'movements'], lastTopic: 'credits' })
+        : null,
+    );
+    const tree = await render(
+      <QuickActionProvider>
+        <GuideScreen />
+      </QuickActionProvider>,
+    );
+    expect(text(tree.toJSON())).toContain('TEMA 6 DE 10');
+    expect(text(tree.toJSON())).toContain('2 de 10 temas recorridos');
+    await act(async () => {
+      client.setQueryData(currentUserKeys.current(), { ...profile, id: 99 });
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+    expect(text(tree.toJSON())).toContain('0 de 10 temas recorridos');
+    expect(text(tree.toJSON())).toContain('TEMA 1 DE 10');
+  });
+
+  it('keeps the topic on a storage failure and prevents duplicate next actions', async () => {
+    mocks.write.mockRejectedValueOnce(Error('storage unavailable'));
+    const tree = await render(
+      <QuickActionProvider>
+        <GuideScreen />
+      </QuickActionProvider>,
+    );
+    await press(tree, 'Entendido, siguiente tema');
+    expect(text(tree.toJSON())).toContain('No pudimos guardar tu recorrido');
+    expect(text(tree.toJSON())).toContain('0 de 10 temas recorridos');
+    let finish!: () => void;
+    mocks.write.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await act(async () => {
+      const next = buttons(tree, 'Entendido, siguiente tema')[0]!.props.onPress;
+      next();
+      next();
+    });
+    expect(mocks.write).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      finish();
+    });
+    expect(text(tree.toJSON())).toContain('1 de 10 temas recorridos');
+  });
+
+  it('places credits first in Plan and routes to the other modules using real summary data', async () => {
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation(async (path: string) =>
+      path === '/dashboard/month'
+        ? { data: { credits: [{ status: 'ACTIVE' }, { status: 'LATE' }], alerts: [{ code: 'ALL_GOOD' }] } }
+        : originalGet(path),
+    );
+    const tree = await render(<PlanScreen />);
+    expect(text(tree.toJSON())).toContain('2 activos');
+    expect(text(tree.toJSON())).toContain('Sin avisos');
+    await press(tree, 'Ver créditos');
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+    await press(tree, 'Abrir ahorros y metas');
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/savings');
+    await press(tree, 'Abrir guía de inicio');
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/guide');
+    expect(mocks.post).not.toHaveBeenCalled();
   });
 });

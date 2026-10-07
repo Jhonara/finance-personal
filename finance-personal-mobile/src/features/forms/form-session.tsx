@@ -27,6 +27,7 @@ export function openForm(pathname: FormRoute, params: Record<string, string | un
     pathname,
     params: {
       id: '',
+      mode: '',
       version: '',
       limit: '',
       categoryId: '',

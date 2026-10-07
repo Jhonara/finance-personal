@@ -28,7 +28,7 @@ export function FinancialDateField({
         onPress={() => setOpen(true)}
         style={({ pressed }) => [styles.control, pressed && styles.pressed]}
       >
-        <Text style={[typography.body, !value && styles.placeholder]}>
+        <Text style={[typography.body, { flex: 1, minWidth: 0 }, !value && styles.placeholder]}>
           {value ? formatLocalDate(value) : 'Selecciona una fecha'}
         </Text>
         <Ionicons name="calendar-outline" size={sizes.icon} color={colors.primary} />
@@ -57,6 +57,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.medium,

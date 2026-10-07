@@ -8,6 +8,7 @@ const invalidateFinancial = (client: ReturnType<typeof useQueryClient>, accounts
   Promise.all([
     client.invalidateQueries({ queryKey: dashboardKeys.all }),
     client.invalidateQueries({ queryKey: transactionKeys.all }),
+    client.invalidateQueries({ queryKey: ['onboarding'] }),
     client.invalidateQueries({ queryKey: ['budgets'] }),
     client.invalidateQueries({ queryKey: ['alerts'] }),
     ...(accounts ? [client.invalidateQueries({ queryKey: accountKeys.all })] : []),

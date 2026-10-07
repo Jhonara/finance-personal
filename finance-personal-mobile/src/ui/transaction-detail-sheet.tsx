@@ -1,4 +1,3 @@
-import { useModalMotion } from './use-modal-motion';
 import { formatLocalDate } from '@/utils/local-date';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,7 +7,8 @@ import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { transactionPresentation } from './presentation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from './primitives';
+import { MotionPressable } from './motion';
+import { useModalMotion } from './use-modal-motion';
 
 export function TransactionDetailSheet({
   transaction,
@@ -26,6 +26,7 @@ export function TransactionDetailSheet({
     Object.entries(transactionPresentation).find(([type]) => type === transaction.type)?.[1] ??
     transactionPresentation.REVERSAL;
   const tone = colors[presentation.tone];
+  const amountAvailable = typeof transaction.amount === 'number' && Number.isFinite(transaction.amount);
   const fields = [
     ['Estado', transaction.statusLabel],
     ['Descripción', transaction.description?.trim()],
@@ -54,21 +55,42 @@ export function TransactionDetailSheet({
                 <View style={styles.grow}>
                   <Text style={typography.sectionTitle}>{transaction.title}</Text>
                   {transaction.title !== transaction.typeLabel ? (
-                    <Text style={typography.caption}>{transaction.typeLabel}</Text>
+                    <Text style={styles.typeLabel}>{transaction.typeLabel}</Text>
                   ) : null}
                 </View>
+                <MotionPressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cerrar detalle"
+                  onPress={sheetMotion.close}
+                  style={styles.close}
+                >
+                  <Ionicons name="close" size={19} color={colors.primaryStrong} />
+                </MotionPressable>
               </View>
               <ScrollView contentContainerStyle={styles.fields}>
-                <Text style={[typography.moneyMedium, { color: tone }]}>
-                  {privacyHidden
-                    ? '$ ••••••'
-                    : transaction.amountPrefix +
-                      formatPrivateMoney(transaction.amount ?? 0, transaction.currency ?? 'COP', false)}
-                </Text>
-                <Text style={typography.bodySecondary}>
-                  {[transaction.accountName, transaction.currency].filter(Boolean).join(' · ')}
-                </Text>
-                <Text style={typography.bodySecondary}>{formatLocalDate(transaction.effectiveDate)}</Text>
+                <View style={[styles.amountCard, { backgroundColor: `${tone}14` }]}>
+                  <Text style={styles.amountLabel}>IMPORTE</Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    numberOfLines={1}
+                    style={[styles.amount, { color: tone }]}
+                  >
+                    {!amountAvailable
+                      ? 'Sin importe'
+                      : privacyHidden
+                        ? formatPrivateMoney(transaction.amount!, transaction.currency ?? 'COP', true)
+                        : transaction.amountPrefix +
+                          formatPrivateMoney(transaction.amount!, transaction.currency ?? 'COP', false)}
+                  </Text>
+                  <Text style={styles.amountContext}>
+                    {[transaction.accountName, transaction.currency].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <View style={styles.dateRow}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.info} />
+                  <Text style={styles.dateText}>{formatLocalDate(transaction.effectiveDate)}</Text>
+                </View>
                 {fields.map(([label, value]) => (
                   <View key={label} style={styles.field}>
                     <Text style={typography.caption}>{label}</Text>
@@ -79,9 +101,14 @@ export function TransactionDetailSheet({
                   <Text style={styles.reversal}>Revierte una operación anterior</Text>
                 ) : null}
               </ScrollView>
-              <Button variant="ghost" onPress={sheetMotion.close}>
-                Cerrar
-              </Button>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar detalle"
+                onPress={sheetMotion.close}
+                style={styles.done}
+              >
+                <Text style={styles.doneText}>Listo</Text>
+              </MotionPressable>
             </Pressable>
           </Animated.View>
         </Pressable>
@@ -91,13 +118,13 @@ export function TransactionDetailSheet({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(32,45,50,0.32)' },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   sheet: {
     maxHeight: '82%',
     gap: spacing.md,
     padding: spacing.xl,
-    borderTopLeftRadius: radius.large,
-    borderTopRightRadius: radius.large,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     backgroundColor: colors.surfaceElevated,
     ...shadows.bottomSheet,
   },
@@ -118,7 +145,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   grow: { flex: 1, gap: spacing.xxs },
+  typeLabel: { ...typography.caption, color: colors.success, fontWeight: '700' },
+  close: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   fields: { gap: spacing.sm },
+  amountCard: { gap: spacing.xs, padding: spacing.lg, borderRadius: radius.large },
+  amountLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  amount: { ...typography.moneyLarge, fontSize: 26, lineHeight: 34 },
+  amountContext: { ...typography.caption, color: colors.textSecondary },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+  dateText: { ...typography.bodySecondary, color: colors.primaryStrong },
   field: {
     gap: spacing.xxs,
     paddingVertical: spacing.sm,
@@ -126,4 +174,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   reversal: { ...typography.bodySecondary, color: colors.info, paddingTop: spacing.sm },
+  done: {
+    minHeight: 45,
+    borderRadius: radius.pill,
+    backgroundColor: colors.infoSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneText: { ...typography.label, color: colors.primaryStrong, fontWeight: '700' },
 });

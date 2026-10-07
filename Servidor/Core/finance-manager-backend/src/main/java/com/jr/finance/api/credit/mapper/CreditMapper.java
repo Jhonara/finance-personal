@@ -10,7 +10,8 @@ import java.util.List;
 @Component
 public class CreditMapper {
     private final CreditSnapshotService snapshotService;
-    public CreditMapper(CreditSnapshotService snapshotService) { this.snapshotService = snapshotService; }
+    private final com.jr.finance.api.credit.CreditPaymentRepository payments;
+    public CreditMapper(CreditSnapshotService snapshotService, com.jr.finance.api.credit.CreditPaymentRepository payments) { this.snapshotService = snapshotService; this.payments = payments; }
 
     public CreditResponse toResponse(Credit credit) {
 
@@ -26,8 +27,15 @@ public class CreditMapper {
         response.setCreatedAt(credit.getCreatedAt());
         response.setCurrency(credit.getCurrency());
         response.setVersion(credit.getVersion());
+        response.setOpeningBalance(credit.getOpeningBalance());
+        response.setOpeningDate(credit.getOpeningDate());
+        response.setOpeningRemainingMonths(credit.getOpeningRemainingMonths());
+        response.setOpeningNextPaymentDate(credit.getOpeningNextPaymentDate());
+        boolean mutable = credit.getDisbursementTransaction() == null && !payments.existsByCreditId(credit.getId());
+        response.setEditable(mutable); response.setDeletable(mutable);
         var snapshot = snapshotService.snapshot(credit);
         response.setRemainingBalance(snapshot.remainingBalance());
+        response.setOverdueAmount(snapshot.overdueAmount());
         response.setStatus(snapshot.status());
         response.setNextPaymentDate(snapshot.nextPaymentDate());
         response.setExpectedPaymentAmount(snapshot.expectedPaymentAmount());

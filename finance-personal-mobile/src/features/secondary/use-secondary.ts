@@ -6,6 +6,8 @@ import {
   addSavingContribution,
   createBudget,
   createCredit,
+  updateCredit,
+  deleteCredit,
   createSavingGoal,
   getAlerts,
   getBudgets,
@@ -31,6 +33,7 @@ export const secondaryKeys = {
   credits: ['credits'] as const,
   credit: (id: number) => ['credits', id] as const,
   plan: (id: number) => ['credits', id, 'plan'] as const,
+  amortization: (id: number) => ['credits', id, 'amortization'] as const,
 };
 const invalidate = (client: ReturnType<typeof useQueryClient>, keys: ReadonlyArray<readonly unknown[]>) =>
   Promise.all([
@@ -154,6 +157,30 @@ export const usePayCredit = () => {
     },
   });
 };
+export const useUpdateCredit = () => {
+  const c = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateCredit>[1] }) =>
+      updateCredit(id, data),
+    onSuccess: (credit, { id }) => {
+      c.setQueryData(secondaryKeys.credit(id), credit);
+      return refreshCredit(c, id);
+    },
+  });
+};
+export const useDeleteCredit = () => {
+  const c = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: deleteCredit,
+    onSuccess: (_, id) => {
+      c.removeQueries({ queryKey: secondaryKeys.credit(id) });
+      c.setQueryData<Credit[]>(secondaryKeys.credits, (current) => current?.filter((item) => item.id !== id));
+      return refreshCredit(c);
+    },
+  });
+};
 export const useReverseCreditPayment = () => {
   const c = useQueryClient();
   return useMutation({
@@ -200,6 +227,7 @@ export const refreshCredit = (client: ReturnType<typeof useQueryClient>, id?: nu
       : [
           client.invalidateQueries({ queryKey: secondaryKeys.credit(id), exact: true }),
           client.invalidateQueries({ queryKey: secondaryKeys.plan(id), exact: true }),
+          client.invalidateQueries({ queryKey: secondaryKeys.amortization(id), exact: true }),
         ]),
     ...[accountKeys.all, dashboardKeys.all, transactionKeys.all, secondaryKeys.alerts].map((queryKey) =>
       client.invalidateQueries({ queryKey }),

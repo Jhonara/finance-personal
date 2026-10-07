@@ -5,9 +5,12 @@ import { withFormSession, useFormSessionActive } from '@/features/forms/form-ses
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useAccountUpdateMutation, useOpeningBalanceMutation } from '@/features/mutations';
 import { usePrivacy } from '@/privacy/privacy-provider';
+import { useFeedback } from '@/feedback/feedback-provider';
 import { AccountBalanceAmount } from '@/ui/account-balance';
 import { Button, Card, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
@@ -17,7 +20,7 @@ import { useFirstOrdinaryMovementExists } from '@/features/onboarding/use-first-
 import { useOpeningBalanceExists } from '@/features/onboarding/use-opening-balance-exists';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { balanceForAccount } from '@/features/accounts/account-balances';
-import { colors, spacing, typography } from '@/theme';
+import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { ErrorState, SkeletonRow } from '@/ui/states';
 function AccountDetail() {
   const activeSession = useFormSessionActive();
@@ -29,6 +32,7 @@ function AccountDetail() {
   const update = useAccountUpdateMutation();
   const opening = useOpeningBalanceMutation();
   const [amount, setAmount] = useState('');
+  const [amountError, setAmountError] = useState('');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<{ name: string; version: number }>();
   useEffect(() => {
@@ -38,9 +42,11 @@ function AccountDetail() {
   const [confirm, setConfirm] = useState(false);
   const [conflict, setConflict] = useState<AccountConflict>(null);
   const { hidden } = usePrivacy();
-  const openingExists = useOpeningBalanceExists(Boolean(account));
-  const ordinaryMovement = useFirstOrdinaryMovementExists(Boolean(account));
+  const feedback = useFeedback();
+  const openingExists = useOpeningBalanceExists(Boolean(account), account?.id);
+  const ordinaryMovement = useFirstOrdinaryMovementExists(Boolean(account), account?.id);
   const balance = balanceForAccount(dashboard, account?.id);
+  const openingReady = !openingExists.isPending && !ordinaryMovement.isPending;
   if (accountsQuery.isPending)
     return (
       <Screen>
@@ -113,26 +119,43 @@ function AccountDetail() {
     );
   };
   return (
-    <Screen scroll keyboard style={{ gap: spacing.lg }}>
+    <Screen entry scroll keyboard style={{ gap: spacing.lg }}>
       <ScreenHeader
         title={account.name ?? 'Cuenta'}
         subtitle={`${accountTypeLabel(account.type)} · ${account.currency}`}
         back
         onBack={() => router.back()}
       />
-      <Card tone="tonal" style={styles.hero}>
-        <Text style={styles.label}>Saldo actual</Text>
+      <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.hero}>
+        <View style={styles.heroHead}>
+          <View style={styles.heroIcon}>
+            <Ionicons name="wallet-outline" size={23} color={colors.mint} />
+          </View>
+          <Text style={styles.heroCurrency}>{account.currency ?? 'COP'}</Text>
+        </View>
+        <Text style={styles.heroLabel}>SALDO REGISTRADO</Text>
         <AccountBalanceAmount
           balance={balance}
           currency={account.currency ?? 'COP'}
           hidden={hidden}
           style={styles.balance}
         />
-      </Card>
+        <Text style={styles.heroHint}>Se actualiza con tus movimientos registrados.</Text>
+      </LinearGradient>
       <Card style={styles.detail}>
-        <Text>Estado · {account.active ? 'Activa' : 'Inactiva'}</Text>
-        <Text>Tipo · {accountTypeLabel(account.type)}</Text>
-        <Text>Moneda · {account.currency}</Text>
+        <Text style={styles.sectionTitle}>Detalles de la cuenta</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Estado</Text>
+          <Text style={styles.infoValue}>{account.active ? 'Activa' : 'Inactiva'}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Tipo</Text>
+          <Text style={styles.infoValue}>{accountTypeLabel(account.type)}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Moneda</Text>
+          <Text style={styles.infoValue}>{account.currency}</Text>
+        </View>
       </Card>
       {editing ? (
         <Card tone="info" style={styles.detail}>
@@ -160,21 +183,61 @@ function AccountDetail() {
           </Button>
         </Card>
       ) : (
-        <>
-          <Text>Nombre · {account.name}</Text>
+        <Card style={styles.editCard}>
+          <View style={styles.editCopy}>
+            <Ionicons name="pencil-outline" size={20} color={colors.success} />
+            <Text style={typography.cardTitle}>Nombre de la cuenta</Text>
+          </View>
+          <Text style={typography.bodySecondary}>{account.name}</Text>
           <Button variant="secondary" disabled={update.isPending} onPress={() => setEditing(true)}>
             Editar cuenta
           </Button>
-        </>
+        </Card>
       )}
-      {!openingExists.data && !ordinaryMovement.data ? (
-        <>
-          <Text>Registra con cuánto empiezas</Text>
-          <Text>Esto representa el dinero que ya tenías antes de empezar a usar Finance Personal.</Text>
-          <MoneyInput label="Saldo inicial" value={amount} onChangeText={setAmount} />
+      {!openingReady ? (
+        <Card style={styles.detail}>
+          <SkeletonRow />
+        </Card>
+      ) : openingExists.isError || ordinaryMovement.isError ? (
+        <Card style={styles.detail}>
+          <Text style={styles.sectionTitle}>No pudimos verificar el saldo inicial</Text>
+          <Button
+            variant="secondary"
+            onPress={() => {
+              void openingExists.refetch();
+              void ordinaryMovement.refetch();
+            }}
+          >
+            Reintentar
+          </Button>
+        </Card>
+      ) : !openingExists.data && !ordinaryMovement.data ? (
+        <Card style={styles.detail}>
+          <View style={styles.editCopy}>
+            <Ionicons name="add-circle-outline" size={22} color={colors.success} />
+            <Text style={styles.sectionTitle}>Registra con cuánto empiezas</Text>
+          </View>
+          <Text style={typography.bodySecondary}>
+            Dinero que ya tenías en esta cuenta antes de empezar a usar la app.
+          </Text>
+          <MoneyInput
+            label="Saldo inicial"
+            currency={account.currency ?? 'COP'}
+            value={amount}
+            onChangeText={(value) => {
+              setAmount(value);
+              setAmountError('');
+            }}
+            error={amountError}
+          />
           <Button
             loading={opening.isPending}
-            onPress={() =>
+            disabled={opening.isPending}
+            onPress={() => {
+              if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+                setAmountError('Ingresa un monto mayor que cero.');
+                return;
+              }
               opening.mutate(
                 {
                   id: account.id!,
@@ -188,15 +251,24 @@ function AccountDetail() {
                     void accountsQuery.refetch();
                     void dashboard.refetch();
                   },
+                  onError: (error) => {
+                    if (!activeSession()) return;
+                    setConflict(accountConflict(error, 'openingBalance'));
+                    if (!accountConflict(error, 'openingBalance'))
+                      feedback.show('No fue posible registrar el saldo inicial.', 'error');
+                  },
                 },
-              )
-            }
+              );
+            }}
           >
             Registrar saldo inicial
           </Button>
-        </>
+        </Card>
       ) : openingExists.data ? (
-        <Text>Saldo inicial registrado</Text>
+        <Card tone="success" style={styles.detail}>
+          <Text style={styles.sectionTitle}>Saldo inicial registrado</Text>
+          <Text style={typography.bodySecondary}>Los cambios nuevos se registran como movimientos.</Text>
+        </Card>
       ) : (
         <Card tone="tonal" style={styles.detail}>
           <Text style={typography.cardTitle}>Inicio sin saldo inicial</Text>
@@ -264,10 +336,27 @@ function AccountDetail() {
   );
 }
 const styles = StyleSheet.create({
-  hero: { gap: 4, padding: 20 },
-  detail: { gap: 8, padding: 16 },
-  label: { ...typography.label },
-  balance: { ...typography.moneyLarge, color: colors.textPrimary },
+  hero: { gap: spacing.sm, padding: spacing.xl, borderRadius: 28, ...shadows.card },
+  heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.medium,
+    backgroundColor: colors.heroSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCurrency: { ...typography.label, color: '#B9E8DD' },
+  heroLabel: { ...typography.caption, color: '#B9E8DD', fontWeight: '700', letterSpacing: 0.5 },
+  heroHint: { ...typography.caption, color: '#C3E5E4' },
+  detail: { gap: spacing.md, padding: spacing.lg },
+  editCard: { gap: spacing.md, padding: spacing.lg },
+  editCopy: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sectionTitle: { ...typography.cardTitle, color: colors.primaryStrong, flexShrink: 1 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+  infoLabel: { ...typography.bodySecondary },
+  infoValue: { ...typography.label, color: colors.primaryStrong, textAlign: 'right', flexShrink: 1 },
+  balance: { ...typography.moneyLarge, color: colors.surface },
   modal: {
     marginTop: 96,
     marginHorizontal: 20,

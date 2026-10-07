@@ -51,6 +51,7 @@ vi.mock('react-native', () => {
       },
     },
     ActivityIndicator: primitive('ActivityIndicator'),
+    useWindowDimensions: () => ({ width: 360, height: 640, fontScale: 1 }),
     KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
     Modal: primitive('Modal'),
     Pressable: primitive('Pressable'),

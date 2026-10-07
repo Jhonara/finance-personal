@@ -64,9 +64,11 @@ public class CreditPlanVsRealService {
         BigDecimal plannedInterestPaid = BigDecimal.ZERO;
         int plannedInstallments = 0;
 
-        for (AmortizationRow row : simulation.getSchedule()) {
+        List<AmortizationRow> trackedSchedule = credit.getOpeningBalance() == null ? simulation.getSchedule()
+                : CreditTrackingSchedule.build(credit, new CreditAmortizationService());
+        for (AmortizationRow row : trackedSchedule) {
 
-            if (!row.getDate().isAfter(today)) {
+            if (credit.getOpeningBalance() == null ? !row.getDate().isAfter(today) : row.getDate().isBefore(today)) {
 
                 plannedTotalPaid = plannedTotalPaid
                         .add(row.getInterest())

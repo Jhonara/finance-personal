@@ -145,6 +145,31 @@ class BudgetIntegrationTests {
     }
 
     @Test
+    void copBudgetDoesNotMixExpensesFromOtherCurrencies() throws Exception {
+        User user = createUser();
+        Category food = category(user, "Food");
+        Account cop = account(user, "COP source");
+        Account usd = account(user, "USD source", "USD");
+        ledgerService.recordOpeningBalance(user.getId(), cop.getId(),
+                command("1000", LocalDate.of(2026, 8, 1), null));
+        ledgerService.recordOpeningBalance(user.getId(), usd.getId(),
+                new FinancialOperationCommand(new BigDecimal("100"), LocalDate.of(2026, 8, 1), null, "USD", null));
+        ledgerService.recordExpense(user.getId(), cop.getId(),
+                command("200", LocalDate.of(2026, 8, 2), food.getId()));
+        ledgerService.recordExpense(user.getId(), usd.getId(),
+                new FinancialOperationCommand(new BigDecimal("50"), LocalDate.of(2026, 8, 2), null, "USD", food.getId()));
+        Long budgetId = createBudget(user, food, "500");
+
+        mockMvc.perform(get("/api/v1/budgets/{id}", budgetId).header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.spentAmount").value(200))
+                .andExpect(jsonPath("$.remainingAmount").value(300));
+        mockMvc.perform(get("/api/v1/budgets?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].spentAmount").value(200));
+    }
+
+    @Test
     void updatesOnlyLimitWithVersionAndHidesForeignBudgets() throws Exception {
         User owner = createUser();
         User other = createUser();
@@ -488,8 +513,12 @@ class BudgetIntegrationTests {
     }
 
     private Account account(User user, String name) {
+        return account(user, name, "COP");
+    }
+
+    private Account account(User user, String name, String currency) {
         Account account = new Account(); account.setUser(user); account.setName(name);
-        account.setType(AccountType.BANK); account.setCurrency("COP"); account.setActive(true);
+        account.setType(AccountType.BANK); account.setCurrency(currency); account.setActive(true);
         return accountRepository.saveAndFlush(account);
     }
 

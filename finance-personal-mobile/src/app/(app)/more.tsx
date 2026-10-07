@@ -8,11 +8,11 @@ import { profileInitials } from '@/features/profile/profile-presentation';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { BrandSurface } from '@/ui/brand-surface';
+import { BrandMark } from '@/ui/brand-identity';
 import { ScreenHeader } from '@/ui/headers';
 import { Card, Screen } from '@/ui/primitives';
 import { SettingsRow } from '@/ui/settings-row';
 import { ErrorState, SkeletonRow } from '@/ui/states';
-import { FirstRunGuide } from '@/ui/first-run-guide';
 import { colors, radius, spacing, typography } from '@/theme';
 
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
@@ -30,7 +30,6 @@ export default function MoreScreen() {
   const { logout, logoutAll } = useAuth();
   const { hidden, toggle } = usePrivacy();
   const feedback = useFeedback();
-  const [replay, setReplay] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const privacyLock = useRef(false);
@@ -94,27 +93,38 @@ export default function MoreScreen() {
     }
   };
   return (
-    <Screen entry scroll style={{ gap: spacing.xxl }}>
-      <ScreenHeader title="Más" subtitle="Tu perfil, preferencias y accesos." />
-      <BrandSurface style={{ gap: spacing.md }}>
+    <Screen entry scroll style={{ gap: spacing.lg }}>
+      <ScreenHeader
+        title="Perfil y ajustes"
+        subtitle="Tu espacio y tus preferencias."
+        back
+        onBack={() => router.back()}
+      />
+      <BrandSurface tone="insight" style={styles.profileCard}>
         {profile.isPending ? (
           <SkeletonRow />
         ) : profile.isError ? (
           <ErrorState title="No pudimos cargar tu perfil" onRetry={() => void profile.refetch()} />
         ) : (
           <>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={styles.avatar}
-            >
-              <Text style={[typography.sectionTitle, { color: colors.surface }]}>
-                {profileInitials(profile.data.name)}
-              </Text>
+            <View style={styles.profileRow}>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.avatar}
+              >
+                <Text style={[typography.sectionTitle, { color: colors.surface }]}>
+                  {profileInitials(profile.data.name)}
+                </Text>
+              </View>
+              <View style={styles.profileCopy}>
+                <Text style={styles.eyebrow}>TU ESPACIO</Text>
+                <Text style={typography.sectionTitle}>{profile.data.name || 'Tu perfil'}</Text>
+              </View>
+              <BrandMark size={36} />
             </View>
-            <Text style={typography.sectionTitle}>{profile.data.name || 'Tu perfil'}</Text>
             {!!profile.data.email && (
-              <Text style={[typography.body, { flexShrink: 1 }]}>{profile.data.email}</Text>
+              <Text style={[typography.bodySecondary, { flexShrink: 1 }]}>{profile.data.email}</Text>
             )}
           </>
         )}
@@ -148,8 +158,8 @@ export default function MoreScreen() {
         <SettingsRow
           icon="compass-outline"
           title="Ver guía de inicio"
-          subtitle="Vuelve a recorrer la introducción de la app."
-          onPress={() => setReplay(true)}
+          subtitle="Aprende cada módulo y retoma tu recorrido."
+          onPress={() => router.push('/(app)/guide')}
         />
       </Section>
       <Section title="Cuenta">
@@ -175,11 +185,14 @@ export default function MoreScreen() {
           <Text style={typography.caption}>Versión {Constants.expoConfig.version}</Text>
         )}
       </View>
-      {replay && <FirstRunGuide replay onClose={() => setReplay(false)} />}
     </Screen>
   );
 }
 const styles = StyleSheet.create({
+  profileCard: { gap: spacing.md, padding: spacing.lg },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profileCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
+  eyebrow: { ...typography.caption, color: colors.success, fontWeight: '700', letterSpacing: 0.4 },
   avatar: {
     width: 60,
     height: 60,

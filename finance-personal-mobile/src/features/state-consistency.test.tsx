@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   post: vi.fn(),
   patch: vi.fn(),
   push: vi.fn(),
+  replace: vi.fn(),
   feedback: vi.fn(),
   quickOpen: vi.fn(),
   read: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock('react-native', () => {
       addEventListener: () => ({ remove: vi.fn() }),
     },
     KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
+    Image: primitive('Image'),
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
       visible ? children : null,
     Pressable: primitive('Pressable'),
@@ -69,6 +71,18 @@ vi.mock('react-native', () => {
     Easing: { out: () => undefined, cubic: () => undefined },
   };
 });
+vi.mock('react-native-reanimated', () => ({
+  default: {
+    Image: ({ source, style }: { source: unknown; style: unknown }) =>
+      React.createElement('AnimatedImage', { source, style }),
+  },
+  cancelAnimation: vi.fn(),
+  Easing: { ease: () => 0, inOut: () => () => 0 },
+  useAnimatedStyle: (style: () => unknown) => style(),
+  useSharedValue: (value: number) => ({ value }),
+  withRepeat: (value: number) => value,
+  withTiming: (value: number) => value,
+}));
 vi.mock('@expo/vector-icons/Ionicons', () => ({
   default: (props: object) => React.createElement('Icon', props),
 }));
@@ -87,7 +101,7 @@ vi.mock('expo-linear-gradient', () => ({
 }));
 vi.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void | (() => void)) => React.useEffect(effect, [effect]),
-  router: { push: mocks.push, back: vi.fn() },
+  router: { push: mocks.push, replace: mocks.replace, back: vi.fn() },
   useLocalSearchParams: () => mocks.params,
 }));
 vi.mock('expo-secure-store', () => ({ getItemAsync: mocks.read, setItemAsync: mocks.write }));
@@ -109,12 +123,14 @@ import { openForm } from '@/features/forms/form-session';
 import { ApiError } from '@/api/errors';
 import AccountsScreen from '@/app/(app)/accounts';
 import AccountDetail from '@/app/(app)/account-detail';
+import NewExpenseScreen from '@/app/(app)/new-expense';
+import NewIncomeScreen from '@/app/(app)/new-income';
 import HomeScreen from '@/app/(app)/index';
 import TransactionsScreen from '@/app/(app)/transactions';
 import { FinancialProgressSection, ProgressSignal } from '@/features/progress/progress-signal';
 import { financialProgress } from '@/features/progress/financial-progress';
 import { secondaryKeys } from '@/features/secondary/use-secondary';
-import { AccountCard, TransactionRow } from '@/ui/financial';
+import { TransactionRow } from '@/ui/financial';
 import { HomeModules } from '@/features/dashboard/home-modules';
 import { HomeAccountPreview } from '@/features/dashboard/home-account-preview';
 import { GuidedSetupCard } from '@/ui/guided-setup-card';
@@ -258,7 +274,10 @@ describe.each([
     expect(textContent(tree.toJSON())).not.toContain('Internal server failure');
     if (Screen === AccountsScreen) {
       await act(async () => {
-        tree.root.findByType(AccountCard).props.onPress();
+        tree.root
+          .findAll((node) => node.props.accessibilityRole === 'button')
+          .find((node) => String(node.props.accessibilityLabel).startsWith('Principal, Efectivo,'))!
+          .props.onPress();
       });
       expect(mocks.push).toHaveBeenCalledWith({
         pathname: '/(app)/account-detail',
@@ -302,7 +321,12 @@ describe.each([
     const tree = await render(<Screen />);
     await settled(() => expect(client.getQueryData(dashboardKey)).toBeDefined());
     expect(textContent(tree.toJSON())).toContain('$ ••••••');
-    expect(JSON.stringify(tree.toJSON())).not.toContain('110.000');
+    expect(textContent(tree.toJSON())).not.toContain('110.000');
+    expect(
+      tree.root
+        .findAll((node) => node.props.accessibilityRole === 'button')
+        .some((node) => String(node.props.accessibilityLabel).includes('110.000')),
+    ).toBe(false);
   });
 
   it('renders a real zero only when supplied by Dashboard', async () => {
@@ -619,6 +643,25 @@ it('loads the immutable budget category and clears edit params for a new creatio
   expect(tree.root.findByType(SelectField).props.disabled).toBe(false);
 });
 
+it('starts a fresh credit draft after editing a retained credit route', () => {
+  openForm('/(app)/credit-form', { id: '3', mode: 'edit' });
+  const edit = mocks.push.mock.calls.at(-1)![0];
+  openForm('/(app)/credit-form');
+  const create = mocks.push.mock.calls.at(-1)![0];
+  expect({ ...edit.params, ...create.params }).toMatchObject({ id: '', mode: '' });
+  expect(create.params.formSession).not.toBe(edit.params.formSession);
+});
+
+it('returns from a new budget to the selected month', async () => {
+  mocks.params = { id: '', source: 'budgets', year: '2026', month: '9', formSession: 'budget-return' };
+  const tree = await render(<BudgetForm />);
+  await act(async () => press(tree, 'Volver'));
+  expect(mocks.replace).toHaveBeenCalledWith({
+    pathname: '/(app)/budgets',
+    params: { year: '2026', month: '9' },
+  });
+});
+
 it('keeps November authoritative when September and October resolve out of order, then returns to September', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 8, 16, 12));
@@ -716,7 +759,7 @@ it('opens account detail read-only, edits only name and cancels without a reques
   const tree = await render(<AccountDetail />);
   await settled(() => expect(client.getQueryData(['accounts', 'list'])).toBeDefined());
   expect(input(tree, 'Nombre')).toBeUndefined();
-  expect(textContent(tree.toJSON())).toContain('Tipo · Efectivo');
+  expect(textContent(tree.toJSON())).toContain('TipoEfectivo');
   expect(textContent(tree.toJSON())).not.toContain('CASH');
   await act(async () => press(tree, 'Editar cuenta'));
   expect(input(tree, 'Nombre').props.value).toBe('Principal');
@@ -729,6 +772,70 @@ it('opens account detail read-only, edits only name and cancels without a reques
   await act(async () => press(tree, 'Editar cuenta'));
   expect(input(tree, 'Nombre').props.value).toBe('Principal');
 });
+
+it('checks opening balance for the selected account instead of another account', async () => {
+  const second = { ...account, id: 2, name: 'Nueva cuenta', version: 2 };
+  mocks.params = { id: '2' };
+  mocks.get.mockImplementation(
+    async (url: string, options?: { params?: { accountId?: number; type?: string } }) => {
+      if (url === '/accounts') return { data: [account, second] };
+      if (url === '/dashboard/month') return { data: dashboard };
+      if (url === '/transactions')
+        return {
+          data: {
+            totalElements:
+              options?.params?.accountId === 1 && options?.params?.type === 'OPENING_BALANCE' ? 1 : 0,
+          },
+        };
+      throw new Error(`Unexpected GET ${url}`);
+    },
+  );
+  const tree = await render(<AccountDetail />);
+  await settled(() => expect(textContent(tree.toJSON())).toContain('Registra con cuánto empiezas'));
+  expect(mocks.get).toHaveBeenCalledWith('/transactions', {
+    params: expect.objectContaining({ accountId: 2, type: 'OPENING_BALANCE' }),
+  });
+});
+
+it.each([
+  ['gasto', NewExpenseScreen, 'Monto gastado', 'Registrar gasto', '/expenses'],
+  ['ingreso', NewIncomeScreen, 'Monto recibido', 'Registrar ingreso', '/incomes'],
+] as const)(
+  'requires a category before registering a %s',
+  async (_kind, Screen, amountLabel, submitLabel, endpoint) => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/categories') return { data: [{ id: 7, name: 'Prueba', active: true }] };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    mocks.post.mockResolvedValue({ data: { id: 21 } });
+    const tree = await render(<Screen />);
+    await settled(() => expect(tree.root.findAllByType(ModalSelector).length).toBe(2));
+    await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Cuenta')!
+        .props.onSelect(1),
+    );
+    await act(async () => press(tree, submitLabel));
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(textContent(tree.toJSON())).toContain('Elige una categoría');
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Categoría')!
+        .props.onSelect(7),
+    );
+    await act(async () => press(tree, submitLabel));
+    await settled(() =>
+      expect(mocks.post).toHaveBeenCalledWith(
+        endpoint,
+        expect.objectContaining({ accountId: 1, categoryId: 7, amount: 10000 }),
+      ),
+    );
+  },
+);
 
 import BudgetsScreen from '@/app/(app)/budgets';
 import BudgetDetail from '@/app/(app)/budget-detail';
@@ -762,7 +869,7 @@ it.each([true, false])(
     expect(mocks.push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(app)/budget-form' }));
   },
 );
-it('preserves budget detail amounts and edit identity through the visual summary', async () => {
+it('loads current budget amounts and edit identity from the server', async () => {
   mocks.params = {
     id: '7',
     version: '3',
@@ -776,12 +883,28 @@ it('preserves budget detail amounts and edit identity through the visual summary
     month: '9',
     status: 'OK',
   };
+  mocks.get.mockResolvedValue({
+    data: [
+      {
+        id: 7,
+        version: 3,
+        limitAmount: 111111,
+        spentAmount: 12000,
+        remainingAmount: 99111,
+        percentageUsed: 10.8,
+        categoryName: 'Comida',
+        categoryId: 4,
+        status: 'OK',
+      },
+    ],
+  });
   const tree = await render(<BudgetDetail />);
+  await settled(() => expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(12000, 'COP', false)));
   const copy = textContent(tree.toJSON());
   for (const amount of [111111, 12000, 99111])
     expect(copy).toContain(formatPrivateMoney(amount, 'COP', false));
   expect(copy).toContain('10,8% usado');
-  expect(copy).toContain('En curso');
+  expect(copy).toContain('En control');
   await act(async () => press(tree, 'Editar límite'));
   expect(mocks.push).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -926,7 +1049,7 @@ describe('Home visual hub', () => {
       'Este mes',
       'Tu plan',
       'Para ti',
-      'Cuentas',
+      'Mis cuentas',
       'Movimientos recientes',
     ];
     const positions = titles.map((title) => content.indexOf(title));

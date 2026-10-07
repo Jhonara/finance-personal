@@ -1,9 +1,11 @@
 import { openForm } from '@/features/forms/form-session';
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period';
 
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { useTransactions } from '@/features/transactions/use-transactions';
 import { useAccounts } from '@/features/accounts/use-accounts';
@@ -12,18 +14,21 @@ import { filterCount, type TransactionFilters } from '@/features/transactions/fi
 import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { TransactionRow } from '@/ui/financial';
-import { ScreenHeader } from '@/ui/headers';
-import { Button, Screen } from '@/ui/primitives';
+import { Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
+import { HomeBrandMark, HomeCompanion } from '@/features/dashboard/home-brand';
+import { MotionPressable } from '@/ui/motion';
 import { groupTransactionsByDate } from '@/features/transactions/transaction-grouping';
 import {
   presentTransaction,
   type PresentedTransaction,
 } from '@/features/transactions/transaction-presentation';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 
 export default function TransactionsScreen() {
+  const { width, fontScale } = useWindowDimensions();
+  const compact = width / fontScale < 280;
   const { open: openQuickActions } = useQuickActions();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
@@ -37,17 +42,43 @@ export default function TransactionsScreen() {
     }, [year, month]),
   );
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
-  const { hidden } = usePrivacy();
+  const { hidden, toggle } = usePrivacy();
   const accounts = useAccounts();
   const transactions = useTransactions(filters);
   const items = transactions.data?.pages.flatMap((page) => page.content ?? []) ?? [];
   const groups = useMemo(() => groupTransactionsByDate(items), [items]);
   const hasAccounts = Boolean(accounts.data?.some((account) => account.active));
   const activeFilters = filterCount(filters);
+  const pageHeader = (
+    <View style={styles.pageHeader}>
+      <View style={styles.pageHeading}>
+        <Text style={styles.eyebrow}>FINANZAS · ACTIVIDAD</Text>
+        <Text accessibilityRole="header" style={styles.pageTitle}>
+          Movimientos
+        </Text>
+        <Text style={styles.pageSubtitle}>Tus ingresos, gastos y transferencias.</Text>
+      </View>
+      <View style={styles.pageActions}>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel={hidden ? 'Mostrar importes' : 'Ocultar importes'}
+          onPress={() => void toggle()}
+          style={styles.privacy}
+        >
+          <Ionicons
+            name={hidden ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
+            color={colors.primaryStrong}
+          />
+        </MotionPressable>
+        <HomeBrandMark size={36} />
+      </View>
+    </View>
+  );
   if (transactions.isPending)
     return (
       <Screen entry scroll>
-        <ScreenHeader title="Movimientos" />
+        {pageHeader}
         <SkeletonRow />
         <SkeletonRow />
         <SkeletonRow />
@@ -56,26 +87,60 @@ export default function TransactionsScreen() {
   if (transactions.isError)
     return (
       <Screen entry>
-        <ScreenHeader title="Movimientos" />
+        {pageHeader}
         <ErrorState onRetry={() => void transactions.refetch()} />
       </Screen>
     );
   return (
     <Screen entry scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
-      <ScreenHeader title="Movimientos" subtitle="Historial" />
-      <View style={styles.filterCard}>
-        <Button
-          variant="secondary"
-          size="compact"
+      {pageHeader}
+      {items.length ? (
+        <LinearGradient
+          colors={['#0D282E', '#105158']}
+          style={[styles.overview, compact && styles.overviewCompact]}
+        >
+          <View style={styles.overviewCopy}>
+            <Text style={styles.overviewEyebrow}>TU HISTORIAL</Text>
+            <Text style={styles.overviewCount}>
+              {items.length} {items.length === 1 ? 'movimiento cargado' : 'movimientos cargados'}
+            </Text>
+            {!compact ? (
+              <Text style={styles.overviewHint}>Revisa cada detalle o registra uno nuevo.</Text>
+            ) : null}
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Registrar movimiento"
+              onPress={openQuickActions}
+              style={styles.register}
+            >
+              <Ionicons name="add" size={17} color={colors.primaryStrong} />
+              <Text style={styles.registerText}>Registrar</Text>
+            </MotionPressable>
+          </View>
+          <HomeCompanion size={compact ? 60 : 76} />
+        </LinearGradient>
+      ) : null}
+      <View style={styles.toolbar}>
+        <Text accessibilityRole="header" style={styles.historyTitle}>
+          Historial
+        </Text>
+        <MotionPressable
+          accessibilityRole="button"
           accessibilityLabel="Abrir filtros"
           onPress={() => setFiltersOpen(true)}
+          style={styles.filterButton}
         >
-          {activeFilters ? `Filtros (${activeFilters})` : 'Filtros'}
-        </Button>
+          <Ionicons name="options-outline" size={18} color={colors.primary} />
+          <Text style={styles.filterButtonText}>
+            {activeFilters ? `Filtros · ${activeFilters}` : 'Filtros'}
+          </Text>
+        </MotionPressable>
+      </View>
+      <View style={styles.filterArea}>
         {activeFilters ? (
-          <ScrollView horizontal style={{ flexBasis: '100%' }} contentContainerStyle={styles.chips}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {filterChips(filters, accounts.data ?? []).map((chip) => (
-              <Pressable
+              <MotionPressable
                 key={chip.key}
                 accessibilityRole="button"
                 accessibilityLabel={`Quitar filtro ${chip.label}`}
@@ -83,57 +148,75 @@ export default function TransactionsScreen() {
                 style={styles.chip}
               >
                 <Text style={styles.chipText}>{chip.label} ×</Text>
-              </Pressable>
+              </MotionPressable>
             ))}
           </ScrollView>
         ) : null}
         {activeFilters ? (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityLabel="Limpiar filtros"
             onPress={() => setFilters({})}
           >
             <Text style={styles.clear}>Limpiar</Text>
-          </Pressable>
+          </MotionPressable>
         ) : null}
       </View>
+      <MotionPressable
+        accessibilityRole="button"
+        accessibilityLabel="Organizar categorías"
+        onPress={() => router.push('/(app)/categories')}
+        style={styles.categoriesLink}
+      >
+        <View style={styles.categoriesIcon}>
+          <Ionicons name="pricetags-outline" size={20} color={colors.success} />
+        </View>
+        <View style={styles.categoriesCopy}>
+          <Text style={styles.categoriesTitle}>Organizar categorías</Text>
+          <Text style={typography.caption}>Edita las opciones de ingresos y gastos.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+      </MotionPressable>
       {items.length ? (
         <View style={styles.list}>
-          <Text style={styles.filterSummary}>
-            {items.length} {items.length === 1 ? 'movimiento cargado' : 'movimientos cargados'}
-          </Text>
           {groups.map((group) => (
             <View key={group.date} style={styles.group}>
-              <Text accessibilityRole="header" style={styles.groupHeader}>
-                {group.label}
-              </Text>
-              {group.items.map((transaction) => {
-                const presented = presentTransaction(transaction);
-                return (
-                  <TransactionRow
-                    key={transaction.id}
-                    type={(transaction.type ?? 'REVERSAL') as Parameters<typeof TransactionRow>[0]['type']}
-                    title={presented.title}
-                    subtitle={presented.subtitle}
-                    amount={transaction.amount ?? 0}
-                    amountPrefix={presented.amountPrefix}
-                    currency={transaction.currency ?? 'COP'}
-                    statusLabel={presented.statusLabel}
-                    privacyHidden={hidden}
-                    onPress={() => setSelectedTransaction(presented)}
-                  />
-                );
-              })}
+              <View style={styles.groupHeading}>
+                <View style={styles.groupDot} />
+                <Text accessibilityRole="header" style={styles.groupHeader}>
+                  {group.label}
+                </Text>
+              </View>
+              <View style={styles.groupCard}>
+                {group.items.map((transaction) => {
+                  const presented = presentTransaction(transaction);
+                  return (
+                    <TransactionRow
+                      key={transaction.id}
+                      type={(transaction.type ?? 'REVERSAL') as Parameters<typeof TransactionRow>[0]['type']}
+                      title={presented.title}
+                      subtitle={presented.subtitle}
+                      amount={transaction.amount}
+                      amountPrefix={presented.amountPrefix}
+                      currency={transaction.currency ?? 'COP'}
+                      statusLabel={presented.statusLabel}
+                      privacyHidden={hidden}
+                      compact={width <= 360}
+                      onPress={() => setSelectedTransaction(presented)}
+                    />
+                  );
+                })}
+              </View>
             </View>
           ))}
           {transactions.hasNextPage && (
-            <Pressable
+            <MotionPressable
               accessibilityRole="button"
               accessibilityLabel="Cargar más movimientos"
               onPress={() => void transactions.fetchNextPage()}
             >
               <Text style={styles.loadMore}>Cargar más</Text>
-            </Pressable>
+            </MotionPressable>
           )}
           {transactions.isFetchingNextPage && <ActivityIndicator />}
         </View>
@@ -145,17 +228,28 @@ export default function TransactionsScreen() {
           onAction={() => setFilters({})}
         />
       ) : (
-        <EmptyState
-          title="Aún no tienes movimientos"
-          description={
-            hasAccounts
-              ? 'Registra un ingreso, gasto o transferencia para ver tu historial aquí.'
-              : 'Crea una cuenta primero para registrar tu saldo y tus movimientos.'
-          }
-          actionLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
-          onAction={() => (hasAccounts ? openQuickActions() : openForm('/(app)/account-form'))}
-          tone="info"
-        />
+        <View style={styles.empty}>
+          <HomeCompanion size={92} />
+          <Text accessibilityRole="header" style={styles.emptyTitle}>
+            Tu historia empieza aquí
+          </Text>
+          <Text style={styles.emptyDescription}>
+            {hasAccounts
+              ? 'Registra un ingreso, gasto o transferencia y aparecerá en tu historial.'
+              : 'Crea una cuenta para empezar a registrar y entender tus movimientos.'}
+          </Text>
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel={hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
+            onPress={() => (hasAccounts ? openQuickActions() : openForm('/(app)/account-form'))}
+            style={styles.emptyButton}
+          >
+            <Ionicons name="add" size={18} color={colors.primaryStrong} />
+            <Text style={styles.emptyButtonText}>
+              {hasAccounts ? 'Registrar movimiento' : 'Crear cuenta'}
+            </Text>
+          </MotionPressable>
+        </View>
       )}
       <TransactionDetailSheet
         transaction={selectedTransaction}
@@ -180,37 +274,159 @@ export default function TransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  filterCard: {
+  pageHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  pageHeading: { flex: 1, gap: spacing.xs },
+  eyebrow: {
+    ...typography.caption,
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.success,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  pageTitle: { ...typography.screenTitle, fontSize: 27, lineHeight: 33 },
+  pageSubtitle: { ...typography.caption, fontSize: 12, lineHeight: 17, color: colors.textSecondary },
+  pageActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  privacy: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.large,
+    justifyContent: 'center',
     backgroundColor: colors.infoSoft,
   },
-  filterSummary: { ...typography.caption, color: colors.textSecondary },
+  overview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.lg,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  overviewCompact: { padding: spacing.md },
+  overviewCopy: { flex: 1, gap: spacing.xs },
+  overviewEyebrow: {
+    ...typography.caption,
+    color: '#C8F4E7',
+    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  overviewCount: { ...typography.sectionTitle, color: colors.surface, fontSize: 19, lineHeight: 25 },
+  overviewHint: { ...typography.caption, color: '#CBE4E5' },
+  register: {
+    alignSelf: 'flex-start',
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.secondary,
+  },
+  registerText: { ...typography.label, color: colors.primaryStrong, fontWeight: '700' },
+  toolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  historyTitle: { ...typography.sectionTitle, fontSize: 18, lineHeight: 24 },
+  filterButton: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.infoSoft,
+  },
+  filterButtonText: { ...typography.caption, color: colors.primary, fontWeight: '700' },
+  filterArea: { gap: spacing.xs },
+  categoriesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.large,
+    backgroundColor: colors.primarySoft,
+  },
+  categoriesIcon: {
+    width: 39,
+    height: 39,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  categoriesCopy: { flex: 1, gap: spacing.xxs },
+  categoriesTitle: { ...typography.label, color: colors.primaryStrong },
   clear: {
-    ...typography.label,
+    ...typography.caption,
     color: colors.info,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
+    fontWeight: '700',
   },
-  chips: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs },
+  chips: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs, paddingRight: spacing.lg },
   chip: {
     paddingHorizontal: spacing.sm,
-    minHeight: 44,
+    minHeight: 36,
     justifyContent: 'center',
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.divider,
   },
   chipText: { ...typography.caption, color: colors.primary },
-  list: { gap: spacing.md },
-  group: { gap: spacing.xxs },
-  groupHeader: { ...typography.label, color: colors.textSecondary, paddingTop: spacing.sm },
-  loadMore: { ...typography.label, alignSelf: 'center', padding: spacing.md, color: colors.primary },
+  list: { gap: spacing.lg, marginTop: spacing.sm },
+  group: { gap: spacing.sm },
+  groupHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  groupDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: colors.secondary },
+  groupHeader: { ...typography.label, color: colors.primaryStrong },
+  groupCard: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.large,
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  loadMore: {
+    ...typography.label,
+    alignSelf: 'center',
+    padding: spacing.md,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  empty: {
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: radius.large,
+    backgroundColor: colors.infoSoft,
+  },
+  emptyTitle: { ...typography.sectionTitle, textAlign: 'center' },
+  emptyDescription: { ...typography.bodySecondary, textAlign: 'center' },
+  emptyButton: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.secondary,
+  },
+  emptyButtonText: { ...typography.label, color: colors.primaryStrong, fontWeight: '700' },
 });
 
 function filterChips(filters: TransactionFilters, accounts: Array<{ id?: number; name?: string }>) {

@@ -36,6 +36,8 @@ public class CreditPaymentService {
                 .orElseThrow(() -> new NotFoundException("El crédito no existe"));
         if (request.getPaymentDate().isBefore(credit.getDisbursementDate()))
             throw new BadRequestException("La fecha de pago no puede ser anterior al desembolso");
+        if (credit.getOpeningDate() != null && !request.getPaymentDate().isAfter(credit.getOpeningDate()))
+            throw new BadRequestException("Este pago ya debe estar incluido en el saldo del extracto. Registra pagos posteriores a la fecha de corte");
         if (request.getPaymentDate().isAfter(LocalDate.now()))
             throw new BadRequestException("Los pagos futuros no representan hechos realizados");
         BigDecimal extra = request.getExtraPrincipalAmount() == null ? BigDecimal.ZERO : request.getExtraPrincipalAmount();
@@ -46,9 +48,13 @@ public class CreditPaymentService {
         if (before.remainingBalance().signum() == 0) throw new BadRequestException("El crédito ya está pagado");
         List<AmortizationRow> schedule = amortization.schedule(credit.getPrincipal(), credit.getAnnualRate(),
                 credit.getTermMonths(), credit.getDisbursementDate(), credit.getPaymentDay(), null);
-        int count = paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).size();
+        int count = (int) paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).stream()
+                .filter(p -> p.getStatus() == CreditPaymentStatus.POSTED).count();
         BigDecimal interestDue = schedule.stream().filter(row -> row.getInstallment() == count + 1)
                 .findFirst().map(AmortizationRow::getInterest).orElse(BigDecimal.ZERO);
+        if (credit.getOpeningBalance() != null)
+            interestDue = before.remainingBalance().multiply(amortization.monthlyRate(credit.getAnnualRate()))
+                    .setScale(2, RoundingMode.HALF_UP);
         BigDecimal normal = request.getAmount().subtract(extra);
         BigDecimal interest = normal.min(interestDue).setScale(2, RoundingMode.HALF_UP);
         BigDecimal principal = normal.subtract(interest).setScale(2, RoundingMode.HALF_UP);

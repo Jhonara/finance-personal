@@ -49,4 +49,11 @@ public class CreditResponse {
     private BigDecimal paidInterest;
     private boolean disbursementLinked;
     private Long disbursementTransactionId;
+    private BigDecimal openingBalance;
+    private LocalDate openingDate;
+    private Integer openingRemainingMonths;
+    private LocalDate openingNextPaymentDate;
+    private boolean editable;
+    private boolean deletable;
+    private BigDecimal overdueAmount;
 }

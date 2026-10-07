@@ -1,6 +1,7 @@
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Credit, CreditPayment } from '@/features/secondary/secondary-api';
@@ -11,7 +12,7 @@ import { Button, Card, MoneyInput, Screen } from '@/ui/primitives';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ScreenHeader } from '@/ui/headers';
 import { localDateFromNative } from '@/utils/local-date';
-import { spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import { paymentSchema } from './credit-schemas';
 import { useCreditSubmit } from './use-credit-submit';
 import { CreditAccountSelector } from './credit-account-selector';
@@ -119,16 +120,30 @@ export function CreditPaymentForm({
           }}
           error={form.formState.errors.paymentDate?.message}
         />
-        <MoneyInput
-          label="Del pago, cuánto va adicionalmente a capital"
-          currency={credit.currency ?? ''}
-          value={values.extraPrincipalAmount}
-          onChangeText={(v) => changed('extraPrincipalAmount', v)}
-          error={form.formState.errors.extraPrincipalAmount?.message}
-          helperText="Este valor forma parte del monto total del pago."
-          disabled={safety.busy}
-          secureTextEntry={hidden}
-        />
+        <Card style={styles.extraCard}>
+          <View style={styles.extraHeading}>
+            <View style={styles.extraIcon}>
+              <Ionicons name="trending-down-outline" size={21} color={colors.success} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.cardTitle}>¿Hiciste un abono extra?</Text>
+              <Text style={typography.bodySecondary}>
+                Indica cuánto quieres aplicar directamente a capital.
+              </Text>
+            </View>
+          </View>
+          <MoneyInput
+            label="Abono adicional a capital (opcional)"
+            placeholder="0"
+            currency={credit.currency ?? ''}
+            value={values.extraPrincipalAmount}
+            onChangeText={(v) => changed('extraPrincipalAmount', v)}
+            error={form.formState.errors.extraPrincipalAmount?.message}
+            helperText="Este valor forma parte del monto total del pago."
+            disabled={safety.busy}
+            secureTextEntry={hidden}
+          />
+        </Card>
         {visible && (
           <CreditAccountSelector
             label="Cuenta de pago"
@@ -171,3 +186,16 @@ export function CreditPaymentForm({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  extraCard: { gap: spacing.md, padding: spacing.lg, backgroundColor: colors.successSoft },
+  extraHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  extraIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.medium,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

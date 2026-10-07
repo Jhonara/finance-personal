@@ -126,16 +126,18 @@ export function TransactionRow({
   currency = 'COP',
   privacyHidden = false,
   statusLabel,
+  compact = false,
   onPress,
 }: {
   type: TransactionKind;
   title: string;
   subtitle: string;
-  amount: number;
+  amount?: number;
   amountPrefix?: '' | '+' | '-';
   currency?: string;
   privacyHidden?: boolean;
   statusLabel?: string;
+  compact?: boolean;
   onPress?: () => void;
 }) {
   const presentation = transactionPresentation[type];
@@ -148,20 +150,33 @@ export function TransactionRow({
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${detail}.`}
       onPress={onPress}
-      style={({ pressed }) => [styles.transaction, pressed && styles.transactionPressed]}
+      style={({ pressed }) => [
+        styles.transaction,
+        compact && styles.transactionCompact,
+        pressed && styles.transactionPressed,
+      ]}
     >
-      <View style={[styles.transactionIcon, { backgroundColor: `${toneColors[presentation.tone]}1A` }]}>
+      <View
+        style={[
+          styles.transactionIcon,
+          compact && styles.transactionIconCompact,
+          { backgroundColor: `${toneColors[presentation.tone]}1A` },
+        ]}
+      >
         <Ionicons
           name={presentation.icon as keyof typeof Ionicons.glyphMap}
-          size={20}
+          size={compact ? 17 : 20}
           color={toneColors[presentation.tone]}
         />
       </View>
       <View style={styles.grow}>
-        <Text numberOfLines={1} style={typography.cardTitle}>
+        <Text numberOfLines={1} style={compact ? styles.transactionTitleCompact : typography.cardTitle}>
           {title}
         </Text>
-        <Text numberOfLines={2} style={typography.caption}>
+        <Text
+          numberOfLines={compact ? 1 : 2}
+          style={compact ? styles.transactionCaptionCompact : typography.caption}
+        >
           {detail}
         </Text>
         {statusLabel && statusLabel !== 'Registrado' ? (
@@ -172,11 +187,18 @@ export function TransactionRow({
         adjustsFontSizeToFit
         minimumFontScale={0.75}
         numberOfLines={1}
-        style={[typography.moneySmall, styles.transactionAmount, { color: toneColors[presentation.tone] }]}
+        style={[
+          typography.moneySmall,
+          styles.transactionAmount,
+          compact && styles.transactionAmountCompact,
+          { color: toneColors[presentation.tone] },
+        ]}
       >
-        {privacyHidden
-          ? formatPrivateMoney(amount, currency, true)
-          : `${amountPrefix}${formatPrivateMoney(amount, currency, false)}`}
+        {typeof amount === 'number' && Number.isFinite(amount)
+          ? privacyHidden
+            ? formatPrivateMoney(amount, currency, true)
+            : `${amountPrefix}${formatPrivateMoney(amount, currency, false)}`
+          : 'Sin importe'}
       </Text>
     </MotionPressable>
   );
@@ -298,8 +320,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
+  transactionCompact: { minHeight: 57, gap: spacing.sm, paddingVertical: spacing.sm },
   transactionPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   transactionAmount: { maxWidth: '38%' },
+  transactionAmountCompact: { fontSize: 13, lineHeight: 18 },
+  transactionTitleCompact: { ...typography.label, fontSize: 12, lineHeight: 16, color: colors.textPrimary },
+  transactionCaptionCompact: { ...typography.caption, fontSize: 10, lineHeight: 14 },
   transactionStatus: { ...typography.caption, color: colors.warning },
   transactionIcon: {
     width: 40,
@@ -308,6 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.pill,
   },
+  transactionIconCompact: { width: 32, height: 32 },
   budget: { padding: spacing.lg, gap: spacing.md },
   track: {
     height: 8,

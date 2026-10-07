@@ -7,4 +7,5 @@ import java.util.List;
 public interface CreditPaymentRepository extends JpaRepository<CreditPayment, Long> {
 
     List<CreditPayment> findByCreditIdOrderByPaymentDateAsc(Long creditId);
+    boolean existsByCreditId(Long creditId);
 }

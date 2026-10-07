@@ -102,6 +102,25 @@ public class Credit {
     @JoinColumn(name = "disbursement_transaction_id")
     private FinancialTransaction disbursementTransaction;
 
+    @Column(precision = 19, scale = 2)
+    private BigDecimal openingBalance;
+    private LocalDate openingDate;
+    private Integer openingRemainingMonths;
+    private LocalDate openingNextPaymentDate;
+
+    public BigDecimal trackingPrincipal() { return openingBalance == null ? principal : openingBalance; }
+    public int trackingMonths() { return openingRemainingMonths == null ? termMonths : openingRemainingMonths; }
+    public int trackingFirstInstallment() { return termMonths - trackingMonths() + 1; }
+    public LocalDate trackingDueDate(int installment) {
+        if (openingNextPaymentDate == null) {
+            LocalDate month = disbursementDate.plusMonths(installment);
+            return month.withDayOfMonth(Math.min(paymentDay, month.lengthOfMonth()));
+        }
+        if (installment == trackingFirstInstallment()) return openingNextPaymentDate;
+        LocalDate month = openingNextPaymentDate.plusMonths(installment - trackingFirstInstallment());
+        return month.withDayOfMonth(Math.min(paymentDay, month.lengthOfMonth()));
+    }
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     @Schema(

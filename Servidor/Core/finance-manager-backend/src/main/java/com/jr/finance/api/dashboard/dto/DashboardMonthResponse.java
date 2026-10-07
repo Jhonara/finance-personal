@@ -40,6 +40,7 @@ public class DashboardMonthResponse {
     private java.util.Map<String, BigDecimal> netWorthByCurrency;
     private java.util.Map<String, BigDecimal> assetsByCurrency;
     private java.util.Map<String, BigDecimal> liabilitiesByCurrency;
+    private java.util.Map<String, BigDecimal> overdueByCurrency;
     private List<DashboardAccountResponse> accounts;
     private DashboardBudgetSummary budgets;
 

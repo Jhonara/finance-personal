@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
@@ -76,8 +76,11 @@ export function HomeAccountPreview({
   compact: boolean;
   onPress?: () => void;
 }) {
+  const { width } = useWindowDimensions();
+  const cardWidth = compact ? width - spacing.lg * 2 : (width - spacing.lg * 2 - spacing.sm) / 2;
   const appearance = appearances[account.type ?? 'OTHER'];
   const label = accountTypeLabel(account.type);
+  const shortLabel = account.type === 'DIGITAL_WALLET' ? 'BILLETERA' : label.toUpperCase();
   const amount =
     typeof account.balance === 'number' && Number.isFinite(account.balance) && account.currency
       ? formatPrivateMoney(account.balance, account.currency, privacyHidden)
@@ -87,7 +90,11 @@ export function HomeAccountPreview({
       accessibilityRole="button"
       accessibilityLabel={`${account.name ?? 'Cuenta'}, ${label}, ${amount}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.pressable, compact && styles.compact, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.pressable,
+        { width: cardWidth, flexBasis: cardWidth },
+        pressed && styles.pressed,
+      ]}
     >
       <LinearGradient
         colors={[appearance.start, appearance.end]}
@@ -97,24 +104,21 @@ export function HomeAccountPreview({
       >
         <View style={[styles.orb, { backgroundColor: appearance.badge }]} pointerEvents="none" />
         <View style={styles.top}>
-          <View style={[styles.icon, { backgroundColor: appearance.badge }]}>
-            <Ionicons name={appearance.icon} size={20} color={appearance.ink} />
-          </View>
-          <Ionicons name="arrow-forward" size={17} color={appearance.ink} />
-        </View>
-        <View style={styles.copy}>
           <Text numberOfLines={1} style={[styles.type, { color: appearance.ink }]}>
-            {label.toUpperCase()}
+            {shortLabel}
             {account.currency ? ` · ${account.currency}` : ''}
           </Text>
-          <Text numberOfLines={2} style={[typography.cardTitle, { color: appearance.ink }]}>
+          <Ionicons name={appearance.icon} size={19} color={appearance.ink} />
+        </View>
+        <View style={styles.copy}>
+          <Text numberOfLines={1} style={[styles.name, { color: appearance.ink }]}>
             {account.name ?? 'Cuenta'}
           </Text>
           <Text
             adjustsFontSizeToFit
             minimumFontScale={0.7}
             numberOfLines={1}
-            style={[typography.moneySmall, { color: appearance.ink }]}
+            style={[styles.amount, { color: appearance.ink }]}
           >
             {amount}
           </Text>
@@ -125,16 +129,15 @@ export function HomeAccountPreview({
 }
 
 const styles = StyleSheet.create({
-  pressable: { flexBasis: '47%', flexGrow: 1, minWidth: 0, borderRadius: radius.large, ...shadows.card },
-  compact: { flexBasis: '100%' },
+  pressable: { flexGrow: 0, minWidth: 0, borderRadius: radius.large, ...shadows.card },
   pressed: { opacity: 0.84, transform: [{ scale: 0.98 }] },
   card: {
-    minHeight: 148,
+    minHeight: 120,
     overflow: 'hidden',
     borderRadius: radius.large,
-    padding: spacing.lg,
+    padding: spacing.md,
     justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   orb: {
     position: 'absolute',
@@ -145,14 +148,16 @@ const styles = StyleSheet.create({
     top: -48,
     opacity: 0.42,
   },
-  top: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  icon: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
+  copy: { gap: spacing.xxs },
+  type: {
+    ...typography.caption,
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 0.2,
+    fontWeight: '700',
+    flex: 1,
   },
-  copy: { gap: spacing.xs },
-  type: { ...typography.caption, fontSize: 10, letterSpacing: 0.3 },
+  name: { ...typography.caption, fontSize: 11, lineHeight: 15, fontWeight: '600' },
+  amount: { ...typography.moneySmall, fontSize: 18, lineHeight: 23 },
 });

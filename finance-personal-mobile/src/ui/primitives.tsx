@@ -116,6 +116,7 @@ export function Button({
         <Text
           style={[
             typography.button,
+            styles.buttonCopy,
             styles[`buttonText_${variant}`],
             variant === 'secondary' && secondaryToneTextStyles[tone],
             (variant === 'outline' || variant === 'ghost') && secondaryToneTextStyles[tone],
@@ -314,7 +315,9 @@ export function SelectField({
           pressed && styles.pressed,
         ]}
       >
-        <Text style={[typography.body, !value && styles.placeholder]}>{value ?? placeholder}</Text>
+        <Text style={[typography.body, styles.selectCopy, !value && styles.placeholder]}>
+          {value ?? placeholder}
+        </Text>
         <Ionicons name="chevron-down" size={sizes.icon} color={colors.textSecondary} />
       </MotionPressable>
     </View>
@@ -344,11 +347,14 @@ const styles = StyleSheet.create({
   button: {
     minHeight: sizes.button,
     paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
     borderRadius: radius.medium,
     alignItems: 'center',
     justifyContent: 'center',
   },
   button_primary: { backgroundColor: colors.primaryStrong, borderRadius: radius.pill },
+  buttonCopy: { textAlign: 'center', flexShrink: 1 },
+  selectCopy: { flex: 1, minWidth: 0 },
   button_secondary: { backgroundColor: colors.primarySoft, borderRadius: radius.pill },
   button_outline: {
     backgroundColor: colors.surface,
@@ -405,7 +411,7 @@ const styles = StyleSheet.create({
   },
   currency: { ...typography.label, color: colors.primary },
   moneyInput: { flex: 1, minHeight: 72, color: colors.textPrimary },
-  select: { justifyContent: 'space-between' },
+  select: { justifyContent: 'space-between', paddingVertical: spacing.sm },
   placeholder: { color: colors.textMuted },
   card: {
     backgroundColor: colors.surface,

@@ -39,10 +39,10 @@ export function BrandTabIcon({
   return (
     <Animated.View
       style={{
-        width: 32,
+        width: 36,
         height: 32,
-        borderRadius: radius.pill,
-        backgroundColor: focused ? colors.primarySoft : 'transparent',
+        borderRadius: radius.small,
+        backgroundColor: focused ? colors.primaryStrong : 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
         opacity: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] }),
@@ -51,7 +51,7 @@ export function BrandTabIcon({
           : [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
       }}
     >
-      <Ionicons name={name} color={color} size={size} />
+      <Ionicons name={name} color={focused ? colors.mint : color} size={focused ? size + 1 : size} />
     </Animated.View>
   );
 }

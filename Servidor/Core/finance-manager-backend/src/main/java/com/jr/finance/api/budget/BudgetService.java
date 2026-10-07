@@ -115,7 +115,7 @@ public class BudgetService {
     private Map<Long, BigDecimal> spentByCategory(Long userId, YearMonth period) {
         return ledgerEntryRepository.sumSpentByCategoryForUserAndPeriod(userId, period.atDay(1),
                         period.atEndOfMonth(), FinancialTransactionType.EXPENSE,
-                        FinancialTransactionType.REVERSAL, FinancialTransactionStatus.VOIDED)
+                        FinancialTransactionType.REVERSAL, FinancialTransactionStatus.VOIDED, "COP")
                 .stream()
                 .collect(Collectors.toMap(com.jr.finance.api.budget.dto.BudgetCategorySpent::getCategoryId,
                         com.jr.finance.api.budget.dto.BudgetCategorySpent::getSpentAmount));

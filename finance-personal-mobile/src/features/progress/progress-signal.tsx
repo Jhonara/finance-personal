@@ -1,6 +1,6 @@
 import { MotionPressable } from '@/ui/motion';
-import { BrandSurface } from '@/ui/brand-surface';
-import { FinancialCompanion } from '@/ui/brand-identity';
+import { HomeCompanion } from '@/features/dashboard/home-brand';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -13,13 +13,6 @@ import { Progress } from '@/ui/progress';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { financialProgress, type FinancialProgressSignal } from './financial-progress';
 import { useCachedProgressCredits } from './use-cached-progress-credits';
-
-const tones = {
-  flow: colors.primarySoft,
-  budget: colors.warningSoft,
-  savings: colors.lavenderSoft,
-  credit: colors.accentSoft,
-};
 
 export function ProgressSignal({
   signal,
@@ -35,37 +28,28 @@ export function ProgressSignal({
     : undefined;
   const label = `${signal.accessibility} ${signal.supporting}${signal.amount ? ` ${hidden ? 'Importe oculto.' : amount}` : ''}`;
   const content = (
-    <BrandSurface tone="insight" style={styles.content}>
-      <View style={styles.topline}>
+    <LinearGradient colors={['#DDF6FC', '#E7FBF6']} style={styles.content}>
+      <HomeCompanion size={58} />
+      <View style={styles.copy}>
         <Text style={styles.eyebrow}>{signal.eyebrow}</Text>
-        <FinancialCompanion
-          state={
-            signal.amount && signal.amount.value < 0
-              ? 'attention'
-              : signal.kind === 'budget'
-                ? 'thinking'
-                : 'happy'
-          }
-          size={38}
-        />
+        <Text style={styles.title}>{signal.title}</Text>
+        {amount ? <Text style={styles.amount}>{amount}</Text> : null}
+        {signal.percentage !== undefined ? (
+          <Progress
+            value={signal.percentage}
+            color={colors.success}
+            label={signal.accessibility}
+            animated={!reducedMotion}
+          />
+        ) : null}
+        {!amount ? <Text style={styles.supporting}>{signal.supporting}</Text> : null}
+        {signal.destination ? (
+          <Text style={styles.link}>{signal.kind === 'flow' ? 'Ver movimientos →' : 'Ver detalle →'}</Text>
+        ) : null}
       </View>
-      <Text style={typography.cardTitle}>{signal.title}</Text>
-      {amount ? <Text style={typography.moneySmall}>{amount}</Text> : null}
-      {signal.percentage !== undefined ? (
-        <Progress
-          value={signal.percentage}
-          color={colors.primary}
-          label={signal.accessibility}
-          animated={!reducedMotion}
-        />
-      ) : null}
-      {!amount ? <Text style={styles.supporting}>{signal.supporting}</Text> : null}
-      {signal.destination ? (
-        <Text style={styles.link}>{signal.kind === 'flow' ? 'Ver movimientos →' : 'Ver detalle →'}</Text>
-      ) : null}
-    </BrandSurface>
+    </LinearGradient>
   );
-  const style = [styles.card, { width, backgroundColor: tones[signal.kind] }];
+  const style = [styles.card, { width }];
   return signal.destination ? (
     <MotionPressable
       accessible
@@ -116,13 +100,13 @@ export function FinancialProgressSection({
   return (
     <Animated.View
       style={{
-        gap: spacing.md,
-        marginTop: spacing.xxl,
+        gap: spacing.sm,
+        marginTop: spacing.xl,
         opacity: entrance,
         transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
       }}
     >
-      <Text accessibilityRole="header" style={typography.sectionTitle}>
+      <Text accessibilityRole="header" style={styles.heading}>
         Para ti
       </Text>
       <ProgressSignal signal={signals[0]!} />
@@ -132,9 +116,12 @@ export function FinancialProgressSection({
 
 const styles = StyleSheet.create({
   card: { borderRadius: radius.large, overflow: 'hidden' },
-  content: { gap: spacing.sm },
-  topline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  eyebrow: { flex: 1, ...typography.caption, color: colors.primaryStrong },
-  supporting: { ...typography.caption, color: colors.textPrimary, lineHeight: 18 },
-  link: { ...typography.caption, color: colors.primaryStrong, marginTop: 'auto', paddingTop: spacing.xs },
+  heading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
+  content: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md },
+  copy: { flex: 1, gap: spacing.xs },
+  eyebrow: { ...typography.caption, fontSize: 10, lineHeight: 14, color: colors.success, fontWeight: '700' },
+  title: { ...typography.label, color: colors.primaryStrong, fontSize: 13, lineHeight: 18 },
+  amount: { ...typography.moneySmall, color: colors.success, fontSize: 16, lineHeight: 21 },
+  supporting: { ...typography.caption, color: colors.textPrimary, lineHeight: 17 },
+  link: { ...typography.caption, color: colors.success, fontWeight: '700', paddingTop: spacing.xs },
 });

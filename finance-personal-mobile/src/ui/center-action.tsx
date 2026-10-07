@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
-import { colors, motion, radius, sizes } from '@/theme';
+import { colors, motion, radius, typography } from '@/theme';
 import { MotionPressable } from './motion';
 import { useReducedMotion } from './use-reduced-motion';
 
@@ -43,19 +43,22 @@ export function CenterActionButton() {
               : [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '32deg'] }) }],
           }}
         >
-          <Ionicons name="add" size={30} color={colors.primaryStrong} />
+          <Ionicons name="add" size={28} color={colors.primaryStrong} />
         </Animated.View>
       </MotionPressable>
+      <Text pointerEvents="none" style={styles.label}>
+        Nuevo
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  slot: { flex: 1, minHeight: sizes.tabBar, alignItems: 'center', justifyContent: 'flex-start' },
+  slot: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'flex-start' },
   button: {
-    width: sizes.fab,
-    height: sizes.fab,
-    marginTop: -12,
+    width: 48,
+    height: 48,
+    marginTop: -4,
     borderRadius: radius.pill,
     backgroundColor: colors.secondary,
     alignItems: 'center',
@@ -65,5 +68,13 @@ const styles = StyleSheet.create({
     shadowRadius: 11,
     shadowOffset: { width: 0, height: 5 },
     elevation: 7,
+  },
+  label: {
+    ...typography.caption,
+    fontSize: 10,
+    lineHeight: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

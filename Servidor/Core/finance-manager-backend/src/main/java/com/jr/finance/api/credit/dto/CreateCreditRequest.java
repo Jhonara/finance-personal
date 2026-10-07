@@ -75,4 +75,12 @@ public class CreateCreditRequest {
     private String currency;
     @Schema(description = "Cuenta opcional que recibe el desembolso real. Debe estar activa y usar la misma moneda.", example = "1")
     private Long disbursementAccountId;
+
+    @Positive @jakarta.validation.constraints.Digits(integer = 17, fraction = 2)
+    private BigDecimal openingBalance;
+    @jakarta.validation.constraints.PastOrPresent
+    private LocalDate openingDate;
+    @Min(1) @Max(1200)
+    private Integer openingRemainingMonths;
+    private LocalDate openingNextPaymentDate;
 }

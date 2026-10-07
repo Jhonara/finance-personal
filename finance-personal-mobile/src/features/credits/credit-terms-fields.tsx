@@ -1,7 +1,7 @@
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Input, MoneyInput } from '@/ui/primitives';
 import { FinancialDateField } from '@/ui/financial-date-field';
-import { spacing } from '@/theme';
+import { spacing, typography } from '@/theme';
 
 export type TermValues = {
   principal: string;
@@ -29,6 +29,7 @@ export function CreditTermsFields({
     <View style={{ gap: spacing.lg }}>
       <MoneyInput
         label="Principal original"
+        helperText="Monto que te prestaron al comienzo, antes de cualquier pago."
         placeholder="0"
         currency={currency ?? ''}
         value={values.principal}
@@ -40,7 +41,7 @@ export function CreditTermsFields({
       <Input
         label="Tasa efectiva anual (EA)"
         accessibilityLabel="Tasa efectiva anual (EA)"
-        helperText="Es la tasa anual usada por el crédito."
+        helperText="Copia la tasa EA del extracto. Si dice 8,4 %, escribe 8,4; no la tasa mensual."
         keyboardType="decimal-pad"
         value={values.annualRate}
         onChangeText={(v) => onChange('annualRate', v)}
@@ -49,6 +50,7 @@ export function CreditTermsFields({
       />
       <Input
         label="Plazo en meses"
+        helperText="Duración original del préstamo. Por ejemplo, 20 años son 240 meses."
         accessibilityLabel="Plazo en meses"
         keyboardType="number-pad"
         value={values.termMonths}
@@ -64,8 +66,10 @@ export function CreditTermsFields({
         }}
         error={errors.disbursementDate?.message}
       />
+      <Text style={typography.caption}>Día en que recibiste el préstamo, aunque haya sido hace años.</Text>
       <Input
         label="Día de pago"
+        helperText="Día habitual de cada mes, del 1 al 31. Por ejemplo, 5 si pagas el día 5."
         accessibilityLabel="Día de pago"
         keyboardType="number-pad"
         value={values.paymentDay}

@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/credits/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtener crédito
+         * @description Obtiene la información de un crédito específico del usuario autenticado.
+         */
+        get: operations["findById"];
+        put: operations["update"];
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transfers": {
         parameters: {
             query?: never;
@@ -166,6 +186,26 @@ export interface paths {
          * @description Registra un pago contractual. Si accountId está presente, registra además una salida CREDIT_PAYMENT. El cliente no define interés ni capital.
          */
         post: operations["registerPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credits/{id}/amortization/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Probar un abono extraordinario sin registrarlo
+         * @description Compara el plazo e interés restantes con y sin un abono futuro a capital. No modifica datos.
+         */
+        post: operations["scenario"];
         delete?: never;
         options?: never;
         head?: never;
@@ -453,11 +493,11 @@ export interface paths {
          * Eliminar una categoría
          * @description Desactiva una categoría perteneciente al usuario autenticado; el historial se conserva.
          */
-        delete: operations["delete"];
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         /** Actualizar nombre o estado de una categoría propia */
-        patch: operations["update"];
+        patch: operations["update_1"];
         trace?: never;
     };
     "/api/v1/budgets/{id}": {
@@ -481,7 +521,7 @@ export interface paths {
          * Actualizar presupuesto
          * @description Actualiza el límite usando la versión recibida para controlar concurrencia optimista.
          */
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/v1/accounts/{id}": {
@@ -499,7 +539,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Actualizar metadatos de una cuenta propia */
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/users": {
@@ -702,26 +742,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/credits/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Obtener crédito
-         * @description Obtiene la información de un crédito específico del usuario autenticado.
-         */
-        get: operations["findById"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/credits/{id}/plan-vs-real": {
         parameters: {
             query?: never;
@@ -734,6 +754,26 @@ export interface paths {
          * @description Compara el cronograma de amortización original del crédito con los pagos registrados por el usuario y determina el estado actual del crédito.
          */
         get: operations["planVsReal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credits/{id}/amortization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar la amortización de un crédito propio
+         * @description Devuelve pagos contabilizados, plan original y proyección desde el saldo real. No modifica datos.
+         */
+        get: operations["overview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -796,7 +836,7 @@ export interface paths {
          * Eliminar un gasto
          * @description Elimina físicamente un gasto legacy; para un gasto ledger crea una reversión contable.
          */
-        delete: operations["delete_1"];
+        delete: operations["delete_2"];
         options?: never;
         head?: never;
         patch?: never;
@@ -806,6 +846,133 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        UpdateCreditRequest: {
+            /**
+             * @description Nombre o descripción del crédito.
+             * @example Crédito de vehículo
+             */
+            name: string;
+            /**
+             * @description Monto desembolsado del crédito.
+             * @example 35000000
+             */
+            principal: number;
+            /**
+             * @description Tasa de interés efectiva anual (EA) del crédito, expresada en porcentaje.
+             * @example 18.5
+             */
+            annualRate: number;
+            /**
+             * Format: int32
+             * @description Cantidad de cuotas pactadas para el crédito.
+             * @example 60
+             */
+            termMonths: number;
+            /**
+             * Format: date
+             * @description Fecha en la que se desembolsó el crédito.
+             * @example 2026-08-15
+             */
+            disbursementDate: string;
+            /**
+             * Format: int32
+             * @description Día del mes en el que se debe realizar el pago de la cuota.
+             * @example 15
+             */
+            paymentDay: number;
+            /**
+             * @description Moneda ISO-4217 del crédito, sin conversión FX.
+             * @example COP
+             */
+            currency: string;
+            /**
+             * Format: int64
+             * @description Cuenta opcional que recibe el desembolso real. Debe estar activa y usar la misma moneda.
+             * @example 1
+             */
+            disbursementAccountId?: number;
+            openingBalance?: number;
+            /** Format: date */
+            openingDate?: string;
+            /** Format: int32 */
+            openingRemainingMonths?: number;
+            /** Format: date */
+            openingNextPaymentDate?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description Información de un crédito registrado. */
+        CreditResponse: {
+            /**
+             * Format: int64
+             * @description Identificador del crédito.
+             * @example 1
+             */
+            id?: number;
+            /**
+             * @description Nombre del crédito.
+             * @example Moto Dominar 400
+             */
+            name?: string;
+            /**
+             * @description Valor desembolsado.
+             * @example 18000000
+             */
+            principal?: number;
+            /**
+             * @description Tasa efectiva anual.
+             * @example 24.5
+             */
+            annualRate?: number;
+            /**
+             * Format: int32
+             * @description Número de cuotas.
+             * @example 60
+             */
+            termMonths?: number;
+            /**
+             * Format: date
+             * @description Fecha de desembolso.
+             * @example 2026-07-22
+             */
+            disbursementDate?: string;
+            /**
+             * Format: int32
+             * @description Día de pago.
+             * @example 15
+             */
+            paymentDay?: number;
+            /**
+             * Format: date-time
+             * @description Fecha de creación.
+             * @example 2026-07-22T08:30:00
+             */
+            createdAt?: string;
+            currency?: string;
+            /** Format: int64 */
+            version?: number;
+            remainingBalance?: number;
+            /** @enum {string} */
+            status?: "ACTIVE" | "PAID" | "LATE";
+            /** Format: date */
+            nextPaymentDate?: string;
+            expectedPaymentAmount?: number;
+            paidPrincipal?: number;
+            paidInterest?: number;
+            disbursementLinked?: boolean;
+            /** Format: int64 */
+            disbursementTransactionId?: number;
+            openingBalance?: number;
+            /** Format: date */
+            openingDate?: string;
+            /** Format: int32 */
+            openingRemainingMonths?: number;
+            /** Format: date */
+            openingNextPaymentDate?: string;
+            editable?: boolean;
+            deletable?: boolean;
+            overdueAmount?: number;
+        };
         CreateTransferRequest: {
             /** Format: int64 */
             sourceAccountId: number;
@@ -1093,68 +1260,13 @@ export interface components {
              * @example 1
              */
             disbursementAccountId?: number;
-        };
-        /** @description Información de un crédito registrado. */
-        CreditResponse: {
-            /**
-             * Format: int64
-             * @description Identificador del crédito.
-             * @example 1
-             */
-            id?: number;
-            /**
-             * @description Nombre del crédito.
-             * @example Moto Dominar 400
-             */
-            name?: string;
-            /**
-             * @description Valor desembolsado.
-             * @example 18000000
-             */
-            principal?: number;
-            /**
-             * @description Tasa efectiva anual.
-             * @example 24.5
-             */
-            annualRate?: number;
-            /**
-             * Format: int32
-             * @description Número de cuotas.
-             * @example 60
-             */
-            termMonths?: number;
-            /**
-             * Format: date
-             * @description Fecha de desembolso.
-             * @example 2026-07-22
-             */
-            disbursementDate?: string;
-            /**
-             * Format: int32
-             * @description Día de pago.
-             * @example 15
-             */
-            paymentDay?: number;
-            /**
-             * Format: date-time
-             * @description Fecha de creación.
-             * @example 2026-07-22T08:30:00
-             */
-            createdAt?: string;
-            currency?: string;
-            /** Format: int64 */
-            version?: number;
-            remainingBalance?: number;
-            /** @enum {string} */
-            status?: "ACTIVE" | "PAID" | "LATE";
+            openingBalance?: number;
             /** Format: date */
-            nextPaymentDate?: string;
-            expectedPaymentAmount?: number;
-            paidPrincipal?: number;
-            paidInterest?: number;
-            disbursementLinked?: boolean;
-            /** Format: int64 */
-            disbursementTransactionId?: number;
+            openingDate?: string;
+            /** Format: int32 */
+            openingRemainingMonths?: number;
+            /** Format: date */
+            openingNextPaymentDate?: string;
         };
         /** @description Información necesaria para simular un crédito o proyectar escenarios de amortización. */
         CreditSimulationRequest: {
@@ -1355,6 +1467,44 @@ export interface components {
             financialTransactionId?: number;
             /** @enum {string} */
             paymentStatus?: "POSTED" | "REVERSED";
+        };
+        Contribution: {
+            /** Format: int32 */
+            installment: number;
+            amount: number;
+        };
+        /** @description Abono hipotético a capital en una cuota futura; no registra un pago. */
+        CreditAmortizationScenarioRequest: {
+            /** Format: int32 */
+            installment?: number;
+            extraAmount?: number;
+            /** @enum {string} */
+            strategy?: "REDUCE_TERM" | "REDUCE_PAYMENT";
+            contributions?: components["schemas"]["Contribution"][];
+        };
+        /** @description Comparación de la proyección actual con un abono hipotético a capital. */
+        CreditAmortizationScenarioResponse: {
+            /** Format: int32 */
+            installment?: number;
+            extraAmount?: number;
+            /** Format: int32 */
+            baselineRemainingInstallments?: number;
+            /** Format: int32 */
+            scenarioRemainingInstallments?: number;
+            /** Format: int32 */
+            savedInstallments?: number;
+            baselineRemainingInterest?: number;
+            scenarioRemainingInterest?: number;
+            interestSaved?: number;
+            /** Format: date */
+            baselinePayoffDate?: string;
+            /** Format: date */
+            scenarioPayoffDate?: string;
+            schedule?: components["schemas"]["AmortizationRow"][];
+            /** @enum {string} */
+            strategy?: "REDUCE_TERM" | "REDUCE_PAYMENT";
+            monthlyPaymentAfterExtra?: number;
+            contributions?: components["schemas"]["Contribution"][];
         };
         /** @description Información necesaria para comparar diferentes escenarios de abonos extraordinarios sobre un crédito. */
         CreditScenarioCompareRequest: {
@@ -1864,6 +2014,9 @@ export interface components {
             liabilitiesByCurrency?: {
                 [key: string]: number;
             };
+            overdueByCurrency?: {
+                [key: string]: number;
+            };
             accounts?: components["schemas"]["DashboardAccountResponse"][];
             budgets?: components["schemas"]["DashboardBudgetSummary"];
             /** @description Resumen de gastos del período. */
@@ -2029,6 +2182,13 @@ export interface components {
             /** Format: int64 */
             version?: number;
             disbursementTransaction?: components["schemas"]["FinancialTransaction"];
+            openingBalance?: number;
+            /** Format: date */
+            openingDate?: string;
+            /** Format: int32 */
+            openingRemainingMonths?: number;
+            /** Format: date */
+            openingNextPaymentDate?: string;
             /**
              * Format: date-time
              * @description Fecha y hora en la que el crédito fue registrado en el sistema.
@@ -2168,6 +2328,48 @@ export interface components {
              */
             status?: "ADELANTADO" | "AL_DIA" | "ATRASADO";
         };
+        /** @description Pago contabilizado del crédito; los pagos revertidos no se incluyen. */
+        CreditAmortizationPaymentRow: {
+            /** Format: int64 */
+            paymentId?: number;
+            /** Format: date */
+            date?: string;
+            totalAmount?: number;
+            interestAmount?: number;
+            principalAmount?: number;
+            extraPrincipalAmount?: number;
+            balanceAfter?: number;
+        };
+        /** @description Historial real y proyecciones de amortización de un crédito del usuario. */
+        CreditAmortizationResponse: {
+            /** Format: int64 */
+            creditId?: number;
+            currency?: string;
+            principal?: number;
+            annualRate?: number;
+            /** Format: int32 */
+            termMonths?: number;
+            /** Format: date */
+            disbursementDate?: string;
+            /** Format: int32 */
+            paymentDay?: number;
+            monthlyRatePercent?: number;
+            contractualInstallment?: number;
+            currentBalance?: number;
+            /** Format: int32 */
+            nextInstallment?: number;
+            recordedExtraTotal?: number;
+            /** Format: int32 */
+            installmentsSavedByRecordedExtras?: number;
+            interestSavedByRecordedExtras?: number;
+            payments?: components["schemas"]["CreditAmortizationPaymentRow"][];
+            originalSchedule?: components["schemas"]["AmortizationRow"][];
+            projectedSchedule?: components["schemas"]["AmortizationRow"][];
+            projectedRemainingInterest?: number;
+            /** Format: date */
+            projectedPayoffDate?: string;
+            projectionWarning?: string;
+        };
         /** @description Resumen financiero correspondiente a un mes. */
         MonthlyBalanceResponse: {
             /**
@@ -2230,6 +2432,92 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    findById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Crédito encontrado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditResponse"];
+                };
+            };
+            /** @description Usuario no autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditResponse"];
+                };
+            };
+            /** @description Crédito no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditResponse"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCreditRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreditResponse"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -2648,6 +2936,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreditPaymentResponse"];
+                };
+            };
+        };
+    };
+    scenario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditAmortizationScenarioRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreditAmortizationScenarioResponse"];
                 };
             };
         };
@@ -3266,7 +3580,7 @@ export interface operations {
             };
         };
     };
-    delete: {
+    delete_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3304,7 +3618,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3379,7 +3693,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3445,7 +3759,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -3892,46 +4206,6 @@ export interface operations {
             };
         };
     };
-    findById: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Crédito encontrado */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreditResponse"];
-                };
-            };
-            /** @description Usuario no autenticado */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreditResponse"];
-                };
-            };
-            /** @description Crédito no encontrado */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CreditResponse"];
-                };
-            };
-        };
-    };
     planVsReal: {
         parameters: {
             query?: never;
@@ -3968,6 +4242,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreditPlanVsRealResponse"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreditAmortizationResponse"];
                 };
             };
         };
@@ -4042,7 +4338,7 @@ export interface operations {
             };
         };
     };
-    delete_1: {
+    delete_2: {
         parameters: {
             query?: never;
             header?: never;

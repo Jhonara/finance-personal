@@ -39,6 +39,23 @@ export const createCreditSchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/, 'Usa una moneda de tres letras, como COP.'),
 });
 export type CreditTerms = z.infer<typeof createCreditSchema>;
+export const openingPositionSchema = z
+  .object({
+    balance: creditAmount,
+    date,
+    remainingMonths: integer,
+    nextPaymentDate: date,
+  })
+  .superRefine((data, ctx) => {
+    if (data.date > localDateFromNative(new Date()))
+      ctx.addIssue({ code: 'custom', path: ['date'], message: 'El corte no puede ser futuro.' });
+    if (data.nextPaymentDate <= data.date)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['nextPaymentDate'],
+        message: 'El próximo pago debe ser posterior al corte.',
+      });
+  });
 export const paymentSchema = z
   .object({
     amount: creditAmount,

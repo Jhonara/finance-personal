@@ -94,6 +94,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
                    or (transaction.type = :reversalType and original.type = :expenseType))
               and transaction.status <> :voidedStatus
               and transaction.effectiveDate between :start and :end
+              and entry.account.currency = :currency
             group by transaction.category.id
             """)
     List<BudgetCategorySpent> sumSpentByCategoryForUserAndPeriod(
@@ -102,5 +103,6 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
             @Param("end") LocalDate end,
             @Param("expenseType") FinancialTransactionType expenseType,
             @Param("reversalType") FinancialTransactionType reversalType,
-            @Param("voidedStatus") FinancialTransactionStatus voidedStatus);
+            @Param("voidedStatus") FinancialTransactionStatus voidedStatus,
+            @Param("currency") String currency);
 }

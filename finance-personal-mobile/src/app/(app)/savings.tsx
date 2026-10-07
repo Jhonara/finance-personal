@@ -1,13 +1,14 @@
 import { openForm } from '@/features/forms/form-session';
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSavings } from '@/features/secondary/use-secondary';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
 import { IconButton, Screen } from '@/ui/primitives';
 import { BrandSurface } from '@/ui/brand-surface';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
-import { colors, spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import { SavingGoalCard } from '@/features/savings/saving-goal-card';
 import { savingsSummary } from '@/features/savings/savings-presentation';
 import { SavingsIntro } from '@/features/savings/savings-intro';
@@ -24,7 +25,8 @@ export default function SavingsScreen() {
   return (
     <Screen
       scroll
-      style={{ gap: spacing.md }}
+      entry
+      style={styles.screen}
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}
     >
@@ -63,8 +65,16 @@ export default function SavingsScreen() {
           ) : null}
           {query.data.length ? (
             <>
-              <BrandSurface style={styles.hero}>
-                <Text style={typography.sectionTitle}>Tus metas</Text>
+              <BrandSurface tone="insight" style={styles.hero}>
+                <View style={styles.heroHeading}>
+                  <View style={styles.heroIcon}>
+                    <Ionicons name="flag-outline" size={24} color={colors.accent} />
+                  </View>
+                  <View style={styles.heroCopy}>
+                    <Text style={styles.eyebrow}>TUS METAS</Text>
+                    <Text style={typography.sectionTitle}>Cada aporte te acerca</Text>
+                  </View>
+                </View>
                 <View style={styles.counts}>
                   <View style={styles.count}>
                     <Text style={styles.number}>{summary.active.length}</Text>
@@ -75,7 +85,6 @@ export default function SavingsScreen() {
                     <Text style={typography.bodySecondary}>Cumplidas</Text>
                   </View>
                 </View>
-                <Text style={typography.bodySecondary}>Cada aporte tiene un propósito.</Text>
               </BrandSurface>
               {(
                 [
@@ -118,9 +127,28 @@ export default function SavingsScreen() {
   );
 }
 const styles = StyleSheet.create({
-  hero: { gap: spacing.md },
-  counts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxl },
-  count: { gap: spacing.xs },
+  screen: { gap: spacing.lg },
+  hero: { gap: spacing.lg, padding: spacing.lg },
+  heroHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heroIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.medium,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
+  eyebrow: { ...typography.caption, color: colors.accent, fontWeight: '700', letterSpacing: 0.4 },
+  counts: { flexDirection: 'row', gap: spacing.sm },
+  count: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radius.medium,
+    backgroundColor: '#FFFFFFB8',
+  },
   number: { ...typography.moneyLarge, color: colors.primary },
   section: { gap: spacing.md },
 });

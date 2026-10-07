@@ -35,6 +35,11 @@ export const getCredits = async () => (await api.get<Credit[]>('/credits')).data
 export const getCredit = async (id: number) => (await api.get<Credit>(`/credits/${id}`)).data;
 export const createCredit = async (data: components['schemas']['CreateCreditRequest']) =>
   (await api.post<Credit>('/credits', data)).data;
+export const updateCredit = async (id: number, data: components['schemas']['UpdateCreditRequest']) =>
+  (await api.put<Credit>(`/credits/${id}`, data)).data;
+export const deleteCredit = async (id: number) => {
+  await api.delete(`/credits/${id}`);
+};
 export const payCredit = async (id: number, data: components['schemas']['CreateCreditPaymentRequest']) =>
   (await api.post<CreditPayment>(`/credits/${id}/payments`, data)).data;
 export const reverseCreditPayment = async (creditId: number, paymentId: number) =>

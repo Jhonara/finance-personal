@@ -32,6 +32,18 @@ public class CreditController {
     private final CreditService creditService;
     private final CreditMapper creditMapper;
 
+    @PutMapping("/{id}")
+    public CreditResponse update(@PathVariable Long id,
+            @Valid @RequestBody com.jr.finance.api.credit.dto.UpdateCreditRequest request, Authentication auth) {
+        return creditMapper.toResponse(creditService.update(((UserPrincipal) auth.getPrincipal()).getUser().getId(), id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication auth) {
+        creditService.delete(((UserPrincipal) auth.getPrincipal()).getUser().getId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(
             summary = "Registrar crédito",
             description = "Crea un nuevo crédito asociado al usuario autenticado."

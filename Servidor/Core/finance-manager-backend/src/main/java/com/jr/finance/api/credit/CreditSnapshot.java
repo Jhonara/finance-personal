@@ -4,4 +4,5 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record CreditSnapshot(BigDecimal remainingBalance, BigDecimal paidPrincipal, BigDecimal paidInterest,
-                             CreditStatus status, LocalDate nextPaymentDate, BigDecimal expectedPaymentAmount) { }
+                             CreditStatus status, LocalDate nextPaymentDate, BigDecimal expectedPaymentAmount,
+                             BigDecimal overdueAmount) { }

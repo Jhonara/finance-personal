@@ -5,7 +5,12 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, MoneyInput, Screen, SelectField } from '@/ui/primitives';
-import { ScreenHeader } from '@/ui/headers';
+import {
+  MovementAmountPanel,
+  MovementFormHeader,
+  MovementFormIntro,
+  MovementFormSection,
+} from '@/ui/movement-form';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useTransferMutation } from '@/features/mutations';
 import { FinancialDateField } from '@/ui/financial-date-field';
@@ -33,7 +38,14 @@ function NewTransferScreen() {
     ? active.filter((account) => account.id !== source && account.currency === sourceAccount.currency)
     : [];
   const submit = () => {
-    if (!source || !destination || source === destination || !Number(amount)) {
+    const parsedAmount = Number(amount);
+    if (
+      !source ||
+      !destination ||
+      source === destination ||
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount <= 0
+    ) {
       feedback.show('Selecciona cuentas distintas de la misma moneda e ingresa un monto válido.', 'warning');
       return;
     }
@@ -41,7 +53,7 @@ function NewTransferScreen() {
       {
         sourceAccountId: source,
         destinationAccountId: destination,
-        amount: Number(amount),
+        amount: parsedAmount,
         effectiveDate,
       },
       {
@@ -75,77 +87,94 @@ function NewTransferScreen() {
     );
   };
   return (
-    <Screen scroll keyboard>
-      <ScreenHeader
-        title="Nueva transferencia"
-        subtitle="Mueve dinero entre tus cuentas"
-        back
-        onBack={() => router.back()}
-      />
-      <View style={styles.help}>
-        <Text style={typography.cardTitle}>Mueve dinero con claridad</Text>
-        <Text style={typography.bodySecondary}>
-          Selecciona una cuenta origen y otra destino de la misma moneda.
-        </Text>
-      </View>
-      {active.length < 2 ? (
-        <View style={styles.needAccount}>
-          <Text style={typography.cardTitle}>Necesitas otra cuenta</Text>
-          <Text style={typography.bodySecondary}>
-            Las transferencias mueven dinero entre dos cuentas de la misma moneda.
-          </Text>
-          <Button variant="secondary" onPress={() => openForm('/(app)/account-form')}>
-            Crear cuenta
-          </Button>
-        </View>
-      ) : null}
-      <SelectField
-        label="Origen"
-        value={sourceAccount?.name}
-        placeholder="Selecciona una cuenta"
-        onPress={() => setSelector('source')}
-      />
-      <SelectField
-        label="Destino"
-        value={destinations.find((a) => a.id === destination)?.name}
-        placeholder={source ? 'Selecciona una cuenta destino' : 'Elige primero la cuenta origen'}
-        onPress={() => source && setSelector('destination')}
-      />
-      {source && destination ? (
-        <Button
-          variant="secondary"
-          size="compact"
-          accessibilityLabel="Intercambiar cuentas"
-          onPress={() => {
-            const nextSource = destination;
-            const nextDestination = source;
-            if (
-              active.find((account) => account.id === nextSource)?.currency ===
-              active.find((account) => account.id === nextDestination)?.currency
-            ) {
-              setSource(nextSource);
-              setDestination(nextDestination);
-            }
-          }}
+    <Screen entry scroll keyboard>
+      <MovementFormHeader title="Nueva transferencia" onBack={() => router.back()} />
+      <View style={styles.form}>
+        <MovementFormIntro
+          kind="transfer"
+          title="Mueve dinero entre cuentas"
+          description="Elige origen y destino de la misma moneda."
+        />
+        {active.length < 2 ? (
+          <View style={styles.needAccount}>
+            <Text style={typography.cardTitle}>Necesitas otra cuenta</Text>
+            <Text style={typography.bodySecondary}>
+              Las transferencias mueven dinero entre dos cuentas de la misma moneda.
+            </Text>
+            <Button variant="secondary" onPress={() => openForm('/(app)/account-form')}>
+              Crear cuenta
+            </Button>
+          </View>
+        ) : null}
+        <MovementFormSection
+          title="De dónde a dónde"
+          subtitle="Primero elige la cuenta de salida."
+          icon="swap-horizontal-outline"
         >
-          Intercambiar cuentas
+          <SelectField
+            label="Cuenta de origen"
+            value={sourceAccount?.name}
+            placeholder="Selecciona una cuenta"
+            onPress={() => setSelector('source')}
+          />
+          <SelectField
+            label="Cuenta de destino"
+            value={destinations.find((a) => a.id === destination)?.name}
+            placeholder={source ? 'Selecciona una cuenta destino' : 'Elige primero la cuenta origen'}
+            disabled={!source}
+            onPress={() => source && setSelector('destination')}
+          />
+          {source && destination ? (
+            <Button
+              variant="secondary"
+              size="compact"
+              accessibilityLabel="Intercambiar cuentas"
+              onPress={() => {
+                const nextSource = destination;
+                const nextDestination = source;
+                if (
+                  active.find((account) => account.id === nextSource)?.currency ===
+                  active.find((account) => account.id === nextDestination)?.currency
+                ) {
+                  setSource(nextSource);
+                  setDestination(nextDestination);
+                }
+              }}
+            >
+              Intercambiar cuentas
+            </Button>
+          ) : null}
+          {source && !destinations.length ? (
+            <Text style={styles.warning}>
+              Necesitas al menos dos cuentas de la misma moneda para transferir dinero.
+            </Text>
+          ) : null}
+        </MovementFormSection>
+        <MovementAmountPanel kind="transfer">
+          <MoneyInput
+            label="Monto a transferir"
+            placeholder="0"
+            currency={sourceAccount?.currency ?? 'COP'}
+            value={amount}
+            onChangeText={setAmount}
+          />
+        </MovementAmountPanel>
+        <MovementFormSection
+          title="Fecha"
+          subtitle="Hoy por defecto; puedes elegir otra fecha."
+          icon="calendar-outline"
+        >
+          <FinancialDateField label="Fecha" value={effectiveDate} onChange={setEffectiveDate} />
+        </MovementFormSection>
+        <Text style={styles.explanation}>Las transferencias no cuentan como ingreso ni gasto.</Text>
+        <Button
+          loading={mutation.isPending}
+          disabled={mutation.isPending || active.length < 2}
+          onPress={submit}
+        >
+          Transferir
         </Button>
-      ) : null}
-      {source && !destinations.length ? (
-        <Text style={styles.warning}>
-          Necesitas al menos dos cuentas de la misma moneda para transferir dinero.
-        </Text>
-      ) : null}
-      <MoneyInput value={amount} onChangeText={setAmount} />
-      <FinancialDateField label="Fecha" value={effectiveDate} onChange={setEffectiveDate} />
-      <Text style={styles.explanation}>Las transferencias no cuentan como ingreso ni gasto.</Text>
-      <Button
-        loading={mutation.isPending}
-        disabled={mutation.isPending || active.length < 2}
-        onPress={submit}
-      >
-        Transferir
-      </Button>
+      </View>
       <ModalSelector
         visible={selector === 'source'}
         label="Cuenta origen"
@@ -181,15 +210,9 @@ function NewTransferScreen() {
 }
 
 const styles = StyleSheet.create({
-  help: {
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: radius.large,
-    backgroundColor: colors.infoSoft,
-  },
-  warning: { ...typography.caption, color: colors.warning, marginTop: -spacing.md },
-  explanation: { ...typography.caption, color: colors.textSecondary, marginVertical: spacing.lg },
+  form: { gap: spacing.lg, paddingTop: spacing.sm },
+  warning: { ...typography.caption, color: colors.warning },
+  explanation: { ...typography.caption, color: colors.textSecondary },
   needAccount: {
     gap: spacing.sm,
     padding: spacing.lg,

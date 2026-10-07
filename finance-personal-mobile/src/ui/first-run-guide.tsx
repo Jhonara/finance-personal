@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -22,7 +23,7 @@ const slides = [
   {
     icon: 'trending-up-outline',
     title: 'Construye mejores hábitos',
-    copy: 'Registra tus movimientos, controla tus presupuestos y sigue tu progreso financiero.',
+    copy: 'En Plan encontrarás ahorros, presupuestos y créditos. La guía te explica cada módulo, paso a paso y sin cambiar tus datos.',
   },
 ] as const;
 
@@ -54,7 +55,7 @@ export function FirstRunGuide({
   }, [userId, replay]);
   const close = () => {
     setVisible(false);
-    if (!replay && userId) void firstRunStorage.mark(firstRunStorage.introKey(userId));
+    if (!replay && userId) void firstRunStorage.mark(firstRunStorage.introKey(userId)).catch(() => {});
     onClose?.();
   };
   const current = slides[slide] ?? slides[0]!;
@@ -77,8 +78,17 @@ export function FirstRunGuide({
                 <View key={item.title} style={[styles.dot, index === slide && styles.dotActive]} />
               ))}
             </View>
-            <Button onPress={slide === slides.length - 1 ? close : () => setSlide((value) => value + 1)}>
-              {slide === slides.length - 1 ? (replay ? 'Listo' : 'Empezar') : 'Continuar'}
+            <Button
+              onPress={
+                slide === slides.length - 1
+                  ? () => {
+                      close();
+                      if (!replay) router.push('/(app)/guide');
+                    }
+                  : () => setSlide((value) => value + 1)
+              }
+            >
+              {slide === slides.length - 1 ? (replay ? 'Listo' : 'Abrir guía paso a paso') : 'Continuar'}
             </Button>
             <Pressable
               accessibilityRole="button"

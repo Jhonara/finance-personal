@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createCategory, getCategories, updateCategory } from './categories-api';
 export const categoryKeys = {
   all: ['categories'] as const,
-  list: (type: 'EXPENSE' | 'INCOME', active = true) => ['categories', type, active] as const,
+  list: (type: 'EXPENSE' | 'INCOME', active: boolean | null = true) => ['categories', type, active] as const,
 };
-export const useCategories = (type: 'EXPENSE' | 'INCOME') =>
-  useQuery({ queryKey: categoryKeys.list(type), queryFn: () => getCategories(type) });
+export const useCategories = (type: 'EXPENSE' | 'INCOME', active: boolean | null = true) =>
+  useQuery({
+    queryKey: categoryKeys.list(type, active),
+    queryFn: () => getCategories(type, active === null ? undefined : active),
+  });
 export const useCreateCategory = () => {
   const c = useQueryClient();
   return useMutation({

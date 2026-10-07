@@ -81,7 +81,8 @@ public class CreditSimulationController {
         var snapshot = creditSnapshotService.snapshot(credit);
         req.setPrincipal(snapshot.remainingBalance());
         req.setAnnualRate(credit.getAnnualRate());
-        req.setTermMonths(Math.max(1, credit.getTermMonths() - creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(id).size()));
+        req.setTermMonths(Math.max(1, credit.trackingMonths() - (int) creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(id).stream()
+                .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED).count()));
         req.setDisbursementDate(java.time.LocalDate.now());
         req.setPaymentDay(credit.getPaymentDay());
 

@@ -1,12 +1,14 @@
 import { openForm } from '@/features/forms/form-session';
 import { HomeMetrics, FinancialPanorama } from '@/features/dashboard/home-metrics';
 import { HomeModules } from '@/features/dashboard/home-modules';
+import { HomeShortcuts } from '@/features/dashboard/home-shortcuts';
 import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import {
   currentDashboardPeriod,
@@ -17,6 +19,7 @@ import { toTransaction } from '@/features/dashboard/dashboard-adapter';
 import { homeVisibility } from '@/features/dashboard/home-visibility';
 import { EmptyHome, FirstMovementPrompt, QuietMonthNotice } from '@/features/dashboard/home-prompts';
 import { HomeAccountPreview } from '@/features/dashboard/home-account-preview';
+import { HomeHeader } from '@/features/dashboard/home-header';
 import { homeColumns } from '@/features/dashboard/home-plan';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { dashboardGreeting } from '@/features/dashboard/dashboard-greeting';
@@ -30,8 +33,7 @@ import { useFeedback } from '@/feedback/feedback-provider';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { TransactionRow } from '@/ui/financial';
-import { HomeBrandHeader, SectionHeader } from '@/ui/headers';
-import { Card, IconButton, Screen } from '@/ui/primitives';
+import { Card, Screen } from '@/ui/primitives';
 import { ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
 import { MotionPressable } from '@/ui/motion';
 import { FirstRunFabHint, FirstRunGuide } from '@/ui/first-run-guide';
@@ -125,28 +127,34 @@ export default function HomeScreen() {
     ]),
   );
   const periodControl = (
-    <View style={styles.period}>
-      <IconButton
-        name="chevron-back"
-        accessibilityLabel="Mes anterior"
-        onPress={() => setPeriod((value) => shiftDashboardPeriod(value, -1))}
-        tone="primary"
-      />
-      <Text style={[typography.cardTitle, { flex: 1, textAlign: 'center' }]}>
-        {formatDashboardPeriod(period)}
-      </Text>
-      <IconButton
-        name="chevron-forward"
-        accessibilityLabel="Mes siguiente"
-        onPress={() => setPeriod((value) => shiftDashboardPeriod(value, 1))}
-        tone="primary"
-      />
+    <View style={styles.periodRow}>
+      <Text style={styles.periodEyebrow}>MES</Text>
+      <View style={styles.period}>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel="Mes anterior"
+          onPress={() => setPeriod((value) => shiftDashboardPeriod(value, -1))}
+          style={styles.periodArrow}
+        >
+          <Ionicons name="chevron-back" size={17} color={colors.primary} />
+        </MotionPressable>
+        <Text numberOfLines={1} style={styles.periodText}>
+          {formatDashboardPeriod(period)}
+        </Text>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel="Mes siguiente"
+          onPress={() => setPeriod((value) => shiftDashboardPeriod(value, 1))}
+          style={styles.periodArrow}
+        >
+          <Ionicons name="chevron-forward" size={17} color={colors.primary} />
+        </MotionPressable>
+      </View>
     </View>
   );
   const header = (
-    <HomeBrandHeader
-      title={greeting}
-      subtitle="Tu dinero, claro y en movimiento."
+    <HomeHeader
+      greeting={greeting}
       profileName={currentUser.data?.name}
       privacyHidden={hidden}
       onPrivacy={() => void toggle()}
@@ -163,7 +171,7 @@ export default function HomeScreen() {
           <SkeletonCard />
           <SkeletonCard />
         </View>
-        <SectionHeader title="Cuentas" />
+        <Text style={styles.sectionTitle}>Cuentas</Text>
         <SkeletonRow />
         <SkeletonRow />
       </Screen>
@@ -204,6 +212,7 @@ export default function HomeScreen() {
     <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
       <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
+      <HomeShortcuts />
       {hasAccounts ? periodControl : null}
       {!hasAccounts ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
@@ -218,7 +227,7 @@ export default function HomeScreen() {
           </Animated.View>
           {view.hasMonthlyTotals && view.monthlyCurrency ? (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
-              <HomeMetrics data={data} currency={view.monthlyCurrency} />
+              <HomeMetrics data={data} currency={view.monthlyCurrency} period={period} />
             </Animated.View>
           ) : view.showFirstMovement ? (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
@@ -239,17 +248,25 @@ export default function HomeScreen() {
             <FinancialProgressSection dashboard={data} period={period} />
           </Animated.View>
           <Animated.View style={fadeSlide(restEntrance, 6)}>
-            <SectionHeader
-              title="Cuentas"
-              actionLabel="Ver todas"
-              onAction={() => router.push('/(app)/accounts')}
-            />
+            <View style={styles.sectionRow}>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>
+                Mis cuentas
+              </Text>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityLabel="Ver todas las cuentas"
+                onPress={() => router.push('/(app)/accounts')}
+                style={styles.sectionAction}
+              >
+                <Text style={styles.sectionActionText}>Ver todas →</Text>
+              </MotionPressable>
+            </View>
             <View style={styles.accountGrid}>
               {accounts.slice(0, 3).map((account) => (
                 <HomeAccountPreview
                   key={account.id}
                   account={account}
-                  compact={homeColumns(width, fontScale) === 1 || width / fontScale < 380}
+                  compact={homeColumns(width, fontScale) === 1}
                   privacyHidden={hidden}
                   onPress={
                     account.id
@@ -261,13 +278,16 @@ export default function HomeScreen() {
             </View>
             {recent.length ? (
               <>
-                <SectionHeader title="Movimientos recientes" />
+                <Text accessibilityRole="header" style={[styles.sectionTitle, styles.movementsHeading]}>
+                  Movimientos recientes
+                </Text>
                 <Card style={styles.recentList}>
                   {recent.slice(0, 3).map((transaction) => (
                     <TransactionRow
                       key={transaction.transactionId}
                       {...toTransaction(transaction)}
                       privacyHidden={hidden}
+                      compact
                       onPress={() => router.push({ pathname: '/(app)/transactions', params: period })}
                     />
                   ))}
@@ -296,21 +316,66 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
-  accountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  accountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  periodRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  periodEyebrow: {
+    ...typography.caption,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '700',
+    color: colors.success,
+    letterSpacing: 0.6,
+  },
   period: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    padding: spacing.xs,
+    gap: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.divider,
+    backgroundColor: colors.infoSoft,
+    maxWidth: '78%',
   },
-  recentList: { paddingHorizontal: spacing.md },
-  transactionsLink: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  transactionsLinkText: { ...typography.label, color: colors.primary },
+  periodArrow: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  periodText: {
+    ...typography.caption,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.primary,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  sectionTitle: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
+  sectionAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.xs },
+  sectionActionText: { ...typography.caption, color: colors.success, fontWeight: '700' },
+  movementsHeading: { marginTop: spacing.xl, marginBottom: spacing.sm },
+  recentList: { paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm },
+  transactionsLink: {
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.infoSoft,
+    borderRadius: radius.pill,
+    marginTop: spacing.sm,
+  },
+  transactionsLinkText: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.primaryStrong,
+    fontWeight: '700',
+  },
 });
 
 function fadeSlide(value: Animated.Value, fromY: number, fromX = 0) {

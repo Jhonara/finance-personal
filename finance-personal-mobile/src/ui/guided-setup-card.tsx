@@ -6,7 +6,7 @@ import type { SetupStep } from '@/features/onboarding/first-run-progress';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from './primitives';
 import { BrandSurface } from './brand-surface';
-import { FinancialCompanion } from './brand-identity';
+import { HomeCompanion } from '@/features/dashboard/home-brand';
 
 export function GuidedSetupCard({
   steps,
@@ -43,7 +43,7 @@ export function GuidedSetupCard({
     <BrandSurface style={[styles.card, allDone && styles.complete]}>
       <View style={styles.header}>
         <Animated.View style={[{ transform: [{ scale: completionScale }] }]}>
-          <FinancialCompanion state={allDone ? 'happy' : 'thinking'} size={42} />
+          <HomeCompanion size={42} />
         </Animated.View>
         <View style={styles.grow}>
           <Text accessibilityLiveRegion="polite" style={typography.sectionTitle}>

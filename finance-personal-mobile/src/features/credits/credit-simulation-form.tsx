@@ -1,6 +1,9 @@
 import { MotionModal as Modal } from '@/ui/motion-modal';
+import { MotionPressable } from '@/ui/motion';
 import { useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Credit, CreditSimulation } from '@/features/secondary/secondary-api';
@@ -10,7 +13,7 @@ import { Button, Card, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { localDateFromNative } from '@/utils/local-date';
-import { spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import { simulationSchema, simulationRequest } from './credit-schemas';
 import { CreditTermsFields } from './credit-terms-fields';
 import { creditMoney } from './credit-presentation';
@@ -86,48 +89,71 @@ export function CreditSimulationForm({ credit, onClose }: { credit: Credit; onCl
             if (!lock.current) onClose();
           }}
         />
-        <Text style={typography.cardTitle}>{credit.name}</Text>
-        <Text style={typography.bodySecondary}>
-          Esto no modifica tu crédito. El escenario parte de los datos que indiques; no incorpora
-          automáticamente tus pagos reales.
+        <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.hero}>
+          <View style={styles.heroHeading}>
+            <Ionicons name="analytics-outline" size={24} color={colors.mint} />
+            <Text style={styles.heroEyebrow}>PROYECCIÓN · {credit.currency ?? 'MONEDA'}</Text>
+          </View>
+          <Text style={styles.heroTitle}>{credit.name ?? 'Tu crédito'}</Text>
+          <Text style={styles.heroAmount} adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1}>
+            {creditMoney(values.principal || undefined, credit.currency, hidden)}
+          </Text>
+          <Text style={styles.heroCaption}>
+            Capital de partida · EA {values.annualRate || '—'}% · {values.termMonths || '—'} meses
+          </Text>
+        </LinearGradient>
+        <Text style={typography.caption}>
+          Simulación libre: prueba otras condiciones del préstamo sin cambiarlas en tu crédito. Para varios
+          abonos desde lo que debes hoy, usa Ver amortización.
         </Text>
-        <Card tone="accent" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={typography.cardTitle}>Datos del crédito</Text>
-          <Text style={typography.body}>
-            Principal · {creditMoney(Number(values.principal), credit.currency, hidden)}
-          </Text>
-          <Text style={typography.bodySecondary}>
-            EA · {values.annualRate}% · Plazo · {values.termMonths} meses
-          </Text>
+        <Card style={styles.section}>
+          <View style={styles.sectionHeading}>
+            <View style={styles.sectionIcon}>
+              <Ionicons name="trending-down-outline" size={22} color={colors.success} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.sectionTitle}>¿Y si haces un abono?</Text>
+              <Text style={typography.bodySecondary}>
+                Prueba un monto extra y elige en qué cuota aplicarlo.
+              </Text>
+            </View>
+          </View>
+          <MoneyInput
+            label="Monto adicional (opcional)"
+            helperText="Dinero extra además de la cuota normal. Déjalo vacío para ver el plan sin abonos."
+            placeholder="0"
+            currency={credit.currency ?? ''}
+            value={values.extraAmount}
+            onChangeText={(v) => change('extraAmount', v)}
+            error={form.formState.errors.extraAmount?.message}
+            secureTextEntry={hidden}
+            disabled={mutation.isPending}
+          />
+          <Input
+            label="Número de cuota para el abono"
+            placeholder="Ej. 3"
+            accessibilityLabel="Número de cuota para el abono"
+            keyboardType="number-pad"
+            value={values.extraInstallment}
+            onChangeText={(v) => change('extraInstallment', v)}
+            error={form.formState.errors.extraInstallment?.message}
+            disabled={mutation.isPending}
+          />
+          <Text style={typography.caption}>Esta prueba no modifica tu crédito ni registra un pago.</Text>
         </Card>
-        <Text style={typography.sectionTitle}>¿Qué pasa si abono más?</Text>
-        <MoneyInput
-          label="Monto adicional (opcional)"
-          currency={credit.currency ?? ''}
-          value={values.extraAmount}
-          onChangeText={(v) => change('extraAmount', v)}
-          error={form.formState.errors.extraAmount?.message}
-          secureTextEntry={hidden}
-          disabled={mutation.isPending}
-        />
-        <Input
-          label="Número de cuota para el abono"
-          accessibilityLabel="Número de cuota para el abono"
-          keyboardType="number-pad"
-          value={values.extraInstallment}
-          onChangeText={(v) => change('extraInstallment', v)}
-          error={form.formState.errors.extraInstallment?.message}
-          disabled={mutation.isPending}
-        />
-        <Pressable
+        <MotionPressable
           accessibilityRole="button"
           accessibilityState={{ expanded: advanced }}
           disabled={mutation.isPending}
           onPress={() => setAdvanced((value) => !value)}
-          style={{ paddingVertical: spacing.md }}
+          style={styles.advanced}
         >
-          <Text style={typography.cardTitle}>{advanced ? '−' : '+'} Modificar condiciones del escenario</Text>
-        </Pressable>
+          <Ionicons name="options-outline" size={20} color={colors.primary} />
+          <Text style={[typography.label, { flex: 1 }]}>
+            {advanced ? '−' : '+'} Modificar condiciones del escenario
+          </Text>
+          <Ionicons name={advanced ? 'chevron-up' : 'chevron-down'} size={19} color={colors.primary} />
+        </MotionPressable>
         {advanced && (
           <View style={{ gap: spacing.lg }}>
             <CreditTermsFields
@@ -169,3 +195,31 @@ export function CreditSimulationForm({ credit, onClose }: { credit: Credit; onCl
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  hero: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.large },
+  heroHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  heroEyebrow: { ...typography.caption, color: colors.mint, fontWeight: '700', letterSpacing: 0.4 },
+  heroTitle: { ...typography.cardTitle, color: colors.surface },
+  heroAmount: { ...typography.moneyLarge, color: colors.surface },
+  heroCaption: { ...typography.caption, color: '#C3E5E4' },
+  section: { gap: spacing.lg, padding: spacing.lg },
+  sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  sectionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.medium,
+    backgroundColor: colors.successSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advanced: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.medium,
+    backgroundColor: colors.infoSoft,
+  },
+});
