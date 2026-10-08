@@ -1,4 +1,4 @@
-import { MotionPressable } from '@/ui/motion';
+import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { formatLocalDate } from '@/utils/local-date';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -58,7 +58,10 @@ export function CreditCard({
       onPress={onPress}
       disabled={credit.id === undefined}
     >
-      <Card style={styles.creditCard}>
+      <MotionEntry
+        revision={`${credit.id}-${credit.remainingBalance}`}
+        style={[styles.creditCard, credit.status === 'LATE' && styles.creditLate]}
+      >
         <View style={styles.creditHeading}>
           <View
             style={[
@@ -85,12 +88,17 @@ export function CreditCard({
             </Text>
             <CreditStatus status={credit.status} />
           </View>
-          <Ionicons name="chevron-forward" size={22} color={colors.primary} />
+          <View style={styles.chevron}>
+            <Ionicons name="arrow-forward" size={19} color={colors.primary} />
+          </View>
         </View>
         <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.creditBalance}>
-          <Text style={[typography.caption, { color: '#C3E5E4' }]}>
-            SALDO PENDIENTE · {credit.currency ?? 'MONEDA NO DISPONIBLE'}
-          </Text>
+          <View style={styles.balanceHeading}>
+            <Text style={[typography.caption, { color: '#C3E5E4' }]}>
+              SALDO PENDIENTE · {credit.currency ?? 'MONEDA NO DISPONIBLE'}
+            </Text>
+            <Ionicons name="layers-outline" size={20} color={colors.mint} />
+          </View>
           <Text
             numberOfLines={1}
             adjustsFontSizeToFit
@@ -128,9 +136,11 @@ export function CreditCard({
             )}
           </View>
         )}
-        <CreditProgress credit={credit} />
+        <View style={styles.progressPanel}>
+          <CreditProgress credit={credit} />
+        </View>
         {credit.status === 'PAID' && <Text style={typography.caption}>Esta deuda ya está completada.</Text>}
-      </Card>
+      </MotionEntry>
     </MotionPressable>
   );
 }
@@ -138,10 +148,13 @@ const styles = StyleSheet.create({
   creditCard: {
     gap: spacing.md,
     padding: spacing.lg,
-    borderRadius: radius.large,
+    borderRadius: 25,
     backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.creditSoft,
     ...shadows.card,
   },
+  creditLate: { borderColor: colors.dangerSoft },
   creditHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   creditIcon: {
     width: 44,
@@ -152,12 +165,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.creditSoft,
   },
   creditName: { flex: 1, gap: spacing.xxs },
+  chevron: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceSecondary,
+  },
   creditBalance: {
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.medium,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: 20,
     backgroundColor: colors.primaryStrong,
   },
+  balanceHeading: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  progressPanel: { paddingHorizontal: spacing.xs },
   creditMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   metaPill: {
     maxWidth: '100%',

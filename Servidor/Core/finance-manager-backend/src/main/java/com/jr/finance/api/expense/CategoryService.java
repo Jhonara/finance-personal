@@ -22,7 +22,7 @@ public class CategoryService {
     private final UserRepository userRepository;
 
     @Transactional
-    public Category create(Long userId, String name, CategoryType type) {
+    public Category create(Long userId, String name, CategoryType type, String iconKey, String colorKey) {
 
         log.info("Creando categoría '{}' para el usuario {}.", name, userId);
 
@@ -42,6 +42,8 @@ public class CategoryService {
         category.setName(normalizedName);
         category.setType(type);
         category.setActive(true);
+        category.setIconKey(normalizeVisualKey(iconKey, 40));
+        category.setColorKey(normalizeVisualKey(colorKey, 24));
         category.setUser(user);
 
         Category savedCategory = categoryRepository.save(category);
@@ -87,7 +89,7 @@ public class CategoryService {
         if (!category.getVersion().equals(request.getVersion())) {
             throw new ConflictException("La categoría fue modificada por otra operación. Intenta nuevamente.");
         }
-        if (request.getName() == null && request.getActive() == null) {
+        if (request.getName() == null && request.getActive() == null && request.getIconKey() == null && request.getColorKey() == null) {
             throw new BadRequestException("Debes enviar al menos un campo editable");
         }
         if (request.getName() != null) {
@@ -100,7 +102,18 @@ public class CategoryService {
         if (request.getActive() != null) {
             category.setActive(request.getActive());
         }
+        if (request.getIconKey() != null) category.setIconKey(normalizeVisualKey(request.getIconKey(), 40));
+        if (request.getColorKey() != null) category.setColorKey(normalizeVisualKey(request.getColorKey(), 24));
         return categoryRepository.saveAndFlush(category);
+    }
+
+    private String normalizeVisualKey(String value, int maxLength) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        if (normalized.length() > maxLength || !normalized.matches("[a-z0-9-]+")) {
+            throw new BadRequestException("El ícono o color elegido no es válido");
+        }
+        return normalized;
     }
 
     private String normalizeName(String name) {

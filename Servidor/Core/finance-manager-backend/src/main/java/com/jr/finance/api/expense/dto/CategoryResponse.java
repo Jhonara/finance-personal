@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(
         name = "CategoryResponse",
-        description = "Información de una categoría de gastos."
+        description = "Información de una categoría de ingreso o gasto."
 )
 public class CategoryResponse {
 
@@ -26,6 +26,9 @@ public class CategoryResponse {
             example = "Alimentación"
     )
     private String name;
+
+    private String iconKey;
+    private String colorKey;
 
     private CategoryType type;
     private boolean active;

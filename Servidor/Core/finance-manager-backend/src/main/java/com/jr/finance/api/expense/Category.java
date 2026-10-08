@@ -30,7 +30,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(
         name = "Category",
-        description = "Representa una categoría personalizada utilizada para clasificar los gastos de un usuario."
+        description = "Representa una categoría personalizada para ingresos o gastos de un usuario."
 )
 public class Category {
 
@@ -49,6 +49,12 @@ public class Category {
             example = "Alimentación"
     )
     private String name;
+
+    @Column(name = "icon_key", length = 40)
+    private String iconKey;
+
+    @Column(name = "color_key", length = 24)
+    private String colorKey;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)

@@ -1,6 +1,6 @@
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useRef, useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Text } from 'react-native';
@@ -8,6 +8,7 @@ import { ApiError, toApiError } from '@/api/errors';
 import { useCreateSaving, useSavings } from '@/features/secondary/use-secondary';
 import { useCurrentUser } from '@/features/profile/use-current-user';
 import { useFeedback } from '@/feedback/feedback-provider';
+import { useTour } from '@/features/onboarding/tour-context';
 import { Button, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { spacing, typography } from '@/theme';
@@ -17,15 +18,17 @@ import { claimSavingsEvent, type SavingsCelebration } from '@/features/savings/s
 import { SavingCelebration } from '@/features/savings/saving-celebration';
 
 function SavingForm() {
+  const params = useLocalSearchParams<{ suggestedName?: string }>();
   const active = useFormSessionActive();
   const form = useForm({
-    defaultValues: { name: '', targetAmount: '' },
+    defaultValues: { name: params.suggestedName ?? '', targetAmount: '' },
     resolver: zodResolver(savingGoalSchema),
   });
   const mutation = useCreateSaving();
   const goals = useSavings();
   const user = useCurrentUser();
   const feedback = useFeedback();
+  const tour = useTour();
   const submitting = useRef(false);
   const [uncertain, setUncertain] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -49,6 +52,7 @@ function SavingForm() {
           form.reset();
           setSaved(true);
           feedback.show('Meta de ahorro creada.', 'success');
+          tour?.completeStep?.('add-saving');
           let celebrate = false;
           if (first && user.data?.id !== undefined)
             celebrate = await claimSavingsEvent(user.data.id, 'first-goal').catch(() => false);

@@ -1561,6 +1561,8 @@ export interface components {
             name: string;
             /** @enum {string} */
             type: "EXPENSE" | "INCOME";
+            iconKey?: string;
+            colorKey?: string;
         };
         /** @description Información de una categoría de gastos. */
         CategoryResponse: {
@@ -1575,6 +1577,8 @@ export interface components {
              * @example Alimentación
              */
             name?: string;
+            iconKey?: string;
+            colorKey?: string;
             /** @enum {string} */
             type?: "EXPENSE" | "INCOME";
             active?: boolean;
@@ -1723,6 +1727,8 @@ export interface components {
         UpdateCategoryRequest: {
             name?: string;
             active?: boolean;
+            iconKey?: string;
+            colorKey?: string;
             /** @enum {string} */
             type?: "EXPENSE" | "INCOME";
             /** Format: int64 */

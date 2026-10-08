@@ -10,7 +10,7 @@ import lombok.Data;
 @Data
 @Schema(
         name = "CreateCategoryRequest",
-        description = "Información necesaria para crear una nueva categoría de gastos."
+        description = "Información necesaria para crear una categoría de ingreso o gasto."
 )
 public class CreateCategoryRequest {
 
@@ -24,4 +24,10 @@ public class CreateCategoryRequest {
 
     @NotNull(message = "El tipo de categoría es obligatorio")
     private CategoryType type;
+
+    @Size(max = 40)
+    private String iconKey;
+
+    @Size(max = 24)
+    private String colorKey;
 }

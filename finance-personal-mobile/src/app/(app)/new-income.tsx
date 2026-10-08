@@ -12,6 +12,7 @@ import { useCategories } from '@/features/categories/use-categories';
 import { useIncomeMutation } from '@/features/mutations';
 import { financialErrorMessage, unavailableResource } from '@/features/transactions/form-errors';
 import { useFeedback } from '@/feedback/feedback-provider';
+import { useTour } from '@/features/onboarding/tour-context';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
 import { QuickCategoryModal } from '@/ui/quick-category-modal';
@@ -44,6 +45,7 @@ function NewIncomeScreen() {
   const categories = useCategories('INCOME');
   const mutation = useIncomeMutation();
   const feedback = useFeedback();
+  const tour = useTour();
   const client = useQueryClient();
   const submit = form.handleSubmit((data) => {
     const parsedAmount = Number(data.amount);
@@ -73,6 +75,7 @@ function NewIncomeScreen() {
           mutation.reset();
           setSelector(null);
           feedback.show('Ingreso registrado.', 'success');
+          tour?.completeStep?.('new-movement');
           router.back();
         },
         onError: (error) => {

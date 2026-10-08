@@ -1,45 +1,112 @@
-import { openForm } from '@/features/forms/form-session';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { TourTarget } from '@/ui/tour-target';
-import { categoryAppearance, categorySuggestions } from '@/features/categories/category-appearance';
-
-import { useCategories, useUpdateCategory } from '@/features/categories/use-categories';
+import { openForm } from '@/features/forms/form-session';
+import {
+  categoryAppearance,
+  categoryColors,
+  categorySuggestions,
+  savedCategoryAppearance,
+} from '@/features/categories/category-appearance';
+import { createCategory, type Category } from '@/features/categories/categories-api';
+import { categoryKeys, useCategories, useUpdateCategory } from '@/features/categories/use-categories';
 import { useFeedback } from '@/feedback/feedback-provider';
-import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { useTour } from '@/features/onboarding/tour-context';
+import { colors, radius, spacing, typography } from '@/theme';
 import { ScreenHeader } from '@/ui/headers';
-import { MotionPressable } from '@/ui/motion';
+import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { Button, Screen } from '@/ui/primitives';
 import { ErrorState, SkeletonRow } from '@/ui/states';
+import { TourTarget } from '@/ui/tour-target';
+
+type CategoryType = 'EXPENSE' | 'INCOME';
 
 export default function Categories() {
   const { width, fontScale } = useWindowDimensions();
-  const columns = width / fontScale >= 320 ? 2 : 1;
-  const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
-  const q = useCategories(type, null);
-  const m = useUpdateCategory();
+  const tileWidth = width / fontScale < 320 ? '100%' : '48%';
+  const [type, setType] = useState<CategoryType>('EXPENSE');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const activeQuery = useCategories(type, true);
+  const inactiveQuery = useCategories(type, false);
+  const update = useUpdateCategory();
+  const cache = useQueryClient();
   const feedback = useFeedback();
-  const active = q.data?.filter((item) => item.active !== false) ?? [];
-  const inactive = q.data?.filter((item) => item.active === false) ?? [];
-  const create = () => openForm('/(app)/category-form', { type });
+  const tour = useTour();
+  const active = activeQuery.data ?? [];
+  const inactive = inactiveQuery.data ?? [];
+  const existing = new Set([...active, ...inactive].map((item) => item.name?.trim().toLocaleLowerCase('es')));
+  const suggestions = categorySuggestions[type].filter((name) => !existing.has(name.toLocaleLowerCase('es')));
+  const toggle = (name: string) =>
+    setSelected((items) => (items.includes(name) ? items.filter((item) => item !== name) : [...items, name]));
+  const addSelected = async () => {
+    if (!selected.length || saving) return;
+    setSaving(true);
+    const failed: string[] = [];
+    let created = 0;
+    for (const name of selected) {
+      const look = categoryAppearance(name, type);
+      try {
+        await createCategory({
+          name,
+          type,
+          iconKey: look.icon,
+          colorKey: categoryColors.find((color) => color.soft === look.soft)?.key,
+        });
+        created++;
+      } catch {
+        failed.push(name);
+      }
+    }
+    await cache.invalidateQueries({ queryKey: categoryKeys.all });
+    setSelected(failed);
+    setSaving(false);
+    if (created > 0) tour?.completeStep?.('add-category');
+    feedback.show(
+      failed.length
+        ? `${created} guardadas. Revisa las ${failed.length} que faltan.`
+        : `${created} categorías listas para usar.`,
+      failed.length ? 'error' : 'success',
+    );
+  };
+  const changeActive = (item: Category, enabled: boolean) => {
+    if (item.id === undefined) return;
+    update.mutate(
+      { id: item.id, data: { active: enabled, version: item.version ?? 0 } },
+      {
+        onSuccess: () =>
+          feedback.show(enabled ? 'Categoría reactivada.' : 'Categoría desactivada.', 'success'),
+        onError: () => feedback.show('No pudimos actualizar la categoría.', 'error'),
+      },
+    );
+  };
   return (
-    <Screen entry scroll style={styles.screen} refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
+    <Screen
+      entry
+      scroll
+      style={styles.screen}
+      refreshing={activeQuery.isRefetching || inactiveQuery.isRefetching}
+      onRefresh={() => {
+        void activeQuery.refetch();
+        void inactiveQuery.refetch();
+      }}
+    >
       <ScreenHeader
         title="Categorías"
-        subtitle="Dale sentido a cada movimiento."
+        subtitle="Elige cómo quieres ver tus movimientos."
         back
         onBack={() => router.back()}
       />
-      <View style={styles.intro}>
-        <View style={styles.introIcon}>
-          <Ionicons name="pricetags-outline" size={27} color={colors.success} />
+      <View style={styles.hero}>
+        <View style={styles.heroIcon}>
+          <Ionicons name="shapes-outline" size={29} color={colors.success} />
         </View>
-        <View style={styles.introCopy}>
-          <Text style={typography.cardTitle}>Tu dinero, más claro</Text>
+        <View style={styles.heroCopy}>
+          <Text style={typography.sectionTitle}>Tu dinero, a tu manera</Text>
           <Text style={typography.bodySecondary}>
-            Organiza ingresos y gastos para entender mejor tus hábitos.
+            Empieza con ideas o crea las tuyas. Podrás cambiarlas cuando quieras.
           </Text>
         </View>
       </View>
@@ -49,7 +116,10 @@ export default function Categories() {
             key={value}
             accessibilityRole="button"
             accessibilityState={{ selected: type === value }}
-            onPress={() => setType(value)}
+            onPress={() => {
+              setType(value);
+              setSelected([]);
+            }}
             style={[styles.tab, type === value && styles.tabActive]}
           >
             <Ionicons
@@ -63,158 +133,202 @@ export default function Categories() {
           </MotionPressable>
         ))}
       </View>
-      <TourTarget id="add-category">
-        <Button onPress={create}>+ Crear categoría</Button>
-      </TourTarget>
-      {q.isPending ? (
+      {activeQuery.isPending ? (
         <SkeletonRow />
-      ) : q.isError ? (
-        <ErrorState onRetry={() => void q.refetch()} />
+      ) : activeQuery.isError ? (
+        <ErrorState onRetry={() => void activeQuery.refetch()} />
       ) : (
-        <>
-          <View style={styles.heading}>
-            <Text accessibilityRole="header" style={typography.sectionTitle}>
-              {type === 'EXPENSE' ? 'Categorías de gasto' : 'Categorías de ingreso'}
-            </Text>
-            <Text style={typography.caption}>
-              {active.length === 1 ? '1 activa' : `${active.length} activas`}
-            </Text>
-          </View>
-          {active.length ? (
-            <View style={styles.list}>
-              {active.map((category) => (
-                <View
-                  key={category.id}
-                  style={[
-                    styles.categoryCard,
-                    { width: columns === 2 && active.length > 1 ? '48%' : '100%' },
-                  ]}
-                >
-                  <View
-                    style={[styles.icon, { backgroundColor: categoryAppearance(category.name, type).soft }]}
-                  >
-                    <Ionicons
-                      name={categoryAppearance(category.name, type).icon}
-                      size={29}
-                      color={categoryAppearance(category.name, type).ink}
-                    />
-                  </View>
-                  <View style={styles.copy}>
-                    <Text style={typography.cardTitle}>{category.name}</Text>
-                    <Text style={typography.caption}>Disponible al registrar</Text>
-                  </View>
-                  <MotionPressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Desactivar ${category.name}`}
-                    disabled={m.isPending || category.id === undefined}
-                    onPress={() =>
-                      m.mutate(
-                        { id: category.id!, data: { active: false, version: category.version ?? 0 } },
-                        {
-                          onSuccess: () => feedback.show('Categoría desactivada.', 'success'),
-                          onError: () => feedback.show('No pudimos actualizar la categoría.', 'error'),
-                        },
-                      )
-                    }
-                    style={styles.statusButton}
-                  >
-                    <Ionicons name="pause-outline" size={18} color={colors.textSecondary} />
-                    <Text style={typography.caption}>Desactivar</Text>
-                  </MotionPressable>
+        <MotionEntry revision={type} style={styles.content}>
+          {suggestions.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.heading}>
+                <View style={styles.grow}>
+                  <Text accessibilityRole="header" style={typography.sectionTitle}>
+                    Elige las que usas
+                  </Text>
+                  <Text style={typography.bodySecondary}>
+                    Son ideas. Solo se guardan las que selecciones.
+                  </Text>
                 </View>
-              ))}
+                <Text style={styles.counter}>{selected.length} elegidas</Text>
+              </View>
+              <View style={styles.grid}>
+                {suggestions.map((name) => {
+                  const look = categoryAppearance(name, type);
+                  const checked = selected.includes(name);
+                  return (
+                    <MotionPressable
+                      key={name}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked }}
+                      accessibilityLabel={name}
+                      onPress={() => toggle(name)}
+                      style={[
+                        styles.tile,
+                        {
+                          width: tileWidth,
+                          backgroundColor: look.soft,
+                          borderColor: checked ? look.ink : 'transparent',
+                        },
+                      ]}
+                    >
+                      <View style={[styles.tileIcon, { backgroundColor: `${look.ink}19` }]}>
+                        <Ionicons name={look.icon} size={28} color={look.ink} />
+                      </View>
+                      <Text numberOfLines={2} style={[styles.tileName, { color: look.ink }]}>
+                        {name}
+                      </Text>
+                      <View
+                        style={[
+                          styles.check,
+                          checked && { backgroundColor: look.ink, borderColor: look.ink },
+                        ]}
+                      >
+                        <Ionicons
+                          name={checked ? 'checkmark' : 'add'}
+                          size={15}
+                          color={checked ? colors.surface : look.ink}
+                        />
+                      </View>
+                    </MotionPressable>
+                  );
+                })}
+              </View>
+              {selected.length > 0 && (
+                <Button loading={saving} disabled={saving} onPress={() => void addSelected()}>
+                  Agregar {selected.length} {selected.length === 1 ? 'categoría' : 'categorías'}
+                </Button>
+              )}
             </View>
-          ) : (
-            <Text style={styles.empty}>
-              Aún no hay categorías activas de {type === 'EXPENSE' ? 'gasto' : 'ingreso'}.
-            </Text>
           )}
-          {inactive.length ? (
-            <View style={styles.inactive}>
+          <TourTarget id="add-category">
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Crear categoría personalizada"
+              onPress={() => openForm('/(app)/category-form', { type })}
+              style={styles.create}
+            >
+              <View style={styles.createIcon}>
+                <Ionicons name="add" size={25} color={colors.primary} />
+              </View>
+              <View style={styles.grow}>
+                <Text style={typography.cardTitle}>Crear una a tu estilo</Text>
+                <Text style={typography.caption}>Nombre, ícono y color propios</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={20} color={colors.primary} />
+            </MotionPressable>
+          </TourTarget>
+          <View style={styles.section}>
+            <View style={styles.heading}>
               <Text accessibilityRole="header" style={typography.sectionTitle}>
-                Inactivas
+                Tus categorías
               </Text>
-              {inactive.map((category) => (
-                <View key={category.id} style={styles.row}>
-                  <View style={styles.icon}>
-                    <Ionicons name="pricetag-outline" size={20} color={colors.textMuted} />
+              <Text style={typography.caption}>{active.length} activas</Text>
+            </View>
+            {active.length ? (
+              <View style={styles.grid}>
+                {active.map((item) => {
+                  const look = savedCategoryAppearance(item);
+                  return (
+                    <MotionPressable
+                      key={item.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Editar ${item.name}`}
+                      onPress={() => openForm('/(app)/category-form', { id: String(item.id), type })}
+                      style={[styles.savedTile, { width: tileWidth, borderColor: look.soft }]}
+                    >
+                      <View style={[styles.tileIcon, { backgroundColor: look.soft }]}>
+                        <Ionicons name={look.icon} size={27} color={look.ink} />
+                      </View>
+                      <Text numberOfLines={2} style={styles.tileName}>
+                        {item.name}
+                      </Text>
+                      <View style={styles.savedBottom}>
+                        <Text style={typography.caption}>Editar</Text>
+                        <MotionPressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Desactivar ${item.name}`}
+                          disabled={update.isPending}
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            changeActive(item, false);
+                          }}
+                          style={styles.miniButton}
+                        >
+                          <Ionicons name="pause-outline" size={17} color={colors.textSecondary} />
+                        </MotionPressable>
+                      </View>
+                    </MotionPressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={typography.bodySecondary}>
+                Todavía no tienes categorías de {type === 'EXPENSE' ? 'gasto' : 'ingreso'}. Elige una idea o
+                crea la tuya.
+              </Text>
+            )}
+          </View>
+          {inactiveQuery.data?.length ? (
+            <View style={styles.section}>
+              <Text accessibilityRole="header" style={typography.sectionTitle}>
+                Pausadas
+              </Text>
+              <Text style={typography.caption}>Su historial sigue intacto.</Text>
+              {inactive.map((item) => {
+                const look = savedCategoryAppearance(item);
+                return (
+                  <View key={item.id} style={styles.inactiveRow}>
+                    <Ionicons name={look.icon} size={24} color={look.ink} />
+                    <Text style={[typography.cardTitle, styles.grow]}>{item.name}</Text>
+                    <MotionPressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reactivar ${item.name}`}
+                      disabled={update.isPending}
+                      onPress={() => changeActive(item, true)}
+                      style={styles.reactivate}
+                    >
+                      <Text style={styles.reactivateText}>Activar</Text>
+                    </MotionPressable>
                   </View>
-                  <View style={styles.copy}>
-                    <Text style={typography.cardTitle}>{category.name}</Text>
-                    <Text style={typography.caption}>No aparece al registrar</Text>
-                  </View>
-                  <MotionPressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Reactivar ${category.name}`}
-                    disabled={m.isPending || category.id === undefined}
-                    onPress={() =>
-                      m.mutate(
-                        { id: category.id!, data: { active: true, version: category.version ?? 0 } },
-                        {
-                          onSuccess: () => feedback.show('Categoría reactivada.', 'success'),
-                          onError: () => feedback.show('No pudimos actualizar la categoría.', 'error'),
-                        },
-                      )
-                    }
-                    style={styles.reactivate}
-                  >
-                    <Text style={styles.reactivateText}>Activar</Text>
-                  </MotionPressable>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ) : null}
-        </>
+        </MotionEntry>
       )}
-      <View style={styles.suggestions}>
-        <Text style={typography.sectionTitle}>Ideas para organizarte</Text>
-        <Text style={typography.caption}>Elige una idea y revisa el nombre antes de crearla.</Text>
-        <View style={styles.list}>
-          {categorySuggestions[type].map((name) => {
-            const look = categoryAppearance(name, type);
-            return (
-              <MotionPressable
-                key={name}
-                accessibilityRole="button"
-                accessibilityLabel={`Crear categoría ${name}`}
-                onPress={() => openForm('/(app)/category-form', { type, suggestedName: name })}
-                style={[styles.suggestion, { backgroundColor: look.soft }]}
-              >
-                <Ionicons name={look.icon} size={23} color={look.ink} />
-                <Text style={[typography.caption, { color: look.ink, flexShrink: 1 }]}>{name}</Text>
-                <Ionicons name="add-circle-outline" size={18} color={look.ink} />
-              </MotionPressable>
-            );
-          })}
-        </View>
-        <Text style={typography.caption}>
-          Desactivar una categoría conserva su historial. Puedes reactivarla cuando la necesites.
-        </Text>
-      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { gap: spacing.lg },
-  intro: {
+  content: { gap: spacing.xl },
+  grow: { flex: 1, minWidth: 0 },
+  hero: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
-    borderRadius: radius.large,
+    borderRadius: 24,
     backgroundColor: colors.primarySoft,
   },
-  introIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.pill,
+  heroIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
-  introCopy: { flex: 1, gap: spacing.xs },
-  tabs: { flexDirection: 'row', gap: spacing.sm },
+  heroCopy: { flex: 1, gap: spacing.xs },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+  },
   tab: {
     flex: 1,
     minHeight: 46,
@@ -223,80 +337,93 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  tabActive: { backgroundColor: colors.primaryStrong, borderColor: colors.primaryStrong },
+  tabActive: { backgroundColor: colors.primaryStrong },
   tabText: { ...typography.label, color: colors.primaryStrong },
   tabTextActive: { color: colors.surface },
-  heading: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  section: { gap: spacing.md },
+  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  counter: { ...typography.caption, color: colors.success, fontWeight: '700' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tile: {
+    minHeight: 132,
+    padding: spacing.md,
+    borderRadius: 22,
+    borderWidth: 2,
     gap: spacing.sm,
     justifyContent: 'space-between',
+  },
+  tileIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tileName: { ...typography.cardTitle, fontSize: 14, lineHeight: 19, flexShrink: 1 },
+  check: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
     alignItems: 'center',
-  },
-  list: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  categoryCard: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
+    justifyContent: 'center',
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  suggestions: { gap: spacing.md, padding: spacing.lg, borderRadius: 24, backgroundColor: colors.surface },
-  suggestion: {
+  create: {
+    minHeight: 74,
+    padding: spacing.md,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.success,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 48,
-    padding: spacing.sm,
-    borderRadius: 16,
+    gap: spacing.md,
+    backgroundColor: colors.surface,
   },
-  row: {
+  createIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  savedTile: {
+    minHeight: 145,
+    padding: spacing.md,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  savedBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 'auto',
+  },
+  miniButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inactiveRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.large,
+    borderRadius: 18,
     backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  icon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSecondary,
-  },
-  copy: { flex: 1, gap: spacing.xxs },
-  statusButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSecondary,
   },
   reactivate: {
-    minHeight: 40,
     paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 40,
     borderRadius: radius.pill,
     backgroundColor: colors.successSoft,
+    justifyContent: 'center',
   },
-  reactivateText: { ...typography.caption, color: colors.success, fontWeight: '700' },
-  empty: {
-    ...typography.bodySecondary,
-    padding: spacing.lg,
-    borderRadius: radius.large,
-    backgroundColor: colors.surface,
-  },
-  inactive: { gap: spacing.sm },
+  reactivateText: { ...typography.label, color: colors.success },
 });

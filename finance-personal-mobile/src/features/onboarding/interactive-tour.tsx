@@ -28,6 +28,8 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [target, setTarget] = useState('');
+  const [awaitingAction, setAwaitingAction] = useState(false);
+  const [completedTarget, setCompletedTarget] = useState('');
   const reportTarget = useCallback(
     (id: string, present: boolean) => setTarget((value) => (present ? id : value === id ? '' : value)),
     [],
@@ -44,6 +46,10 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
     const timer = setTimeout(() => setActive(false), 1200);
     return () => clearTimeout(timer);
   }, [active, path, current.path]);
+  useEffect(() => {
+    if (!completedTarget || path !== current.path || active) return;
+    setActive(true);
+  }, [completedTarget, path, current.path, active]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -69,6 +75,8 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
       if (!mounted.current) return;
       setStep(next);
       setError('');
+      setCompletedTarget('');
+      setAwaitingAction(false);
       setActive(true);
       router.navigate(tourSteps[next]!.route);
     } catch {
@@ -86,6 +94,8 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
       await SecureStore.setItemAsync(tourKey(userId), JSON.stringify({ step: next, done }));
       if (!mounted.current) return;
       setStep(next);
+      setCompletedTarget('');
+      setAwaitingAction(false);
       if (done) {
         setActive(false);
         router.navigate('/(app)');
@@ -98,7 +108,14 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
     }
   };
   const visible = active && path === current.path;
-  const pause = () => setActive(false);
+  const pause = () => {
+    setAwaitingAction(true);
+    setActive(false);
+  };
+  const completeStep = (id: string) => {
+    if (current.target !== id || (!awaitingAction && !active)) return;
+    setCompletedTarget(id);
+  };
   return (
     <TourContext.Provider
       value={{
@@ -106,6 +123,7 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
         activeTarget: visible ? current.target : undefined,
         start: (restart) => void start(restart),
         pause,
+        completeStep,
         reportTarget,
       }}
     >
@@ -121,8 +139,18 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
           <JourneyScene revision={current.id}>
             <View style={[styles.card, { maxHeight: height * 0.46 }]}>
               <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={styles.content}>
+                <View accessibilityLabel={`Paso ${step + 1} de ${tourSteps.length}`} style={styles.progress}>
+                  {tourSteps.map((item, index) => (
+                    <View
+                      key={item.id}
+                      style={[styles.progressItem, index <= step && styles.progressItemActive]}
+                    />
+                  ))}
+                </View>
                 <View style={styles.heading}>
-                  <BrandMascot size={42} />
+                  <View style={styles.stepIcon}>
+                    <Ionicons name={current.icon} size={25} color={colors.success} />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.eyebrow}>
                       RECORRIDO · {step + 1}/{tourSteps.length}
@@ -135,13 +163,23 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
                       {current.title}
                     </Text>
                   </View>
-                  <Ionicons name={current.icon} size={24} color={colors.success} />
+                  <BrandMascot size={39} />
                 </View>
                 <Text style={typography.body}>{current.copy}</Text>
+                {completedTarget === current.target && (
+                  <View style={styles.completed}>
+                    <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+                    <Text style={[typography.label, { color: colors.success, flex: 1 }]}>
+                      ¡Hecho! Este paso ya tiene información real. Puedes seguir explorando o continuar.
+                    </Text>
+                  </View>
+                )}
                 <Text style={typography.caption}>
-                  {target === current.target
-                    ? 'Toca la zona resaltada para explorar. El recorrido se pausa y puedes retomarlo desde Inicio.'
-                    : 'Si aún no tienes datos aquí, puedes continuar. El recorrido no exige crear registros.'}
+                  {completedTarget === current.target
+                    ? 'Tu cambio quedó guardado. El recorrido sigue cuando tú decidas.'
+                    : target === current.target
+                      ? 'Toca la zona resaltada para explorar. El recorrido se pausa y puedes retomarlo desde Inicio.'
+                      : 'Si aún no tienes datos aquí, puedes continuar. El recorrido no exige crear registros.'}
                 </Text>
                 {!!error && (
                   <Text
@@ -168,7 +206,11 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
                         void move(Math.min(step + 1, tourSteps.length - 1), step === tourSteps.length - 1)
                       }
                     >
-                      {step === tourSteps.length - 1 ? 'Terminar' : 'Siguiente'}
+                      {step === tourSteps.length - 1
+                        ? 'Terminar'
+                        : completedTarget
+                          ? 'Continuar recorrido'
+                          : 'Siguiente'}
                     </Button>
                   </View>
                 </View>
@@ -185,9 +227,9 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
 }
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: colors.success,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     shadowColor: colors.primaryStrong,
     shadowOpacity: 0.18,
@@ -198,6 +240,25 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.sm },
   footer: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: spacing.xs },
   heading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  progress: { flexDirection: 'row', gap: 4 },
+  progressItem: { flex: 1, height: 5, borderRadius: 5, backgroundColor: colors.surfaceSecondary },
+  progressItemActive: { backgroundColor: colors.success },
+  stepIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.successSoft,
+  },
   eyebrow: { ...typography.caption, color: colors.success, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: spacing.sm },
+  completed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 14,
+    backgroundColor: colors.successSoft,
+  },
 });

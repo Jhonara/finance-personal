@@ -40,8 +40,8 @@ export const guideTopics = [
     intro: 'Las categorías agrupan tus ingresos y gastos. Las eliges al registrar y al crear presupuestos.',
     steps: [
       'En Perfil y ajustes, abre Categorías y elige Gastos o Ingresos.',
-      'Pulsa Crear categoría. Elige una sugerencia o escribe un nombre propio y confirma.',
-      'Usa esa categoría en tus movimientos. Puedes desactivarla si ya no la necesitas y reactivarla después.',
+      'Marca varias ideas y pulsa Agregar para guardarlas, o entra en Crear una a tu estilo.',
+      'Si creas la tuya, elige nombre, ícono y color. Después puedes editarla, pausarla y reactivarla sin borrar su historial.',
     ],
     tip: 'Las sugerencias no crean registros hasta que confirmas. Desactivar una categoría conserva tus movimientos anteriores.',
     action: 'Abrir Categorías',
@@ -87,7 +87,7 @@ export const guideTopics = [
     tone: 'mint',
     intro: 'Una meta es un objetivo de ahorro, como un viaje o un fondo de reserva.',
     steps: [
-      'En Plan, abre Ahorros y crea una meta con nombre, importe objetivo y moneda.',
+      'En Plan, abre Ahorros. Elige una idea o crea una meta con nombre e importe objetivo.',
       'Entra en la meta para registrar un aporte. Revisa la cuenta de origen cuando corresponda.',
       'Consulta cuánto has reunido y lo que te falta antes de añadir otro aporte.',
     ],

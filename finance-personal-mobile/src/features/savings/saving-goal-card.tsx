@@ -1,8 +1,8 @@
-import { MotionPressable } from '@/ui/motion';
+import { MotionEntry, MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
-import { Button, Card } from '@/ui/primitives';
+import { Button } from '@/ui/primitives';
 import { Progress } from '@/ui/progress';
 import { savingsAccessibility, type PresentedSavingGoal } from './savings-presentation';
 import { savingsAmount } from './savings-money';
@@ -27,7 +27,10 @@ export function SavingGoalCard({
 }) {
   const tone = savingTones[goal.tone];
   return (
-    <Card style={styles.card}>
+    <MotionEntry
+      revision={`${goal.id}-${goal.percentageLabel}`}
+      style={[styles.card, { borderColor: tone.soft }]}
+    >
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={savingsAccessibility(goal, hidden)}
@@ -36,32 +39,43 @@ export function SavingGoalCard({
       >
         <View style={styles.heading}>
           <View style={[styles.badge, { backgroundColor: tone.soft }]}>
-            <Ionicons name={tone.icon} size={24} color={tone.color} />
+            <View style={[styles.badgeGlow, { borderColor: tone.color }]} />
+            <Ionicons name={tone.icon} size={31} color={tone.color} />
           </View>
           <View style={styles.grow}>
             <Text style={typography.sectionTitle}>{goal.name}</Text>
             <Text style={[typography.caption, { color: tone.color }]}>{goal.status}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          <View style={[styles.percent, { backgroundColor: tone.soft }]}>
+            <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
+          </View>
         </View>
-        <Text style={typography.moneyMedium}>
-          {savingsAmount(goal.currentAmount, hidden)} <Text style={typography.caption}>ahorrados</Text>
-        </Text>
-        <Text style={typography.bodySecondary}>de {savingsAmount(goal.targetAmount, hidden)}</Text>
+        <View style={styles.amounts}>
+          <View>
+            <Text style={typography.caption}>YA AHORRASTE</Text>
+            <Text style={typography.moneyMedium}>{savingsAmount(goal.currentAmount, hidden)}</Text>
+          </View>
+          <View style={styles.target}>
+            <Text style={typography.caption}>META</Text>
+            <Text style={typography.label}>{savingsAmount(goal.targetAmount, hidden)}</Text>
+          </View>
+        </View>
       </MotionPressable>
-      <View style={styles.progressHeading}>
-        <Text style={typography.caption}>Avance de la meta</Text>
-        <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
-      </View>
       {goal.percentage !== undefined ? (
         <Progress value={goal.percentage} color={tone.color} label={`Progreso de ${goal.name}`} />
       ) : null}
-      {!goal.completed ? (
-        <Text style={typography.bodySecondary}>Te faltan {savingsAmount(goal.remaining, hidden)}</Text>
-      ) : null}
-      <Text style={typography.bodySecondary}>
-        {goal.completed ? '¡Lo lograste! Completaste tu objetivo de ahorro.' : goal.copy}
-      </Text>
+      <View style={[styles.note, { backgroundColor: tone.soft }]}>
+        <Ionicons
+          name={goal.completed ? 'checkmark-circle-outline' : 'sparkles-outline'}
+          size={20}
+          color={tone.color}
+        />
+        <Text style={[typography.bodySecondary, styles.noteText]}>
+          {goal.completed
+            ? '¡Lo lograste! Completaste tu objetivo de ahorro.'
+            : `${goal.copy} Te faltan ${savingsAmount(goal.remaining, hidden)}.`}
+        </Text>
+      </View>
       <View style={styles.actionRow}>
         <Button
           size="compact"
@@ -73,27 +87,45 @@ export function SavingGoalCard({
           {goal.completed ? 'Ver meta' : 'Aportar a esta meta'}
         </Button>
       </View>
-    </Card>
+    </MotionEntry>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: spacing.sm, padding: spacing.lg },
-  content: { gap: spacing.xs },
-  heading: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start', marginBottom: spacing.sm },
+  card: {
+    gap: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+  },
+  content: { gap: spacing.lg },
+  heading: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   grow: { flex: 1, minWidth: 0, gap: spacing.xs },
-  progressHeading: {
+  percent: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.pill },
+  amounts: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  target: { alignItems: 'flex-end', gap: spacing.xs },
+  note: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.medium,
+  },
+  noteText: { flex: 1 },
   actionRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: spacing.xs },
   badge: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.medium,
+    width: 64,
+    height: 64,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  badgeGlow: { position: 'absolute', width: 43, height: 43, borderRadius: 22, borderWidth: 1, opacity: 0.35 },
 });

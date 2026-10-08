@@ -45,6 +45,29 @@ class CategoryIntegrationTests {
     @Autowired private LedgerEntryRepository entries;
 
     @Test
+    void savesAndUpdatesVisualIdentityWithoutChangingCategoryType() throws Exception {
+        User user = user();
+        String body = mvc.perform(post("/api/v1/categories").header("Authorization", bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Mercado\",\"type\":\"EXPENSE\",\"iconKey\":\"basket-outline\",\"colorKey\":\"mint\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.iconKey").value("basket-outline"))
+                .andExpect(jsonPath("$.colorKey").value("mint"))
+                .andReturn().getResponse().getContentAsString();
+        String id = body.replaceAll(".*\"id\":(\\d+).*", "$1");
+        mvc.perform(patch("/api/v1/categories/{id}", id).header("Authorization", bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"iconKey\":\"restaurant-outline\",\"colorKey\":\"coral\",\"version\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.iconKey").value("restaurant-outline"))
+                .andExpect(jsonPath("$.colorKey").value("coral"));
+        mvc.perform(get("/api/v1/categories/{id}", id).header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("EXPENSE"))
+                .andExpect(jsonPath("$.colorKey").value("coral"));
+    }
+
+    @Test
     void createsTypedCategoriesRejectsDuplicatesAndListsWithFilters() throws Exception {
         User user = user();
         String expense = create(user, "Otros", "EXPENSE");

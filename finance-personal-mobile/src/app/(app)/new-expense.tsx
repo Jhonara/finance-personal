@@ -12,6 +12,7 @@ import { useCategories } from '@/features/categories/use-categories';
 import { useExpenseMutation } from '@/features/mutations';
 import { financialErrorMessage, unavailableResource } from '@/features/transactions/form-errors';
 import { useFeedback } from '@/feedback/feedback-provider';
+import { useTour } from '@/features/onboarding/tour-context';
 import { colors, spacing, typography } from '@/theme';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
@@ -45,6 +46,7 @@ function NewExpenseScreen() {
   const categories = useCategories('EXPENSE');
   const mutation = useExpenseMutation();
   const feedback = useFeedback();
+  const tour = useTour();
   const client = useQueryClient();
   const submit = form.handleSubmit((data) => {
     const parsedAmount = Number(data.amount);
@@ -75,6 +77,7 @@ function NewExpenseScreen() {
           mutation.reset();
           setSelector(null);
           feedback.show('Gasto registrado.', 'success');
+          tour?.completeStep?.('new-movement');
           router.back();
         },
         onError: (error) => {

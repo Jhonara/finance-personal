@@ -208,23 +208,16 @@ afterEach(async () => {
 });
 
 describe('Savings list', () => {
-  it('has a purposeful empty state with exactly one creation CTA', async () => {
+  it('offers a free-name goal and optional ideas without saving example data', async () => {
     const tree = await render(<SavingsScreen />);
     expect(text(tree.toJSON())).toContain('¿Qué quieres lograr?');
     expect(text(tree.toJSON())).toContain('Convierte tus planes en metas.');
-    expect(
-      tree.root.findAll(
-        (node) =>
-          (node.type as unknown) === 'Pressable' &&
-          (node.props.accessibilityLabel === 'Crear mi primera meta' ||
-            node.props.accessibilityLabel === 'Nueva meta'),
-      ),
-    ).toHaveLength(1);
-    await act(async () => press(tree, 'Crear mi primera meta'));
+    expect(text(tree.toJSON())).toContain('Fondo de emergencia');
+    await act(async () => press(tree, 'Crear meta Un viaje'));
     expect(mocks.push).toHaveBeenCalledWith(
       expect.objectContaining({
         pathname: '/(app)/saving-form',
-        params: expect.objectContaining({ id: '', formSession: expect.any(String) }),
+        params: expect.objectContaining({ suggestedName: 'Un viaje', formSession: expect.any(String) }),
       }),
     );
   });

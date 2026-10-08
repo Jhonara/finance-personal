@@ -41,6 +41,7 @@ function Controls() {
       <button onClick={() => tour?.start()}>Start</button>
       <button onClick={() => tour?.start(true)}>Restart</button>
       <button onClick={() => tour?.pause()}>Pause</button>
+      <button onClick={() => tour?.completeStep?.('add-account')}>Complete account</button>
     </>
   );
 }
@@ -92,6 +93,15 @@ it('resumes a saved step and can explicitly restart from the beginning', async (
   await press('Restart');
   expect(mocks.navigate).toHaveBeenLastCalledWith('/(app)');
   expect(mocks.write).toHaveBeenLastCalledWith(tourKey(88), '{"step":0,"done":false}');
+});
+it('shows real setup completion after an action and lets the user continue', async () => {
+  await press('Start');
+  await press('Siguiente');
+  await press('Pause');
+  await press('Complete account');
+  expect(copy()).toContain('¡Hecho!');
+  await press('Continuar recorrido');
+  expect(mocks.navigate).toHaveBeenLastCalledWith('/(app)/categories');
 });
 it('does not advance on a failed write and blocks double next presses', async () => {
   await press('Start');

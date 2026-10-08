@@ -22,7 +22,7 @@ export const tourSteps = [
     route: '/(app)/categories',
     path: '/categories',
     title: '2. Organiza tus categorías',
-    copy: 'Elige Gastos o Ingresos y crea una categoría. Alimentación, transporte o nómina: usa nombres que reconozcas.',
+    copy: 'Elige Gastos o Ingresos. Marca ideas para agregarlas juntas o crea una categoría con tu nombre, ícono y color.',
     target: 'add-category',
     icon: 'pricetags-outline',
   },

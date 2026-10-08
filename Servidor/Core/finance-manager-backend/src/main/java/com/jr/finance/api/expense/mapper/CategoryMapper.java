@@ -13,6 +13,8 @@ public class CategoryMapper {
         return new CategoryResponse(
                 category.getId(),
                 category.getName(),
+                category.getIconKey(),
+                category.getColorKey(),
                 category.getType(),
                 category.isActive(),
                 category.getCreatedAt(),

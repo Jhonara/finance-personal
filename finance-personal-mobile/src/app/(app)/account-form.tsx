@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAccountMutation } from '@/features/mutations';
 import { toApiError } from '@/api/errors';
 import { useFeedback } from '@/feedback/feedback-provider';
+import { useTour } from '@/features/onboarding/tour-context';
 import { colors, radius, spacing, typography } from '@/theme';
 import { ModalSelector } from '@/ui/modal-selector';
 import { Button, Input, Screen, SelectField } from '@/ui/primitives';
@@ -44,6 +45,7 @@ function AccountForm() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const mutation = useAccountMutation();
   const feedback = useFeedback();
+  const tour = useTour();
   const selectedType = accountTypes.find((option) => option.value === type)!;
   const submit = () => {
     if (submitting.current) return;
@@ -64,6 +66,7 @@ function AccountForm() {
           setSelectorOpen(false);
           mutation.reset();
           feedback.show('Cuenta creada. Ya puedes registrar movimientos.', 'success');
+          tour?.completeStep?.('add-account');
           router.back();
         },
         onError: (error) => {

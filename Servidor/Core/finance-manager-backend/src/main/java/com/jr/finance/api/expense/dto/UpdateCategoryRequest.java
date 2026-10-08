@@ -16,6 +16,12 @@ public class UpdateCategoryRequest {
 
     private Boolean active;
 
+    @Size(max = 40)
+    private String iconKey;
+
+    @Size(max = 24)
+    private String colorKey;
+
     @Null(message = "El tipo de categoría no se puede modificar")
     private CategoryType type;
 

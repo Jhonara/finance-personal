@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCategories } from '@/features/categories/use-categories';
 import { useCreateBudget, useUpdateBudget } from '@/features/secondary/use-secondary';
 import { useFeedback } from '@/feedback/feedback-provider';
+import { useTour } from '@/features/onboarding/tour-context';
 import {
   currentDashboardPeriod,
   dashboardPeriodFromParams,
@@ -41,6 +42,7 @@ function BudgetForm() {
   const mutation = useCreateBudget();
   const update = useUpdateBudget();
   const feedback = useFeedback();
+  const tour = useTour();
   const [period] = useState(() => dashboardPeriodFromParams(year, month) ?? currentDashboardPeriod());
   const { width, fontScale } = useWindowDimensions();
   const compact = width <= 360 || fontScale >= 1.2;
@@ -203,6 +205,7 @@ function BudgetForm() {
                   setCategory(0);
                   mutation.reset();
                   feedback.show('¡Buen comienzo! Tu presupuesto ya está listo.', 'success');
+                  tour?.completeStep?.('add-budget');
                   leave();
                 },
                 onError: () => {

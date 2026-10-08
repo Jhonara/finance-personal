@@ -8,9 +8,10 @@ import { usePrivacy } from '@/privacy/privacy-provider';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
 import { IconButton, Screen } from '@/ui/primitives';
 import { BrandSurface } from '@/ui/brand-surface';
-import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
+import { ErrorState, SkeletonRow } from '@/ui/states';
 import { colors, radius, spacing, typography } from '@/theme';
 import { SavingGoalCard } from '@/features/savings/saving-goal-card';
+import { SavingGoalStarter } from '@/features/savings/saving-goal-starter';
 import { savingsSummary } from '@/features/savings/savings-presentation';
 import { SavingsIntro } from '@/features/savings/savings-intro';
 
@@ -117,12 +118,10 @@ export default function SavingsScreen() {
             </>
           ) : (
             <TourTarget id="add-saving">
-              <EmptyState
-                title="¿Qué quieres lograr?"
-                description="Crea una meta y empieza a construirla paso a paso."
-                actionLabel="Crear mi primera meta"
-                tone="primary"
-                onAction={() => openForm('/(app)/saving-form')}
+              <SavingGoalStarter
+                onCreate={(suggestedName) =>
+                  openForm('/(app)/saving-form', suggestedName ? { suggestedName } : {})
+                }
               />
             </TourTarget>
           )}

@@ -1,3 +1,47 @@
+import type Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps } from 'react';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
+export const categoryIcons = [
+  { key: 'pricetag-outline', label: 'Etiqueta' },
+  { key: 'restaurant-outline', label: 'Comida' },
+  { key: 'basket-outline', label: 'Mercado' },
+  { key: 'car-sport-outline', label: 'Transporte' },
+  { key: 'home-outline', label: 'Hogar' },
+  { key: 'medkit-outline', label: 'Salud' },
+  { key: 'school-outline', label: 'Estudio' },
+  { key: 'balloon-outline', label: 'Ocio' },
+  { key: 'briefcase-outline', label: 'Trabajo' },
+  { key: 'storefront-outline', label: 'Ventas' },
+  { key: 'trending-up-outline', label: 'Inversión' },
+  { key: 'cash-outline', label: 'Dinero' },
+  { key: 'gift-outline', label: 'Regalos' },
+  { key: 'paw-outline', label: 'Mascotas' },
+  { key: 'airplane-outline', label: 'Viajes' },
+  { key: 'game-controller-outline', label: 'Juegos' },
+] as const satisfies ReadonlyArray<{ key: IconName; label: string }>;
+
+export const categoryColors = [
+  { key: 'mint', label: 'Menta', soft: '#DDF7EA', ink: '#167657' },
+  { key: 'amber', label: 'Ámbar', soft: '#FFF0DB', ink: '#946016' },
+  { key: 'blue', label: 'Azul', soft: '#DDF4FF', ink: '#196386' },
+  { key: 'violet', label: 'Violeta', soft: '#E9E4FF', ink: '#66509E' },
+  { key: 'coral', label: 'Coral', soft: '#FFE5E8', ink: '#A74455' },
+  { key: 'pink', label: 'Rosa', soft: '#FFE9F4', ink: '#9B4870' },
+] as const;
+
+export function savedCategoryAppearance(category: {
+  name?: string;
+  type?: string;
+  iconKey?: string;
+  colorKey?: string;
+}) {
+  const fallback = categoryAppearance(category.name, category.type);
+  const icon = categoryIcons.find((item) => item.key === category.iconKey)?.key ?? fallback.icon;
+  const color = categoryColors.find((item) => item.key === category.colorKey);
+  return { icon, soft: color?.soft ?? fallback.soft, ink: color?.ink ?? fallback.ink };
+}
+
 export const categorySuggestions = {
   EXPENSE: ['Alimentación', 'Transporte', 'Vivienda', 'Salud', 'Ocio', 'Educación'],
   INCOME: ['Nómina', 'Trabajo independiente', 'Ventas', 'Rendimientos'],

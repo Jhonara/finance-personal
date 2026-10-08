@@ -108,6 +108,9 @@ export default function LoginScreen() {
           Crear cuenta
         </Link>
       </View>
+      <Link href="/(auth)/explore" style={styles.explore}>
+        Explorar la app sin cuenta →
+      </Link>
     </Screen>
   );
 }
@@ -117,5 +120,6 @@ const styles = StyleSheet.create({
   form: { gap: spacing.lg },
   footer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, paddingTop: spacing.xxl },
   link: { ...typography.label, color: colors.primary },
+  explore: { ...typography.label, color: colors.success, textAlign: 'center', padding: spacing.md },
   serverError: { ...typography.bodySecondary, color: colors.danger },
 });

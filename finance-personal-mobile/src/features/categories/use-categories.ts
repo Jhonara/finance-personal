@@ -23,6 +23,11 @@ export const useUpdateCategory = () => {
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateCategory>[1] }) =>
       updateCategory(id, data),
     retry: false,
-    onSuccess: () => c.invalidateQueries({ queryKey: categoryKeys.all }),
+    onSuccess: async (category) => {
+      await Promise.all([
+        c.invalidateQueries({ queryKey: categoryKeys.all }),
+        c.invalidateQueries({ queryKey: ['category', category.id] }),
+      ]);
+    },
   });
 };

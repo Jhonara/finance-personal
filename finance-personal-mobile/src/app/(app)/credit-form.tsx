@@ -12,6 +12,7 @@ import { CreditTermsFields } from '@/features/credits/credit-terms-fields';
 import { CreditAccountSelector } from '@/features/credits/credit-account-selector';
 import { useCreditSubmit } from '@/features/credits/use-credit-submit';
 import { useFeedback } from '@/feedback/feedback-provider';
+import { useTour } from '@/features/onboarding/tour-context';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { Button, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { CurrencySelector } from '@/ui/currency-selector';
@@ -82,6 +83,7 @@ function CreditForm() {
     if (!safety.uncertain) safety.reset();
   };
   const feedback = useFeedback();
+  const tour = useTour();
   const { hidden } = usePrivacy();
   const submit = () => {
     if (saved) return;
@@ -128,6 +130,7 @@ function CreditForm() {
           setAccount(undefined);
           setSaved(true);
           feedback.show(editing ? 'Crédito actualizado' : 'Crédito registrado', 'success');
+          if (!editing) tour?.completeStep?.('add-credit');
           router.replace(editing ? { pathname: '/(app)/credit-detail', params: { id } } : '/(app)/credits');
         })(),
       (failure) => {
