@@ -56,7 +56,7 @@ export function FinancialAlertCard({ alert }: { alert: Alert }) {
       } else {
         const destination = await alertDestination(item.target, client);
         if (destination) router.push(destination);
-        else feedback.show('No pudimos encontrar el detalle actualizado. Actualiza tus alertas.');
+        else feedback.show('No pudimos encontrar el detalle actualizado. Actualiza tus alertas.', 'warning');
       }
     } catch {
       feedback.show(

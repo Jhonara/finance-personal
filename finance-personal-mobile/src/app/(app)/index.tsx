@@ -196,7 +196,8 @@ export default function HomeScreen() {
         completed={setup.completed}
         onContinue={() => {
           void guidedSetup.dismiss().then((saved) => {
-            if (!saved) feedback.show('No pudimos guardar tu avance. Pulsa Continuar para reintentar.');
+            if (!saved)
+              feedback.show('No pudimos guardar tu avance. Pulsa Continuar para reintentar.', 'error');
           });
         }}
         onAction={(id: SetupStepId) => {

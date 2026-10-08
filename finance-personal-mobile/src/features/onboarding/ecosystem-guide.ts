@@ -136,10 +136,10 @@ export const guideTopics = [
     intro: 'Inicio reúne tu panorama, el resumen del mes, tu plan y los movimientos recientes.',
     steps: [
       'Usa el selector de mes para revisar ingresos y gastos de otro período.',
-      'Balance registrado compara el dinero en cuentas con el capital pendiente de tus créditos, por moneda.',
+      'El panorama muestra por separado el dinero en tus cuentas, el capital pendiente de tus créditos y las cuotas vencidas estimadas, por moneda.',
       'En Tu plan abre presupuestos, ahorros, créditos o alertas. Para ti destaca una señal de tus datos.',
     ],
-    tip: 'El balance no incluye el valor de una casa o vehículo. Las cuotas vencidas se muestran aparte y no se descuentan dos veces. Para ti aún no es un asistente de IA.',
+    tip: 'El panorama solo incluye las cuentas y los créditos que registraste. Las cuotas vencidas son una estimación aparte. Para ti aún no es un asistente de IA.',
     action: 'Volver a Inicio',
     route: '/(app)',
   },

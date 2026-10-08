@@ -68,7 +68,7 @@ export default function Categories() {
       failed.length
         ? `${created} guardadas. Revisa las ${failed.length} que faltan.`
         : `${created} categorías listas para usar.`,
-      failed.length ? 'error' : 'success',
+      failed.length ? 'warning' : 'success',
     );
   };
   const changeActive = (item: Category, enabled: boolean) => {

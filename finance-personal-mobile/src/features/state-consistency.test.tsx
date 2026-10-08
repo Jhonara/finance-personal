@@ -445,6 +445,7 @@ describe('Home guided setup lifecycle', () => {
     expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(1);
     expect(mocks.feedback).toHaveBeenCalledWith(
       'No pudimos guardar tu avance. Pulsa Continuar para reintentar.',
+      'error',
     );
     await act(async () => {
       press(tree, 'Continuar');
@@ -1016,6 +1017,52 @@ describe('Para ti on Home', () => {
 });
 
 describe('Home visual hub', () => {
+  it('shows account money and credit capital separately without leading with negative net worth', async () => {
+    dashboard = {
+      ...dashboard,
+      accounts: [account, { ...account, id: 2, currency: 'USD' }],
+      assetsByCurrency: { COP: 3013778, USD: 0 },
+      liabilitiesByCurrency: { COP: 91303485.93, USD: 0 },
+      overdueByCurrency: { COP: 3580111.6, USD: 0 },
+      netWorthByCurrency: { COP: -88289707.93, USD: 0 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Dinero en tus cuentas');
+    expect(content).toContain(formatPrivateMoney(3013778, 'COP', false));
+    expect(content).toContain('Capital pendiente de tus créditos');
+    expect(content).toContain(formatPrivateMoney(91303485.93, 'COP', false));
+    expect(content).toContain('Cuotas vencidas estimadas');
+    expect(content).toContain(formatPrivateMoney(3580111.6, 'COP', false));
+    expect(content).not.toContain(formatPrivateMoney(-88289707.93, 'COP', false));
+    expect(content).not.toContain('Balance registrado');
+    expect(content.match(/Cuotas vencidas estimadas/g)).toHaveLength(1);
+    expect(content).toContain('Sin saldo ni capital pendiente en USD');
+    await act(async () => press(tree, 'Ver cuentas desde el panorama'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/accounts');
+    await act(async () => press(tree, 'Ver créditos desde el panorama'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+    await act(async () => press(tree, 'Revisar cuotas vencidas en créditos'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+    await act(async () => press(tree, 'Cómo leer el panorama financiero'));
+    expect(textContent(tree.toJSON())).toContain('se muestran separados, por moneda');
+  });
+
+  it('does not reveal a zero-balance state while amounts are hidden', async () => {
+    mocks.hidden = true;
+    dashboard = {
+      ...dashboard,
+      assetsByCurrency: { COP: 0 },
+      liabilitiesByCurrency: { COP: 0 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).not.toContain('Sin saldo ni capital pendiente');
+    expect(content).toContain('••••••');
+  });
+
   it('orders the Home sections, caps previews and presents one full-width insight without a carousel', async () => {
     dashboard = {
       accounts: Array.from({ length: 5 }, (_, i) => ({ ...account, id: i + 1 })),

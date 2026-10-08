@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useState } from 'react';
 
@@ -10,6 +11,7 @@ import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { MoneyText, MotionPressable } from '@/ui/motion';
 import { Progress } from '@/ui/progress';
+import { BrandSurface } from '@/ui/brand-surface';
 import { HomeCompanion } from './home-brand';
 import { homePlan } from './home-plan';
 
@@ -24,130 +26,181 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
   const [explained, setExplained] = useState(false);
   const currencies = [
     ...new Set([
-      ...Object.keys(data.netWorthByCurrency ?? {}),
       ...Object.keys(data.assetsByCurrency ?? {}),
       ...Object.keys(data.liabilitiesByCurrency ?? {}),
-      ...(data.accounts ?? [])
-        .filter((account) => account.active)
-        .map((account) => account.currency)
-        .filter(Boolean),
+      ...(data.accounts ?? []).map((account) => account.currency).filter(Boolean),
     ]),
   ] as string[];
   const visibleCurrencies: Array<string | undefined> = currencies.length ? currencies : [undefined];
   return (
     <View style={styles.section}>
-      <Text accessibilityRole="header" style={styles.sectionHeading}>
-        Panorama financiero
-      </Text>
+      <View style={styles.sectionIntro}>
+        <Text accessibilityRole="header" style={styles.sectionHeading}>
+          Panorama financiero
+        </Text>
+        <Text style={styles.sectionSubtitle}>Tu dinero y tus créditos, cada uno en su lugar.</Text>
+      </View>
       {visibleCurrencies.map((currency) => {
-        const accountCount = (data.accounts ?? []).filter(
-          (account) => account.active && account.currency === currency,
-        ).length;
+        const accountCount = (data.accounts ?? []).filter((account) => account.currency === currency).length;
+        const accountBalance =
+          currency && data.assetsByCurrency ? (data.assetsByCurrency[currency] ?? 0) : undefined;
+        const debtBalance =
+          currency && data.liabilitiesByCurrency ? (data.liabilitiesByCurrency[currency] ?? 0) : undefined;
+        const overdue = currency ? data.overdueByCurrency?.[currency] : undefined;
+        const emptyCurrency =
+          !hidden &&
+          accountBalance === 0 &&
+          debtBalance === 0 &&
+          !(typeof overdue === 'number' && overdue > 0);
         return (
-          <LinearGradient
-            key={currency ?? 'unavailable'}
-            colors={['#0B262B', '#0E383C', '#0A3438']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.hero}
-          >
-            <View pointerEvents="none" style={styles.heroGlow} />
-            <View style={styles.heroTop}>
-              <Text style={styles.heroEyebrow}>BALANCE REGISTRADO{currency ? ` · ${currency}` : ''}</Text>
+          <View key={currency ?? 'unavailable'} style={styles.panoramaGroup}>
+            <View style={styles.panoramaHeader}>
+              <View style={styles.currencyBadge}>
+                <Ionicons name="globe-outline" size={15} color={colors.primary} />
+                <Text style={styles.currencyLabel}>{currency ?? 'Sin moneda'}</Text>
+              </View>
               {accountCount ? (
                 <View style={styles.accountPill}>
-                  <View style={styles.accountDot} />
+                  <Ionicons name="wallet-outline" size={14} color={colors.textSecondary} />
                   <Text style={styles.accountPillText}>
                     {accountCount} {accountCount === 1 ? 'cuenta' : 'cuentas'}
                   </Text>
                 </View>
               ) : null}
             </View>
-            <View style={styles.heroMiddle}>
-              <View style={styles.heroCopy}>
-                <MoneyText
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.62}
-                  numberOfLines={1}
-                  style={styles.heroAmount}
-                >
-                  {money(currency ? data.netWorthByCurrency?.[currency] : undefined, currency, hidden)}
-                </MoneyText>
-                <Text style={styles.heroExplanation}>
-                  Dinero en cuentas menos capital pendiente de tus créditos.
-                </Text>
-              </View>
-              <HomeCompanion size={82} />
-            </View>
-            <View style={styles.relation}>
-              <View style={styles.side}>
-                <View style={styles.sideHeading}>
-                  <View style={[styles.sideDot, { backgroundColor: colors.secondary }]} />
-                  <Text style={styles.sideLabel}>En cuentas</Text>
-                  <Ionicons name="arrow-up-outline" size={14} color={colors.secondary} />
+            {emptyCurrency ? (
+              <LinearGradient colors={['#E6F8F2', '#F7FFFC']} style={styles.emptyCurrency}>
+                <View pointerEvents="none" style={styles.emptyOrb} />
+                <View style={styles.emptyTop}>
+                  <View style={styles.emptyCurrencyIcon}>
+                    <Ionicons name="checkmark-circle-outline" size={26} color={colors.success} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Sin saldo ni capital pendiente en {currency}</Text>
                 </View>
-                <MoneyText
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.62}
-                  numberOfLines={1}
-                  style={styles.sideAmount}
-                >
-                  {money(
-                    currency && data.assetsByCurrency ? (data.assetsByCurrency[currency] ?? 0) : undefined,
-                    currency,
-                    hidden,
-                  )}
-                </MoneyText>
-              </View>
-              <View style={styles.side}>
-                <View style={styles.sideHeading}>
-                  <View style={[styles.sideDot, { backgroundColor: colors.coral }]} />
-                  <Text style={styles.sideLabel}>Deuda total</Text>
-                  <Ionicons name="arrow-down-outline" size={14} color={colors.coral} />
+                <View style={styles.emptyValues}>
+                  <Text style={styles.emptyValue}>
+                    En cuentas · {money(accountBalance, currency, hidden)}
+                  </Text>
+                  <Text style={styles.emptyValue}>Capital · {money(debtBalance, currency, hidden)}</Text>
                 </View>
-                <MoneyText
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.62}
-                  numberOfLines={1}
-                  style={styles.sideAmount}
+              </LinearGradient>
+            ) : (
+              <>
+                <MotionPressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver cuentas desde el panorama"
+                  accessibilityValue={{ text: money(accountBalance, currency, hidden) }}
+                  onPress={() => router.push('/(app)/accounts')}
+                  style={styles.heroPressable}
                 >
-                  {money(
-                    currency && data.liabilitiesByCurrency
-                      ? (data.liabilitiesByCurrency[currency] ?? 0)
-                      : undefined,
-                    currency,
-                    hidden,
-                  )}
-                </MoneyText>
-              </View>
-            </View>
-            {currency && typeof data.overdueByCurrency?.[currency] === 'number' ? (
-              <View style={styles.overdueRow}>
-                <Text style={styles.sideLabel}>Cuotas vencidas estimadas</Text>
-                <MoneyText style={styles.sideAmount}>
-                  {money(data.overdueByCurrency[currency], currency, hidden)}
-                </MoneyText>
-              </View>
-            ) : null}
-            <Text style={styles.heroExplanation}>No incluye bienes como tu casa o vehículo.</Text>
-          </LinearGradient>
+                  <BrandSurface tone="panorama" style={styles.accountHero}>
+                    <View style={styles.heroTop}>
+                      <View style={styles.heroIdentity}>
+                        <View style={styles.heroIcon}>
+                          <Ionicons name="wallet-outline" size={22} color={colors.secondary} />
+                        </View>
+                        <View style={styles.heroTitles}>
+                          <Text style={styles.heroEyebrow}>SALDO REGISTRADO</Text>
+                          <Text style={styles.heroTitle}>Dinero en tus cuentas</Text>
+                        </View>
+                      </View>
+                      <HomeCompanion size={64} />
+                    </View>
+                    <MoneyText
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                      numberOfLines={1}
+                      style={styles.heroAmount}
+                    >
+                      {money(accountBalance, currency, hidden)}
+                    </MoneyText>
+                    <View style={styles.heroFooter}>
+                      <Text style={styles.heroCaption}>Suma de los saldos registrados</Text>
+                      <View style={styles.heroLink}>
+                        <Text style={styles.heroLinkText}>Ver cuentas</Text>
+                        <Ionicons name="arrow-forward" size={15} color={colors.secondary} />
+                      </View>
+                    </View>
+                  </BrandSurface>
+                </MotionPressable>
+                <MotionPressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver créditos desde el panorama"
+                  accessibilityValue={{ text: money(debtBalance, currency, hidden) }}
+                  onPress={() => router.push('/(app)/credits')}
+                  style={styles.debtPressable}
+                >
+                  <LinearGradient colors={[colors.surface, '#EAF4FB']} style={styles.debtSection}>
+                    <View pointerEvents="none" style={styles.debtOrb} />
+                    <View style={styles.debtHeading}>
+                      <View style={styles.debtIcon}>
+                        <Ionicons name="document-text-outline" size={23} color={colors.credit} />
+                      </View>
+                      <View style={styles.debtCopy}>
+                        <Text style={styles.debtTitle}>Capital pendiente de tus créditos</Text>
+                        <Text style={styles.debtCaption}>
+                          {!hidden && typeof debtBalance === 'number' && debtBalance === 0
+                            ? 'No tienes capital pendiente registrado'
+                            : 'Lo que falta del monto prestado'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={colors.credit} />
+                    </View>
+                    <MoneyText
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                      numberOfLines={1}
+                      style={styles.debtAmount}
+                    >
+                      {money(debtBalance, currency, hidden)}
+                    </MoneyText>
+                    <View style={styles.debtFooter}>
+                      <Ionicons name="calendar-outline" size={15} color={colors.credit} />
+                      <Text style={styles.debtFooterText}>Consulta las cuotas de cada crédito</Text>
+                    </View>
+                  </LinearGradient>
+                </MotionPressable>
+                {typeof overdue === 'number' && Number.isFinite(overdue) && overdue > 0 ? (
+                  <MotionPressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Revisar cuotas vencidas en créditos"
+                    accessibilityValue={{ text: money(overdue, currency, hidden) }}
+                    onPress={() => router.push('/(app)/credits')}
+                    style={styles.overdueRow}
+                  >
+                    <View style={styles.overdueIcon}>
+                      <Ionicons name="time-outline" size={21} color={colors.warning} />
+                    </View>
+                    <View style={styles.overdueCopy}>
+                      <Text style={styles.overdueTitle}>Cuotas vencidas estimadas</Text>
+                      <MoneyText style={styles.overdueAmount}>{money(overdue, currency, hidden)}</MoneyText>
+                      <Text style={styles.overdueCaption}>Toca para revisar tus créditos</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={17} color={colors.warning} />
+                  </MotionPressable>
+                ) : null}
+              </>
+            )}
+          </View>
         );
       })}
       <MotionPressable
         accessibilityRole="button"
-        accessibilityLabel="Cómo se calcula mi balance"
+        accessibilityLabel="Cómo leer el panorama financiero"
         accessibilityState={{ expanded: explained }}
         onPress={() => setExplained((value) => !value)}
-        style={{ minHeight: 44, justifyContent: 'center' }}
+        style={styles.explainerButton}
       >
-        <Text style={typography.label}>¿Qué son activos, pasivos y patrimonio? {explained ? '−' : '+'}</Text>
+        <Ionicons name="information-circle-outline" size={18} color={colors.info} />
+        <Text style={styles.explainerLabel}>¿Cómo leer estos montos?</Text>
+        <Ionicons name={explained ? 'chevron-up' : 'chevron-down'} size={17} color={colors.info} />
       </MotionPressable>
       {explained ? (
-        <Text style={typography.bodySecondary}>
-          Activos: lo que tienes. Pasivos: tus deudas. Patrimonio neto = activos menos pasivos. Este balance
-          solo incluye las cuentas y créditos registrados, por moneda. La deuda total muestra capital
-          pendiente; las cuotas vencidas estiman pagos atrasados, sin mora ni seguros, y no se suman otra vez
-          a la deuda.
+        <Text style={styles.explainerText}>
+          El dinero en cuentas y el capital pendiente de tus créditos se muestran separados, por moneda. El
+          capital pendiente es el saldo de los créditos, no la cuota de este mes. Las cuotas vencidas son una
+          estimación de pagos atrasados y se muestran aparte, sin sumarlas a un total. Este panorama usa lo
+          que registraste; no incluye bienes como casa o vehículo.
         </Text>
       ) : null}
     </View>
@@ -243,70 +296,201 @@ export function HomeMetrics({
 }
 
 const styles = StyleSheet.create({
-  overdueRow: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: '#FFFFFF25' },
-  section: { gap: spacing.sm, marginTop: spacing.xl },
+  section: { gap: spacing.md, marginTop: spacing.xl },
+  sectionIntro: { gap: spacing.xxs },
   sectionHeading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
-  hero: { overflow: 'hidden', borderRadius: 26, padding: spacing.lg, gap: spacing.md, ...shadows.card },
-  heroGlow: {
-    position: 'absolute',
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: '#156367',
-    opacity: 0.38,
-    right: -55,
-    top: -70,
-  },
-  heroTop: {
+  sectionSubtitle: { ...typography.caption, fontSize: 13, lineHeight: 18, color: colors.textSecondary },
+  panoramaGroup: { gap: spacing.sm },
+  panoramaHeader: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  heroEyebrow: {
-    ...typography.caption,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: '#D5F4F1',
-    flexShrink: 1,
+  currencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  currencyLabel: { ...typography.label, fontSize: 12, color: colors.primary },
   accountPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primarySoft,
+  },
+  accountPillText: {
+    ...typography.caption,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textSecondary,
+  },
+  emptyCurrency: {
+    borderRadius: 22,
+    padding: spacing.lg,
+    gap: spacing.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  emptyOrb: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    right: -44,
+    top: -70,
+    backgroundColor: 'rgba(0,229,153,0.1)',
+  },
+  emptyTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  emptyTitle: { ...typography.cardTitle, flex: 1, color: colors.primaryStrong },
+  emptyValues: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  emptyValue: {
+    ...typography.caption,
+    color: colors.primary,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    backgroundColor: '#14534A',
   },
-  accountDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.secondary },
-  accountPillText: {
+  emptyCurrencyIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.medium,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroPressable: { borderRadius: 24, ...shadows.card },
+  accountHero: { minHeight: 190, borderRadius: 24, padding: spacing.xl, gap: spacing.sm },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  heroIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  heroIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.medium,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitles: { flex: 1, gap: spacing.xxs },
+  heroEyebrow: {
     ...typography.caption,
     fontSize: 10,
     lineHeight: 13,
-    color: '#BDF8DD',
     fontWeight: '700',
+    letterSpacing: 0.7,
+    color: '#A9F4DB',
   },
-  heroMiddle: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  heroCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
-  heroAmount: { ...typography.moneyLarge, fontSize: 31, lineHeight: 38, color: colors.surface },
-  heroExplanation: { ...typography.caption, fontSize: 11, lineHeight: 15, color: '#C5E4E4' },
-  relation: { flexDirection: 'row', gap: spacing.sm },
-  side: {
-    flex: 1,
-    minWidth: 0,
+  heroTitle: { ...typography.label, color: colors.surface, fontWeight: '700' },
+  heroAmount: { ...typography.moneyLarge, fontSize: 30, lineHeight: 38, color: colors.surface },
+  heroFooter: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.18)',
+    paddingTop: spacing.md,
+  },
+  heroCaption: { ...typography.caption, color: '#C7E5E3', flexShrink: 1 },
+  heroLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  heroLinkText: { ...typography.caption, fontWeight: '700', color: colors.secondary },
+  debtPressable: { borderRadius: 22, ...shadows.card },
+  debtSection: {
+    borderRadius: 22,
+    padding: spacing.lg,
+    gap: spacing.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#D3E8F4',
+  },
+  debtOrb: {
+    position: 'absolute',
+    width: 135,
+    height: 135,
+    borderRadius: 68,
+    right: -65,
+    top: -60,
+    backgroundColor: 'rgba(129,199,237,0.18)',
+  },
+  debtHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  debtIcon: {
+    width: 44,
+    height: 44,
     borderRadius: radius.medium,
-    padding: spacing.sm,
-    gap: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.creditSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sideHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  sideDot: { width: 6, height: 6, borderRadius: 3 },
-  sideLabel: { ...typography.caption, color: '#D3ECEC', fontSize: 10, lineHeight: 14, flex: 1 },
-  sideAmount: { ...typography.moneySmall, color: colors.surface, fontSize: 14, lineHeight: 19 },
+  debtCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
+  debtTitle: { ...typography.label, color: colors.credit, fontWeight: '700' },
+  debtCaption: { ...typography.caption, color: colors.textSecondary },
+  debtAmount: { ...typography.moneyMedium, fontSize: 25, lineHeight: 32, color: colors.primaryStrong },
+  debtFooter: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.creditSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  debtFooterText: { ...typography.caption, color: colors.credit, fontWeight: '600' },
+  overdueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.large,
+    padding: spacing.md,
+    paddingLeft: spacing.lg,
+    backgroundColor: '#FFF3D8',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.amber,
+  },
+  overdueIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.medium,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overdueCopy: { flex: 1, gap: spacing.xxs },
+  overdueTitle: { ...typography.label, color: colors.warning, fontWeight: '700' },
+  overdueAmount: { ...typography.moneySmall, color: colors.primaryStrong },
+  overdueCaption: { ...typography.caption, color: colors.textSecondary },
+  explainerButton: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.medium,
+    backgroundColor: colors.infoSoft,
+  },
+  explainerLabel: { ...typography.label, flex: 1, color: colors.info },
+  explainerText: {
+    ...typography.bodySecondary,
+    backgroundColor: colors.infoSoft,
+    borderRadius: radius.medium,
+    padding: spacing.md,
+  },
   monthHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   monthCurrency: {
     ...typography.caption,

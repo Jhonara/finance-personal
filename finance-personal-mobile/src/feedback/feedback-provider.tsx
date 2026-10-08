@@ -1,105 +1,179 @@
-import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from 'react';
+import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, motion, radius, shadows, spacing, typography } from '@/theme';
 
+import { colors, motion, radius, shadows, spacing, typography } from '@/theme';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
+import { swipeDismissDirection, type DismissDirection } from './swipe-dismiss';
+
 type FeedbackTone = 'success' | 'error' | 'info' | 'warning';
+type Feedback = { message: string; tone: FeedbackTone };
+
 const C = createContext<{ show(message: string, tone?: FeedbackTone): void } | null>(null);
+
+const toneDetails: Record<
+  FeedbackTone,
+  { title: string; icon: keyof typeof Ionicons.glyphMap; color: string; soft: string }
+> = {
+  success: { title: 'Listo', icon: 'checkmark-circle', color: colors.success, soft: colors.successSoft },
+  error: { title: 'Algo salió mal', icon: 'close-circle', color: colors.danger, soft: colors.dangerSoft },
+  warning: { title: 'Ten en cuenta', icon: 'warning', color: colors.warning, soft: colors.warningSoft },
+  info: { title: 'Información', icon: 'information-circle', color: colors.info, soft: colors.infoSoft },
+};
+
 export const FeedbackProvider = ({ children }: PropsWithChildren) => {
   const reduced = useReducedMotion();
-  const entrance = useRef(new Animated.Value(1)).current;
   const insets = useSafeAreaInsets();
-  const [feedback, setFeedback] = useState<{ message: string; tone: FeedbackTone } | null>(null);
-  useEffect(() => {
-    if (!feedback) return;
-    entrance.setValue(reduced ? 1 : 0);
-    const incoming = Animated.timing(entrance, {
-      toValue: 1,
-      duration: reduced ? 0 : motion.normal,
-      easing: motion.ease,
-      useNativeDriver: true,
-    });
-    incoming.start();
-    let outgoing: Animated.CompositeAnimation | undefined;
-    const timer = setTimeout(() => {
+  const entrance = useRef(new Animated.Value(0)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+  const dismissing = useRef(false);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+
+  const show = useCallback((message: string, tone: FeedbackTone = 'info') => {
+    setFeedback({ message, tone });
+  }, []);
+  const context = useMemo(() => ({ show }), [show]);
+
+  const dismiss = useCallback(
+    (current: Feedback, direction: DismissDirection = 'up') => {
+      if (dismissing.current) return;
+      dismissing.current = true;
       if (reduced) {
-        setFeedback(null);
+        setFeedback((shown) => (shown === current ? null : shown));
         return;
       }
-      outgoing = Animated.timing(entrance, {
-        toValue: 0,
-        duration: motion.fast,
-        easing: motion.ease,
-        useNativeDriver: true,
+      Animated.parallel([
+        Animated.timing(entrance, {
+          toValue: 0,
+          duration: motion.fast,
+          easing: motion.ease,
+          useNativeDriver: true,
+        }),
+        Animated.timing(dragX, {
+          toValue: direction === 'left' ? -420 : direction === 'right' ? 420 : 0,
+          duration: motion.normal,
+          easing: motion.ease,
+          useNativeDriver: true,
+        }),
+        Animated.timing(dragY, {
+          toValue: direction === 'up' ? -100 : 0,
+          duration: motion.normal,
+          easing: motion.ease,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) setFeedback((shown) => (shown === current ? null : shown));
       });
-      outgoing.start(({ finished }) => {
-        if (finished) setFeedback((current) => (current === feedback ? null : current));
-      });
-    }, motion.feedbackHold);
+    },
+    [dragX, dragY, entrance, reduced],
+  );
+
+  useEffect(() => {
+    if (!feedback) return;
+    dismissing.current = false;
+    entrance.setValue(reduced ? 1 : 0);
+    dragX.setValue(0);
+    dragY.setValue(0);
+    const incoming = Animated.spring(entrance, {
+      toValue: 1,
+      speed: 18,
+      bounciness: 4,
+      useNativeDriver: true,
+    });
+    if (!reduced) incoming.start();
+    const timer = setTimeout(() => dismiss(feedback), motion.feedbackHold);
     return () => {
       clearTimeout(timer);
       incoming.stop();
-      outgoing?.stop();
+      entrance.stopAnimation();
+      dragX.stopAnimation();
+      dragY.stopAnimation();
     };
-  }, [feedback, reduced, entrance]);
+  }, [feedback, reduced, dismiss, entrance, dragX, dragY]);
+
+  const gestures = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 10 || gesture.dy < -10,
+        onPanResponderMove: (_, gesture) => {
+          dragX.setValue(gesture.dx);
+          dragY.setValue(Math.min(gesture.dy, 0));
+        },
+        onPanResponderRelease: (_, gesture) => {
+          if (!feedback) return;
+          const direction = swipeDismissDirection(gesture.dx, gesture.dy);
+          if (direction) {
+            dismiss(feedback, direction);
+            return;
+          }
+          Animated.parallel([
+            Animated.spring(dragX, { toValue: 0, useNativeDriver: true }),
+            Animated.spring(dragY, { toValue: 0, useNativeDriver: true }),
+          ]).start();
+        },
+        onPanResponderTerminate: () => {
+          dragX.setValue(0);
+          dragY.setValue(0);
+        },
+      }),
+    [dismiss, dragX, dragY, feedback],
+  );
+
+  const details = feedback ? toneDetails[feedback.tone] : null;
   return (
-    <C.Provider value={{ show: (message, tone = 'info') => setFeedback({ message, tone }) }}>
-      <View style={{ flex: 1 }}>
-        <View style={{ flex: 1 }}>{children}</View>
-        {feedback ? (
+    <C.Provider value={context}>
+      <View style={styles.root}>
+        <View style={styles.content}>{children}</View>
+        {feedback && details ? (
           <Animated.View
-            accessibilityLiveRegion="polite"
+            {...gestures.panHandlers}
             style={[
               styles.feedback,
+              { top: insets.top + spacing.sm, borderLeftColor: details.color },
               {
                 opacity: entrance,
-                transform: reduced
-                  ? []
-                  : [
-                      {
-                        translateY: entrance.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [motion.distance, 0],
-                        }),
-                      },
-                    ],
+                transform: [
+                  {
+                    translateY: Animated.add(
+                      dragY,
+                      entrance.interpolate({ inputRange: [0, 1], outputRange: [-96, 0] }),
+                    ),
+                  },
+                  { translateX: dragX },
+                ],
               },
-              toneStyles[feedback.tone],
-              { marginBottom: Math.max(insets.bottom, spacing.sm) },
             ]}
           >
-            <Animated.View
-              style={{
-                transform: reduced
-                  ? []
-                  : [
-                      {
-                        scale: entrance.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [motion.pressScale, 1],
-                        }),
-                      },
-                    ],
-              }}
+            <View style={[styles.iconBadge, { backgroundColor: details.soft }]}>
+              <Ionicons name={details.icon} size={25} color={details.color} />
+            </View>
+            <View
+              style={styles.copy}
+              accessibilityLiveRegion={feedback.tone === 'error' ? 'assertive' : 'polite'}
             >
-              <Ionicons
-                name={
-                  feedback.tone === 'success'
-                    ? 'checkmark-circle'
-                    : feedback.tone === 'error'
-                      ? 'alert-circle'
-                      : 'information-circle'
-                }
-                size={22}
-                color={toneTextStyles[feedback.tone].color}
-              />
-            </Animated.View>
-            <Text style={[typography.bodySecondary, toneTextStyles[feedback.tone], { flex: 1 }]}>
-              {feedback.message}
-            </Text>
+              <Text style={[typography.label, styles.title, { color: details.color }]}>{details.title}</Text>
+              <Text style={[typography.bodySecondary, styles.message]}>{feedback.message}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar notificación"
+              onPress={() => dismiss(feedback)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
+            >
+              <Ionicons name="close" size={19} color={colors.textMuted} />
+            </Pressable>
           </Animated.View>
         ) : null}
       </View>
@@ -108,29 +182,47 @@ export const FeedbackProvider = ({ children }: PropsWithChildren) => {
 };
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
+  content: { flex: 1 },
   feedback: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.medium,
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    zIndex: 100,
+    minHeight: 76,
+    paddingVertical: spacing.md,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.sm,
+    borderLeftWidth: 4,
+    borderRadius: radius.large,
+    backgroundColor: colors.surfaceElevated,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
     ...shadows.floating,
+    elevation: 12,
   },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copy: { flex: 1, gap: spacing.xxs },
+  title: { fontWeight: '700' },
+  message: { color: colors.textPrimary, fontSize: 14, lineHeight: 19 },
+  close: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  closePressed: { backgroundColor: colors.surfaceSecondary },
 });
-const toneStyles = {
-  success: { backgroundColor: colors.successSoft },
-  error: { backgroundColor: colors.dangerSoft },
-  info: { backgroundColor: colors.infoSoft },
-  warning: { backgroundColor: colors.warningSoft },
-} as const;
-const toneTextStyles = {
-  success: { color: colors.success },
-  error: { color: colors.danger },
-  info: { color: colors.info },
-  warning: { color: colors.warning },
-} as const;
+
 export const useFeedback = () => {
   const x = useContext(C);
   if (!x) throw Error('FeedbackProvider requerido');

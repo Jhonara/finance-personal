@@ -180,13 +180,14 @@ function BudgetForm() {
                   if (!active()) return;
                   setAmount('');
                   update.reset();
-                  feedback.show('Presupuesto actualizado.');
+                  feedback.show('Presupuesto actualizado.', 'success');
                   leave();
                 },
                 onError: () => {
                   if (active())
                     feedback.show(
                       'No pudimos actualizar el presupuesto. Revisa los datos e inténtalo de nuevo.',
+                      'error',
                     );
                 },
                 onSettled: () => {
