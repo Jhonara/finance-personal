@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { BrandMark } from '@/ui/brand-media';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -9,11 +10,27 @@ import { MotionEntry, MotionPressable } from './motion';
 
 type MovementTone = 'expense' | 'income' | 'transfer';
 
-const tone = {
-  expense: { icon: 'bag-handle-outline', ink: colors.danger, soft: '#FFEAE8', end: '#FFF9F8' },
-  income: { icon: 'trending-up-outline', ink: colors.success, soft: '#DDF9ED', end: '#F8FFFC' },
-  transfer: { icon: 'swap-horizontal-outline', ink: colors.info, soft: '#DDF4FC', end: '#F8FDFF' },
-} as const;
+const tone = () =>
+  ({
+    expense: {
+      icon: 'bag-handle-outline',
+      ink: colors.danger,
+      soft: colors.expenseSoft,
+      end: colors.surface,
+    },
+    income: {
+      icon: 'trending-up-outline',
+      ink: colors.success,
+      soft: colors.successSoft,
+      end: colors.surface,
+    },
+    transfer: {
+      icon: 'swap-horizontal-outline',
+      ink: colors.info,
+      soft: colors.infoSoft,
+      end: colors.surface,
+    },
+  }) as const;
 
 export function MovementFormHeader({ title, onBack }: { title: string; onBack(): void }) {
   return (
@@ -43,7 +60,7 @@ export function MovementFormIntro({
   title: string;
   description: string;
 }) {
-  const appearance = tone[kind];
+  const appearance = tone()[kind];
   return (
     <LinearGradient colors={[appearance.soft, appearance.end]} style={styles.intro}>
       <View style={[styles.introIcon, { backgroundColor: appearance.soft }]}>
@@ -87,7 +104,7 @@ export function MovementFormSection({
 
 export function MovementAmountPanel({ kind, children }: PropsWithChildren<{ kind: MovementTone }>) {
   return (
-    <View style={[styles.amountPanel, { borderColor: tone[kind].soft, backgroundColor: tone[kind].end }]}>
+    <View style={[styles.amountPanel, { borderColor: tone()[kind].soft, backgroundColor: tone()[kind].end }]}>
       {children}
     </View>
   );
@@ -121,7 +138,7 @@ export function MovementOptionalDetails({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   header: {
     minHeight: 52,
     flexDirection: 'row',
@@ -194,4 +211,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

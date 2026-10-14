@@ -1,21 +1,20 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { MotionPressable } from '@/ui/motion';
 import { colors, radius, spacing, typography } from '@/theme';
-import { useTour } from '@/features/onboarding/tour-context';
 import { TourTarget } from '@/ui/tour-target';
 
 export function HomeShortcuts() {
-  const tour = useTour();
   return (
     <TourTarget id="home-shortcuts">
       <View style={styles.row}>
         {[
           {
-            title: 'Recorrido',
-            icon: 'compass-outline',
-            route: '/(app)/guide',
+            title: 'Metas',
+            icon: 'flag-outline',
+            route: '/(app)/savings',
             color: colors.success,
             soft: colors.successSoft,
           },
@@ -27,9 +26,9 @@ export function HomeShortcuts() {
             soft: colors.lavenderSoft,
           },
           {
-            title: 'Mi plan',
-            icon: 'grid-outline',
-            route: '/(app)/plan',
+            title: 'Reportes',
+            icon: 'stats-chart-outline',
+            route: '/(app)/reports',
             color: colors.info,
             soft: colors.infoSoft,
           },
@@ -40,16 +39,12 @@ export function HomeShortcuts() {
             accessibilityLabel={
               item.title === 'Créditos' ? 'Abrir créditos y préstamos' : `Abrir ${item.title.toLowerCase()}`
             }
-            onPress={() =>
-              item.route === '/(app)/guide' && tour
-                ? tour.start()
-                : router.push(item.route as '/(app)/guide' | '/(app)/credits' | '/(app)/plan')
-            }
+            onPress={() => router.push(item.route as '/(app)/savings' | '/(app)/credits' | '/(app)/reports')}
             style={styles.item}
           >
             <View style={[styles.icon, { backgroundColor: item.soft }]}>
               <Ionicons
-                name={item.icon as 'compass-outline' | 'card-outline' | 'grid-outline'}
+                name={item.icon as 'flag-outline' | 'card-outline' | 'stats-chart-outline'}
                 size={23}
                 color={item.color}
               />
@@ -63,7 +58,7 @@ export function HomeShortcuts() {
     </TourTarget>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   row: { flexDirection: 'row', gap: spacing.sm },
   item: {
     flex: 1,
@@ -78,4 +73,4 @@ const styles = StyleSheet.create({
   },
   icon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   label: { ...typography.caption, fontWeight: '600', color: colors.primary, textAlign: 'center' },
-});
+}));

@@ -1,9 +1,10 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Button, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import {
   MovementAmountPanel,
@@ -209,7 +210,7 @@ function NewTransferScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   form: { gap: spacing.lg, paddingTop: spacing.sm },
   warning: { ...typography.caption, color: colors.warning },
   explanation: { ...typography.caption, color: colors.textSecondary },
@@ -219,6 +220,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.large,
     backgroundColor: colors.warningSoft,
   },
-});
+}));
 
 export default withFormSession(NewTransferScreen);

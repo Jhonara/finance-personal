@@ -393,7 +393,7 @@ it('keeps exactly five visible tabs and all Savings routes internal', async () =
   const routes = tree.root.findAll((node) => (node.type as unknown) === 'TabRoute');
   expect(
     routes.filter((route) => route.props.options.href !== null).map((route) => route.props.options.title),
-  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Plan']);
+  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Explorar']);
   const shell = tree.root.find((node) => (node.type as unknown) === 'Tabs');
   expect(shell.props.screenOptions.tabBarStyle).toMatchObject({ height: 88, paddingBottom: 24 });
   const movements = routes.find((route) => route.props.name === 'transactions');

@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Text, View } from 'react-native';
 import { useEffect, useRef } from 'react';
 
 import { useAuth } from '@/auth/auth-provider';
@@ -115,11 +116,11 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   hero: { gap: spacing.sm, paddingTop: spacing.huge, paddingBottom: spacing.xxxl },
   form: { gap: spacing.lg },
   footer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, paddingTop: spacing.xxl },
   link: { ...typography.label, color: colors.primary },
   explore: { ...typography.label, color: colors.success, textAlign: 'center', padding: spacing.md },
   serverError: { ...typography.bodySecondary, color: colors.danger },
-});
+}));

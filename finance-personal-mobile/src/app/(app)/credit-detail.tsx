@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { openForm } from '@/features/forms/form-session';
 import { formatLocalDate } from '@/utils/local-date';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -372,7 +373,7 @@ function CreditDetailContent({ id }: { id: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   amortization: { gap: spacing.md, padding: spacing.lg },
   amortizationHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -402,4 +403,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nextCopy: { flex: 1, gap: spacing.xs },
-});
+}));

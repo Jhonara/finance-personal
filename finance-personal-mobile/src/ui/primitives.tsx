@@ -1,14 +1,13 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionPressable, ScreenEntry } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useRef, useState, type ComponentProps, type PropsWithChildren } from 'react';
 import { TourScrollContext, useTour } from '@/features/onboarding/tour-context';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -17,8 +16,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
+import { useAppTheme } from '@/theme/theme-provider';
 import { formatMoneyInput, isButtonDisabled, preserveMoneyInput } from './presentation';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -42,12 +43,17 @@ export function Screen({
   entry?: boolean;
 }>) {
   const tour = useTour();
+  const { palette } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const offset = useRef(0);
   const scrollContext = useMemo(() => ({ ref: scrollRef, offset }), []);
+  const ScrollContainer = keyboard ? KeyboardAwareScrollView : ScrollView;
   const content = scroll ? (
-    <ScrollView
-      ref={scrollRef}
+    <ScrollContainer
+      ref={(instance) => {
+        scrollRef.current = instance;
+      }}
+      {...(keyboard ? { bottomOffset: 24 } : {})}
       onScroll={(event) => {
         offset.current = event.nativeEvent.contentOffset.y;
       }}
@@ -59,6 +65,7 @@ export function Screen({
         tour?.active && { paddingBottom: 400 },
       ]}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       refreshControl={
         onRefresh ? (
           <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -70,7 +77,7 @@ export function Screen({
       ) : (
         children
       )}
-    </ScrollView>
+    </ScrollContainer>
   ) : (
     <View style={[styles.fill, padded && styles.padding, style]}>
       {entry ? <ScreenEntry>{children}</ScreenEntry> : children}
@@ -78,17 +85,11 @@ export function Screen({
   );
   return (
     <TourScrollContext.Provider value={scrollContext}>
-      <SafeAreaView style={styles.safe}>
-        {keyboard ? (
-          <KeyboardAvoidingView
-            style={styles.fill}
-            behavior={Platform.select({ ios: 'padding', default: undefined })}
-          >
-            {content}
-          </KeyboardAvoidingView>
-        ) : (
-          content
-        )}
+      <SafeAreaView
+        edges={['top', 'left', 'right']}
+        style={[styles.safe, { backgroundColor: palette.background }]}
+      >
+        {content}
       </SafeAreaView>
     </TourScrollContext.Provider>
   );
@@ -113,6 +114,7 @@ export function Button({
   accessibilityLabel?: string;
 }>) {
   const blocked = isButtonDisabled(disabled, loading);
+  const { palette } = useAppTheme();
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -122,6 +124,9 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         styles[`button_${variant}`],
+        variant === 'primary' && { backgroundColor: palette.primaryStrong },
+        variant === 'secondary' && { backgroundColor: palette.primarySoft },
+        variant === 'outline' && { backgroundColor: palette.surface, borderColor: palette.border },
         variant === 'secondary' && secondaryToneStyles[tone],
         variant === 'outline' && tone === 'danger' && { borderColor: colors.danger },
         size === 'compact' && styles.buttonCompact,
@@ -131,7 +136,7 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' || variant === 'danger' ? colors.surface : colors.primary}
+          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : palette.primary}
         />
       ) : (
         <Text
@@ -139,6 +144,7 @@ export function Button({
             typography.button,
             styles.buttonCopy,
             styles[`buttonText_${variant}`],
+            { color: variant === 'primary' || variant === 'danger' ? '#FFFFFF' : palette.primary },
             variant === 'secondary' && secondaryToneTextStyles[tone],
             (variant === 'outline' || variant === 'ghost') && secondaryToneTextStyles[tone],
           ]}
@@ -161,6 +167,7 @@ export function IconButton({
   accessibilityLabel: string;
   tone?: 'default' | 'primary';
 }) {
+  const { palette } = useAppTheme();
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -169,13 +176,14 @@ export function IconButton({
       style={({ pressed }) => [
         styles.iconButton,
         tone === 'primary' && styles.iconPrimary,
+        tone === 'primary' && { backgroundColor: palette.primarySoft },
         pressed && styles.pressed,
       ]}
     >
       <Ionicons
         name={name}
         size={sizes.icon}
-        color={tone === 'primary' ? colors.primary : colors.textPrimary}
+        color={tone === 'primary' ? palette.primary : palette.textPrimary}
       />
     </MotionPressable>
   );
@@ -199,23 +207,28 @@ export function Input({
 }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [focused, setFocused] = useState(false);
+  const { palette } = useAppTheme();
   const isPassword = Boolean(secureTextEntry);
   return (
     <View style={styles.field}>
-      {label ? <Text style={typography.label}>{label}</Text> : null}
+      {label ? <Text style={[typography.label, { color: palette.textSecondary }]}>{label}</Text> : null}
       <View
         style={[
           styles.inputShell,
           focused && styles.inputFocused,
           Boolean(error) && styles.inputError,
           disabled && styles.disabled,
+          {
+            backgroundColor: focused ? palette.primarySoft : palette.surface,
+            borderColor: error ? palette.danger : focused ? palette.primary : palette.border,
+          },
         ]}
       >
-        {icon && <Ionicons name={icon} size={sizes.icon} color={colors.textMuted} />}
+        {icon && <Ionicons name={icon} size={sizes.icon} color={palette.textMuted} />}
         <TextInput
           editable={!disabled}
-          placeholderTextColor={colors.textMuted}
-          style={[typography.body, styles.input, style]}
+          placeholderTextColor={palette.textMuted}
+          style={[typography.body, styles.input, { color: palette.textPrimary }, style]}
           {...props}
           onFocus={(event) => {
             setFocused(true);
@@ -236,7 +249,7 @@ export function Input({
             <Ionicons
               name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={sizes.icon}
-              color={colors.textSecondary}
+              color={palette.textSecondary}
             />
           </MotionPressable>
         )}
@@ -246,7 +259,7 @@ export function Input({
           {error}
         </Text>
       ) : helperText ? (
-        <Text style={typography.caption}>{helperText}</Text>
+        <Text style={[typography.caption, { color: palette.textMuted }]}>{helperText}</Text>
       ) : null}
     </View>
   );
@@ -266,26 +279,31 @@ export function MoneyInput({
   currency?: string;
 }) {
   const [focused, setFocused] = useState(false);
+  const { palette } = useAppTheme();
   return (
     <View style={styles.field}>
-      <Text style={typography.label}>{label}</Text>
+      <Text style={[typography.label, { color: palette.textSecondary }]}>{label}</Text>
       <View
         style={[
           styles.moneyShell,
           focused && styles.inputFocused,
           Boolean(error) && styles.inputError,
           disabled && styles.disabled,
+          {
+            backgroundColor: focused ? palette.primarySoft : palette.surface,
+            borderColor: error ? palette.danger : focused ? palette.primary : palette.border,
+          },
         ]}
       >
-        <Text style={styles.currency}>{currency}</Text>
+        <Text style={[styles.currency, { color: palette.primary }]}>{currency}</Text>
         <TextInput
           accessibilityLabel={label}
           editable={!disabled}
           keyboardType="decimal-pad"
           value={formatMoneyInput(value)}
           onChangeText={(next) => onChangeText(preserveMoneyInput(next))}
-          placeholderTextColor={colors.textMuted}
-          style={[typography.moneyLarge, styles.moneyInput]}
+          placeholderTextColor={palette.textMuted}
+          style={[typography.moneyLarge, styles.moneyInput, { color: palette.textPrimary }]}
           {...props}
           onFocus={(event) => {
             setFocused(true);
@@ -302,7 +320,7 @@ export function MoneyInput({
           {error}
         </Text>
       ) : props.helperText ? (
-        <Text style={typography.caption}>{props.helperText}</Text>
+        <Text style={[typography.caption, { color: palette.textMuted }]}>{props.helperText}</Text>
       ) : null}
     </View>
   );
@@ -321,9 +339,10 @@ export function SelectField({
   onPress?: () => void;
   disabled?: boolean;
 }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.field}>
-      <Text style={typography.label}>{label}</Text>
+      <Text style={[typography.label, { color: palette.textSecondary }]}>{label}</Text>
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -334,12 +353,19 @@ export function SelectField({
           styles.select,
           disabled && styles.disabled,
           pressed && styles.pressed,
+          { backgroundColor: palette.surface, borderColor: palette.border },
         ]}
       >
-        <Text style={[typography.body, styles.selectCopy, !value && styles.placeholder]}>
+        <Text
+          style={[
+            typography.body,
+            styles.selectCopy,
+            { color: value ? palette.textPrimary : palette.textMuted },
+          ]}
+        >
           {value ?? placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={sizes.icon} color={colors.textSecondary} />
+        <Ionicons name="chevron-down" size={sizes.icon} color={palette.textSecondary} />
       </MotionPressable>
     </View>
   );
@@ -357,10 +383,28 @@ export function Card({
   style?: StyleProp<ViewStyle>;
   tone?: 'default' | 'tonal' | 'success' | 'expense' | 'warning' | 'info' | 'accent';
 }>) {
-  return <View style={[styles.card, cardToneStyles[tone], style]}>{children}</View>;
+  const { palette } = useAppTheme();
+  const toneColor =
+    tone === 'default'
+      ? palette.surface
+      : tone === 'tonal'
+        ? palette.surfaceSecondary
+        : palette[`${tone}Soft`];
+  return (
+    <View
+      style={[
+        styles.card,
+        cardToneStyles[tone],
+        { backgroundColor: toneColor, borderColor: palette.divider },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   safe: { flex: 1, backgroundColor: colors.background },
   fill: { flex: 1 },
   scroll: { flexGrow: 1, gap: spacing.lg, paddingBottom: spacing.huge },
@@ -388,11 +432,11 @@ const styles = StyleSheet.create({
   buttonCompact: { minHeight: 44, paddingHorizontal: spacing.lg },
   buttonPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   buttonDisabled: { opacity: 0.48 },
-  buttonText_primary: { color: colors.surface },
+  buttonText_primary: { color: '#FFFFFF' },
   buttonText_secondary: { color: colors.primary },
   buttonText_outline: { color: colors.primary },
   buttonText_ghost: { color: colors.primary },
-  buttonText_danger: { color: colors.surface },
+  buttonText_danger: { color: '#FFFFFF' },
   iconButton: {
     width: sizes.touchTarget,
     height: sizes.touchTarget,
@@ -441,7 +485,7 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
     ...shadows.card,
   },
-});
+}));
 
 const secondaryToneStyles = {
   primary: { backgroundColor: colors.primarySoft },

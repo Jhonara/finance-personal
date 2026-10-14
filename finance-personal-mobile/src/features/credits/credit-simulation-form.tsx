@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { MotionPressable } from '@/ui/motion';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useForm } from 'react-hook-form';
@@ -196,12 +197,12 @@ export function CreditSimulationForm({ credit, onClose }: { credit: Credit; onCl
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   hero: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.large },
   heroHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   heroEyebrow: { ...typography.caption, color: colors.mint, fontWeight: '700', letterSpacing: 0.4 },
-  heroTitle: { ...typography.cardTitle, color: colors.surface },
-  heroAmount: { ...typography.moneyLarge, color: colors.surface },
+  heroTitle: { ...typography.cardTitle, color: '#FFFFFF' },
+  heroAmount: { ...typography.moneyLarge, color: '#FFFFFF' },
   heroCaption: { ...typography.caption, color: '#C3E5E4' },
   section: { gap: spacing.lg, padding: spacing.lg },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -222,4 +223,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.medium,
     backgroundColor: colors.infoSoft,
   },
-});
+}));

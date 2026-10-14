@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 import { BrandSurface } from '@/ui/brand-surface';
@@ -83,11 +84,11 @@ export function QuietMonthNotice({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   emptyHero: { gap: spacing.lg, padding: spacing.xxl, marginTop: spacing.lg },
   emptyTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   eyebrow: { ...typography.label, color: colors.secondary, letterSpacing: 0.7 },
-  emptyTitle: { ...typography.display, color: colors.surface, maxWidth: 250 },
+  emptyTitle: { ...typography.display, color: '#FFFFFF', maxWidth: 250 },
   emptyCopy: { ...typography.bodySecondary, color: colors.infoSoft },
   emptyAction: {
     minHeight: 52,
@@ -110,4 +111,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

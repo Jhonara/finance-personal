@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useState } from 'react';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
@@ -69,7 +70,7 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
               ) : null}
             </View>
             {emptyCurrency ? (
-              <LinearGradient colors={['#E6F8F2', '#F7FFFC']} style={styles.emptyCurrency}>
+              <LinearGradient colors={[colors.successSoft, colors.surface]} style={styles.emptyCurrency}>
                 <View pointerEvents="none" style={styles.emptyOrb} />
                 <View style={styles.emptyTop}>
                   <View style={styles.emptyCurrencyIcon}>
@@ -130,7 +131,7 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                   onPress={() => router.push('/(app)/credits')}
                   style={styles.debtPressable}
                 >
-                  <LinearGradient colors={[colors.surface, '#EAF4FB']} style={styles.debtSection}>
+                  <LinearGradient colors={[colors.surface, colors.creditSoft]} style={styles.debtSection}>
                     <View pointerEvents="none" style={styles.debtOrb} />
                     <View style={styles.debtHeading}>
                       <View style={styles.debtIcon}>
@@ -253,12 +254,12 @@ export function HomeMetrics({
         </Text>
         <Text style={styles.monthCurrency}>{currency}</Text>
       </View>
-      <LinearGradient colors={[colors.surface, '#F6FCFF']} style={styles.monthCard}>
+      <LinearGradient colors={[colors.surface, colors.infoSoft]} style={styles.monthCard}>
         <View style={styles.metrics}>
           {metrics.map((metric) => (
             <View key={metric.label} style={[styles.metric, { backgroundColor: metric.surface }]}>
               <View style={[styles.metricIcon, { backgroundColor: metric.ink }]}>
-                <Ionicons name={metric.icon} size={15} color={colors.surface} />
+                <Ionicons name={metric.icon} size={15} color={colors.background} />
               </View>
               <Text numberOfLines={1} adjustsFontSizeToFit style={styles.metricLabel}>
                 {metric.label}
@@ -295,7 +296,7 @@ export function HomeMetrics({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   section: { gap: spacing.md, marginTop: spacing.xl },
   sectionIntro: { gap: spacing.xxs },
   sectionHeading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
@@ -395,8 +396,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     color: '#A9F4DB',
   },
-  heroTitle: { ...typography.label, color: colors.surface, fontWeight: '700' },
-  heroAmount: { ...typography.moneyLarge, fontSize: 30, lineHeight: 38, color: colors.surface },
+  heroTitle: { ...typography.label, color: '#FFFFFF', fontWeight: '700' },
+  heroAmount: { ...typography.moneyLarge, fontSize: 30, lineHeight: 38, color: '#FFFFFF' },
   heroFooter: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -537,4 +538,4 @@ const styles = StyleSheet.create({
   },
   budgetLabel: { ...typography.caption, color: colors.textSecondary },
   budgetValue: { ...typography.caption, color: colors.success, fontWeight: '700' },
-});
+}));

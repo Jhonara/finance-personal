@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -112,7 +113,7 @@ export function QuickCategoryModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.overlay },
   sheet: {
@@ -148,4 +149,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.border,
   },
-});
+}));

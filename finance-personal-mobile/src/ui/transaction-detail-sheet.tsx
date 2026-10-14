@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { formatLocalDate } from '@/utils/local-date';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { PresentedTransaction } from '@/features/transactions/transaction-presentation';
@@ -117,7 +118,7 @@ export function TransactionDetailSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   sheet: {
     maxHeight: '82%',
@@ -182,4 +183,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   doneText: { ...typography.label, color: colors.primaryStrong, fontWeight: '700' },
-});
+}));

@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionPressable } from '@/ui/motion';
 import { HomeCompanion } from '@/features/dashboard/home-brand';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { DashboardMonth } from '@/api/dashboard-api';
 import type { DashboardPeriod } from '@/features/dashboard/dashboard-period';
@@ -28,7 +29,7 @@ export function ProgressSignal({
     : undefined;
   const label = `${signal.accessibility} ${signal.supporting}${signal.amount ? ` ${hidden ? 'Importe oculto.' : amount}` : ''}`;
   const content = (
-    <LinearGradient colors={['#DDF6FC', '#E7FBF6']} style={styles.content}>
+    <LinearGradient colors={[colors.infoSoft, colors.successSoft]} style={styles.content}>
       <HomeCompanion size={58} />
       <View style={styles.copy}>
         <Text style={styles.eyebrow}>{signal.eyebrow}</Text>
@@ -114,7 +115,7 @@ export function FinancialProgressSection({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   card: { borderRadius: radius.large, overflow: 'hidden' },
   heading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
   content: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md },
@@ -124,4 +125,4 @@ const styles = StyleSheet.create({
   amount: { ...typography.moneySmall, color: colors.success, fontSize: 16, lineHeight: 21 },
   supporting: { ...typography.caption, color: colors.textPrimary, lineHeight: 17 },
   link: { ...typography.caption, color: colors.success, fontWeight: '700', paddingTop: spacing.xs },
-});
+}));

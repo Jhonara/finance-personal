@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 import { Button } from '@/ui/primitives';
 import { Progress } from '@/ui/progress';
@@ -91,7 +92,7 @@ export function SavingGoalCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   card: {
     gap: spacing.lg,
     padding: spacing.lg,
@@ -128,4 +129,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeGlow: { position: 'absolute', width: 43, height: 43, borderRadius: 22, borderWidth: 1, opacity: 0.35 },
-});
+}));

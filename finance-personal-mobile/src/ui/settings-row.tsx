@@ -1,8 +1,10 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
+import { useAppTheme } from '@/theme/theme-provider';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -26,21 +28,26 @@ export function SettingsRow({
   control,
   disabled,
 }: Props) {
+  const { palette } = useAppTheme();
   const content = (
     <>
-      <View style={[styles.icon, { backgroundColor: danger ? colors.dangerSoft : colors[`${tone}Soft`] }]}>
-        <Ionicons name={icon} size={22} color={danger ? colors.danger : colors[tone]} />
+      <View style={[styles.icon, { backgroundColor: danger ? palette.dangerSoft : palette[`${tone}Soft`] }]}>
+        <Ionicons name={icon} size={22} color={danger ? palette.danger : palette[tone]} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: spacing.xs }}>
-        <Text style={[typography.cardTitle, danger && { color: colors.primaryStrong }]}>{title}</Text>
-        {subtitle && <Text style={typography.bodySecondary}>{subtitle}</Text>}
+        <Text style={[typography.cardTitle, { color: danger ? palette.danger : palette.textPrimary }]}>
+          {title}
+        </Text>
+        {subtitle && (
+          <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>{subtitle}</Text>
+        )}
       </View>
       {badge !== undefined && badge > 0 && <Text style={styles.badge}>{badge}</Text>}
-      {control ?? <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
+      {control ?? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />}
     </>
   );
   return control ? (
-    <View style={styles.row}>{content}</View>
+    <View style={[styles.row, { borderBottomColor: palette.divider }]}>{content}</View>
   ) : (
     <MotionPressable
       accessibilityRole="button"
@@ -48,13 +55,17 @@ export function SettingsRow({
       accessibilityHint={danger ? 'Acción de cierre de sesión. Solicita confirmación.' : subtitle}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, (pressed || disabled) && { opacity: 0.65 }]}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: palette.divider },
+        (pressed || disabled) && { opacity: 0.65 },
+      ]}
     >
       {content}
     </MotionPressable>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -79,4 +90,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningSoft,
     color: colors.textPrimary,
   },
-});
+}));

@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import { openForm } from '@/features/forms/form-session';
 import {
   categoryAppearance,
@@ -301,7 +302,7 @@ export default function Categories() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   content: { gap: spacing.xl },
   grow: { flex: 1, minWidth: 0 },
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: colors.primaryStrong },
   tabText: { ...typography.label, color: colors.primaryStrong },
-  tabTextActive: { color: colors.surface },
+  tabTextActive: { color: '#FFFFFF' },
   section: { gap: spacing.md },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   counter: { ...typography.caption, color: colors.success, fontWeight: '700' },
@@ -426,4 +427,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reactivateText: { ...typography.label, color: colors.success },
-});
+}));

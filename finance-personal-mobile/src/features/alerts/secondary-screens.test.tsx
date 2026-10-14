@@ -343,7 +343,7 @@ describe('More, preferences and session UI', () => {
     expect(output).toContain('JP');
     expect(output).toContain('Versión 1.2.3');
     expect(mocks.get.mock.calls.map(([path]) => path)).toEqual(['/me']);
-    expect(output).not.toContain('Apariencia');
+    expect(output).toContain('Apariencia');
     expect(output).not.toContain('Google');
   });
   it('keeps secondary organization in Más', async () => {
@@ -447,7 +447,7 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
-    expect(text(tree.toJSON())).toContain('0 de 11 temas recorridos');
+    expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos');
     await press(tree, 'Abrir Cuentas →');
     expect(mocks.push).toHaveBeenCalledWith('/(app)/accounts');
     expect(mocks.write).not.toHaveBeenCalled();
@@ -456,7 +456,7 @@ describe('Ecosystem guide and plan navigation', () => {
       guideKey(88),
       JSON.stringify({ reviewed: ['accounts'], lastTopic: 'movements' }),
     );
-    expect(text(tree.toJSON())).toContain('TEMA 2 DE 11');
+    expect(text(tree.toJSON())).toContain('TEMA 2 DE 12');
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
@@ -471,16 +471,16 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
-    expect(text(tree.toJSON())).toContain('TEMA 7 DE 11');
-    expect(text(tree.toJSON())).toContain('2 de 11 temas recorridos');
+    expect(text(tree.toJSON())).toContain('TEMA 7 DE 12');
+    expect(text(tree.toJSON())).toContain('2 de 12 temas recorridos');
     await act(async () => {
       client.setQueryData(currentUserKeys.current(), { ...profile, id: 99 });
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 40));
     });
-    expect(text(tree.toJSON())).toContain('0 de 11 temas recorridos');
-    expect(text(tree.toJSON())).toContain('TEMA 1 DE 11');
+    expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos');
+    expect(text(tree.toJSON())).toContain('TEMA 1 DE 12');
   });
 
   it('keeps the topic on a storage failure and prevents duplicate next actions', async () => {
@@ -492,7 +492,7 @@ describe('Ecosystem guide and plan navigation', () => {
     );
     await press(tree, 'Entendido, siguiente tema');
     expect(text(tree.toJSON())).toContain('No pudimos guardar tu recorrido');
-    expect(text(tree.toJSON())).toContain('0 de 11 temas recorridos');
+    expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos');
     let finish!: () => void;
     mocks.write.mockImplementationOnce(
       () =>
@@ -509,7 +509,7 @@ describe('Ecosystem guide and plan navigation', () => {
     await act(async () => {
       finish();
     });
-    expect(text(tree.toJSON())).toContain('1 de 11 temas recorridos');
+    expect(text(tree.toJSON())).toContain('1 de 12 temas recorridos');
   });
 
   it('places credits first in Plan and routes to the other modules using real summary data', async () => {

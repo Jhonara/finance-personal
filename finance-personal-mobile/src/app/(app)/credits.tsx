@@ -1,9 +1,10 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 
 import { useCredits } from '@/features/secondary/use-secondary';
 import { creditGroups, creditMoney, creditSummary } from '@/features/credits/credit-presentation';
@@ -148,7 +149,7 @@ export default function CreditsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   back: {
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addText: { ...typography.caption, color: colors.surface, fontWeight: '700' },
+  addText: { ...typography.caption, color: '#FFFFFF', fontWeight: '700' },
   hero: { gap: spacing.md, padding: spacing.lg, borderRadius: 25, ...shadows.card },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   heroCopy: { flex: 1, gap: spacing.xs },
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  heroTitle: { ...typography.sectionTitle, color: colors.surface },
+  heroTitle: { ...typography.sectionTitle, color: '#FFFFFF' },
   heroIcon: {
     width: 45,
     height: 45,
@@ -207,9 +208,9 @@ const styles = StyleSheet.create({
   },
   summaryRowCompact: { flexDirection: 'column', alignItems: 'stretch' },
   summaryCopy: { flex: 1, gap: spacing.xxs },
-  summaryCurrency: { ...typography.label, color: colors.surface },
+  summaryCurrency: { ...typography.label, color: '#FFFFFF' },
   summaryCount: { ...typography.caption, color: '#C3E5E4' },
-  summaryAmount: { ...typography.moneySmall, color: colors.surface, flexShrink: 1 },
+  summaryAmount: { ...typography.moneySmall, color: '#FFFFFF', flexShrink: 1 },
   group: { gap: spacing.md },
   groupHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   empty: {
@@ -220,4 +221,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.infoSoft,
   },
   emptyText: { ...typography.bodySecondary, textAlign: 'center' },
-});
+}));

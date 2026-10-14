@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useReducedMotion } from './use-reduced-motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 import type { SetupStep } from '@/features/onboarding/first-run-progress';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from './primitives';
@@ -141,7 +142,7 @@ function SetupRow({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   card: { gap: spacing.md, padding: spacing.lg },
   complete: { backgroundColor: colors.successSoft, borderColor: colors.successSoft },
   header: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
@@ -170,4 +171,4 @@ const styles = StyleSheet.create({
   stepCompact: { minHeight: 42, paddingVertical: spacing.xs },
   doneText: { color: colors.textSecondary },
   resolution: { ...typography.caption, color: colors.textSecondary },
-});
+}));

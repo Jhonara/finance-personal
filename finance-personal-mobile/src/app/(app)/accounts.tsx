@@ -1,9 +1,10 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 
 import type { Account } from '@/features/accounts/accounts-api';
 import { balanceForAccount, totalAccountBalance } from '@/features/accounts/account-balances';
@@ -29,38 +30,39 @@ const filters = [
   { key: 'OTHER', label: 'Otras' },
 ] as const;
 type Filter = (typeof filters)[number]['key'];
-const fallbackLook = {
-  icon: 'wallet-outline' as const,
-  background: colors.surface,
-  ink: colors.primaryStrong,
-  accent: colors.primary,
-};
-const looks: Record<
+function accountLooks(): Record<
   string,
   { icon: keyof typeof Ionicons.glyphMap; background: string; ink: string; accent: string }
-> = {
-  BANK: { icon: 'business-outline', background: '#0D414C', ink: '#FFFFFF', accent: '#8CF7CF' },
-  DIGITAL_WALLET: {
-    icon: 'phone-portrait-outline',
-    background: '#E4FAF3',
-    ink: colors.primaryStrong,
-    accent: colors.success,
-  },
-  SAVINGS: {
-    icon: 'sparkles-outline',
-    background: '#F0EBFF',
-    ink: colors.primaryStrong,
-    accent: colors.lavender,
-  },
-  INVESTMENT: {
-    icon: 'trending-up-outline',
-    background: '#FFF4DB',
-    ink: colors.primaryStrong,
-    accent: colors.warning,
-  },
-  CASH: { icon: 'cash-outline', background: '#E6F6FC', ink: colors.primaryStrong, accent: colors.info },
-  OTHER: fallbackLook,
-};
+> {
+  return {
+    BANK: { icon: 'business-outline', background: '#0D414C', ink: '#FFFFFF', accent: '#8CF7CF' },
+    DIGITAL_WALLET: {
+      icon: 'phone-portrait-outline',
+      background: colors.primarySoft,
+      ink: colors.textPrimary,
+      accent: colors.success,
+    },
+    SAVINGS: {
+      icon: 'sparkles-outline',
+      background: colors.accentSoft,
+      ink: colors.textPrimary,
+      accent: colors.lavender,
+    },
+    INVESTMENT: {
+      icon: 'trending-up-outline',
+      background: colors.warningSoft,
+      ink: colors.textPrimary,
+      accent: colors.warning,
+    },
+    CASH: { icon: 'cash-outline', background: colors.infoSoft, ink: colors.textPrimary, accent: colors.info },
+    OTHER: {
+      icon: 'wallet-outline',
+      background: colors.surfaceSecondary,
+      ink: colors.textPrimary,
+      accent: colors.primary,
+    },
+  };
+}
 
 function AccountTile({
   account,
@@ -71,7 +73,8 @@ function AccountTile({
   balance: ReturnType<typeof balanceForAccount>;
   hidden: boolean;
 }) {
-  const look = looks[account.type ?? 'OTHER'] ?? fallbackLook;
+  const looks = accountLooks();
+  const look = looks[account.type ?? 'OTHER'] ?? looks.OTHER!;
   const dark = account.type === 'BANK';
   const currency = account.currency ?? 'COP';
   const name = account.name ?? 'Cuenta';
@@ -170,7 +173,7 @@ export default function AccountsScreen() {
             onPress={() => openForm('/(app)/account-form')}
             style={[styles.add, compactHeader && styles.addCompact]}
           >
-            <Ionicons name="add" size={20} color={colors.surface} />
+            <Ionicons name="add" size={20} color="#FFFFFF" />
             {!compactHeader ? <Text style={styles.addText}>Añadir</Text> : null}
           </MotionPressable>
         </TourTarget>
@@ -315,7 +318,7 @@ export default function AccountsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.xs },
   headerCopy: { flex: 1 },
   eyebrow: {
@@ -345,10 +348,10 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   addCompact: { width: 40, justifyContent: 'center', paddingHorizontal: 0 },
-  addText: { ...typography.label, color: colors.surface },
+  addText: { ...typography.label, color: '#FFFFFF' },
   overview: { gap: spacing.sm, padding: spacing.xl, borderRadius: 28, ...shadows.card },
   overviewEyebrow: { ...typography.caption, color: '#A7E7D9', fontWeight: '700', letterSpacing: 0.5 },
-  overviewTitle: { ...typography.sectionTitle, color: colors.surface },
+  overviewTitle: { ...typography.sectionTitle, color: '#FFFFFF' },
   overviewHint: { ...typography.caption, color: '#C3E5E4' },
   currencyList: { gap: spacing.sm, marginTop: spacing.sm },
   currencyRow: {
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
   },
   filterActive: { backgroundColor: colors.primaryStrong, borderColor: colors.primaryStrong },
   filterText: { ...typography.caption, color: colors.primaryStrong, fontWeight: '700' },
-  filterTextActive: { color: colors.surface },
+  filterTextActive: { color: '#FFFFFF' },
   sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   list: { gap: spacing.md },
   accountCard: { gap: spacing.lg, borderRadius: 24, padding: spacing.lg, ...shadows.card },
@@ -411,4 +414,4 @@ const styles = StyleSheet.create({
   },
   managementCopy: { flex: 1, gap: spacing.xxs },
   inactiveSection: { gap: spacing.md },
-});
+}));

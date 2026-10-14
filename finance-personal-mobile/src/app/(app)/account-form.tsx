@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -83,7 +84,7 @@ function AccountForm() {
   return (
     <Screen entry scroll keyboard>
       <MovementFormHeader title="Nueva cuenta" onBack={() => router.back()} />
-      <LinearGradient colors={[colors.primarySoft, '#F8FFFC']} style={styles.intro}>
+      <LinearGradient colors={[colors.primarySoft, colors.surface]} style={styles.intro}>
         <View style={styles.introIcon}>
           <Ionicons name="wallet-outline" size={25} color={colors.success} />
         </View>
@@ -166,7 +167,7 @@ function AccountForm() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   intro: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   helper: { ...typography.caption, color: colors.textSecondary },
-});
+}));
 
 export default withFormSession(AccountForm);
 import { CurrencySelector } from '@/ui/currency-selector';

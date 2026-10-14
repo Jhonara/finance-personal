@@ -1,10 +1,11 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { localDateFromNative } from '@/utils/local-date';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAccounts } from '@/features/accounts/use-accounts';
@@ -335,7 +336,7 @@ function AccountDetail() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   hero: { gap: spacing.sm, padding: spacing.xl, borderRadius: 28, ...shadows.card },
   heroHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   heroIcon: {
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   infoLabel: { ...typography.bodySecondary },
   infoValue: { ...typography.label, color: colors.primaryStrong, textAlign: 'right', flexShrink: 1 },
-  balance: { ...typography.moneyLarge, color: colors.surface },
+  balance: { ...typography.moneyLarge, color: '#FFFFFF' },
   modal: {
     marginTop: 96,
     marginHorizontal: 20,
@@ -365,6 +366,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
   },
-});
+}));
 
 export default withFormSession(AccountDetail);

@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, type PropsWithChildren } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { useReducedMotion } from './use-reduced-motion';
@@ -202,7 +203,7 @@ const stateLabels: Record<CompanionState, string> = {
   attention: 'atento',
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   logo: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minWidth: 0 },
   logoEyebrow: { ...typography.caption, color: colors.success, fontSize: 10, fontWeight: '700' },
   logoCaption: { ...typography.caption, color: colors.success, fontSize: 9, fontWeight: '700' },
@@ -225,4 +226,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

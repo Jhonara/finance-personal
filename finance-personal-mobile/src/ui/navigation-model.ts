@@ -23,10 +23,10 @@ export const dockItems = [
   },
   {
     name: 'plan',
-    label: 'Plan',
-    accessibilityLabel: 'Plan: créditos, ahorros y presupuestos',
-    icon: 'grid-outline',
-    activeIcon: 'grid',
+    label: 'Explorar',
+    accessibilityLabel: 'Explorar plan, reportes y ajustes',
+    icon: 'compass-outline',
+    activeIcon: 'compass',
   },
 ] as const;
 export function dockIndex(route: string) {

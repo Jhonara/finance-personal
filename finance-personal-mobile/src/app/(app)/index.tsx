@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { HomeMetrics, FinancialPanorama } from '@/features/dashboard/home-metrics';
 import { HomeModules } from '@/features/dashboard/home-modules';
@@ -7,7 +8,7 @@ import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import {
@@ -315,7 +316,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
   accountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   periodRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
@@ -376,7 +377,7 @@ const styles = StyleSheet.create({
     color: colors.primaryStrong,
     fontWeight: '700',
   },
-});
+}));
 
 function fadeSlide(value: Animated.Value, fromY: number, fromX = 0) {
   return {

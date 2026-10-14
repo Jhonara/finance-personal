@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import {
   createContext,
   useCallback,
@@ -7,7 +8,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { openForm } from '@/features/forms/form-session';
@@ -109,7 +110,7 @@ export function QuickActionProvider({ children }: PropsWithChildren) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.overlay },
   card: { gap: spacing.md, padding: spacing.xl, borderRadius: radius.large, backgroundColor: colors.surface },
-});
+}));

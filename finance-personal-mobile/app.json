@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "scheme": "financepersonalmobile",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0D282E",

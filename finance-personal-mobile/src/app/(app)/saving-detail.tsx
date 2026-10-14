@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useSavings, useSavingProgress } from '@/features/secondary/use-secondary';
 import { useCurrentUser } from '@/features/profile/use-current-user';
 import { usePrivacy } from '@/privacy/privacy-provider';
@@ -108,8 +109,8 @@ export default function SavingDetail() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   hero: { gap: spacing.md },
   fields: { gap: spacing.sm, paddingVertical: spacing.lg },
   success: { color: colors.success },
-});
+}));

@@ -1,72 +1,83 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { categoryAppearance, categorySuggestions } from '@/features/categories/category-appearance';
 import { colors, radius, spacing, typography } from '@/theme';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { Button, Screen } from '@/ui/primitives';
 
-const modules = [
-  {
-    title: 'Categorías',
-    icon: 'shapes-outline',
-    color: colors.success,
-    soft: colors.successSoft,
-    copy: 'Elige cómo reconocer tus ingresos y gastos. Crea solo las categorías que necesites.',
-    detail: 'Al empezar podrás elegir ideas o personalizar nombre, ícono y color.',
-  },
-  {
-    title: 'Cuentas',
-    icon: 'wallet-outline',
-    color: colors.info,
-    soft: colors.infoSoft,
-    copy: 'Reúne tu banco, efectivo y billeteras para saber dónde está tu dinero.',
-    detail: 'Registra tu saldo inicial cuando quieras. La app no inventará movimientos.',
-  },
-  {
-    title: 'Movimientos',
-    icon: 'swap-horizontal-outline',
-    color: colors.accent,
-    soft: colors.accentSoft,
-    copy: 'Anota ingresos, gastos y transferencias en la cuenta que corresponda.',
-    detail: 'Podrás consultar el historial y filtrar por fecha, cuenta o categoría.',
-  },
-  {
-    title: 'Metas',
-    icon: 'flag-outline',
-    color: colors.success,
-    soft: colors.primarySoft,
-    copy: 'Ponle nombre a lo que quieres lograr y sigue tus aportes reales.',
-    detail: 'Cada meta muestra lo ahorrado, lo que falta y el avance hacia tu objetivo.',
-  },
-  {
-    title: 'Presupuestos',
-    icon: 'pie-chart-outline',
-    color: colors.danger,
-    soft: colors.dangerSoft,
-    copy: 'Define un límite mensual para una categoría y sigue cuánto has utilizado.',
-    detail: 'Verás el gasto real frente al límite. Crear un presupuesto no mueve dinero.',
-  },
-  {
-    title: 'Créditos',
-    icon: 'card-outline',
-    color: colors.credit,
-    soft: colors.creditSoft,
-    copy: 'Sigue tus préstamos desde el saldo real y revisa sus próximas cuotas.',
-    detail: 'La amortización y los abonos son simulaciones hasta que registres un pago.',
-  },
-  {
-    title: 'Panorama',
-    icon: 'stats-chart-outline',
-    color: colors.primary,
-    soft: colors.primarySoft,
-    copy: 'Consulta tus balances, avances y avisos desde Inicio y Tu plan.',
-    detail: 'Los importes provienen de tus registros. Puedes ocultarlos con el modo de privacidad.',
-  },
-] as const;
+const getModules = () =>
+  [
+    {
+      title: 'Categorías',
+      icon: 'shapes-outline',
+      color: colors.success,
+      soft: colors.successSoft,
+      copy: 'Elige cómo reconocer tus ingresos y gastos. Crea solo las categorías que necesites.',
+      detail: 'Al empezar podrás elegir ideas o personalizar nombre, ícono y color.',
+    },
+    {
+      title: 'Cuentas',
+      icon: 'wallet-outline',
+      color: colors.info,
+      soft: colors.infoSoft,
+      copy: 'Reúne tu banco, efectivo y billeteras para saber dónde está tu dinero.',
+      detail: 'Registra tu saldo inicial cuando quieras. La app no inventará movimientos.',
+    },
+    {
+      title: 'Movimientos',
+      icon: 'swap-horizontal-outline',
+      color: colors.accent,
+      soft: colors.accentSoft,
+      copy: 'Anota ingresos, gastos y transferencias en la cuenta que corresponda.',
+      detail: 'Podrás consultar el historial y filtrar por fecha, cuenta o categoría.',
+    },
+    {
+      title: 'Metas',
+      icon: 'flag-outline',
+      color: colors.success,
+      soft: colors.primarySoft,
+      copy: 'Ponle nombre a lo que quieres lograr y sigue tus aportes reales.',
+      detail: 'Cada meta muestra lo ahorrado, lo que falta y el avance hacia tu objetivo.',
+    },
+    {
+      title: 'Presupuestos',
+      icon: 'pie-chart-outline',
+      color: colors.danger,
+      soft: colors.dangerSoft,
+      copy: 'Define un límite mensual para una categoría y sigue cuánto has utilizado.',
+      detail: 'Verás el gasto real frente al límite. Crear un presupuesto no mueve dinero.',
+    },
+    {
+      title: 'Créditos',
+      icon: 'card-outline',
+      color: colors.credit,
+      soft: colors.creditSoft,
+      copy: 'Sigue tus préstamos desde el saldo real y revisa sus próximas cuotas.',
+      detail: 'La amortización y los abonos son simulaciones hasta que registres un pago.',
+    },
+    {
+      title: 'Panorama',
+      icon: 'stats-chart-outline',
+      color: colors.primary,
+      soft: colors.primarySoft,
+      copy: 'Consulta tus balances, avances y avisos desde Inicio y Tu plan.',
+      detail: 'Los importes provienen de tus registros. Puedes ocultarlos con el modo de privacidad.',
+    },
+    {
+      title: 'Reportes',
+      icon: 'bar-chart-outline',
+      color: colors.info,
+      soft: colors.infoSoft,
+      copy: 'Mira cómo cambian tus gastos durante seis meses y cuáles son tus categorías principales.',
+      detail: 'Cuando uses varias monedas, verás los datos separados para evitar comparaciones engañosas.',
+    },
+  ] as const;
 
 export default function ExploreScreen() {
+  const modules = getModules();
   const [selected, setSelected] = useState(0);
   const module = modules[selected]!;
   return (
@@ -138,7 +149,7 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   top: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   back: {
@@ -188,4 +199,4 @@ const styles = StyleSheet.create({
     minWidth: 78,
   },
   login: { ...typography.label, textAlign: 'center', color: colors.primary, padding: spacing.md },
-});
+}));

@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 
 import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { colors, motion, radius, typography } from '@/theme';
@@ -56,7 +57,7 @@ export function CenterActionButton({ dark = false }: { dark?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   dockButton: {
     width: 54,
     height: 54,
@@ -88,4 +89,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-});
+}));

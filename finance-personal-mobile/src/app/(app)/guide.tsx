@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
@@ -143,7 +144,7 @@ function GuideJourney({
           </Text>
         </LinearGradient>
         <Text style={typography.caption}>
-          Puedes salir cuando quieras y retomar desde Inicio, Plan o Perfil y ajustes.
+          Puedes salir cuando quieras y retomar desde Inicio, Explorar o Perfil y ajustes.
         </Text>
         <JourneyScene revision={selected}>
           <Card style={styles.chapter}>
@@ -227,13 +228,13 @@ function GuideJourney({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   content: { gap: spacing.lg, paddingVertical: spacing.lg },
   hero: { borderRadius: 26, padding: spacing.xl, gap: spacing.md },
   heading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   grow: { flex: 1, minWidth: 0 },
   eyebrow: { ...typography.caption, color: colors.mint, fontWeight: '700' },
-  title: { ...typography.sectionTitle, color: colors.surface },
+  title: { ...typography.sectionTitle, color: '#FFFFFF' },
   heroCopy: { ...typography.caption, color: '#D8F0EA' },
   chapter: { padding: spacing.lg, gap: spacing.lg },
   icon: {
@@ -275,4 +276,4 @@ const styles = StyleSheet.create({
   },
   activeTopic: { borderColor: colors.success, backgroundColor: colors.primarySoft },
   error: { ...typography.caption, color: colors.danger },
-});
+}));

@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import { useCallback, useMemo, useState } from 'react';
@@ -6,7 +7,7 @@ import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 
 import { useTransactions } from '@/features/transactions/use-transactions';
 import { useAccounts } from '@/features/accounts/use-accounts';
@@ -282,7 +283,7 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.5,
   },
-  overviewCount: { ...typography.sectionTitle, color: colors.surface, fontSize: 19, lineHeight: 25 },
+  overviewCount: { ...typography.sectionTitle, color: '#FFFFFF', fontSize: 19, lineHeight: 25 },
   overviewHint: { ...typography.caption, color: '#CBE4E5' },
   register: {
     alignSelf: 'flex-start',
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
   },
   emptyButtonText: { ...typography.label, color: colors.primaryStrong, fontWeight: '700' },
-});
+}));
 
 function filterChips(filters: TransactionFilters, accounts: Array<{ id?: number; name?: string }>) {
   const month =

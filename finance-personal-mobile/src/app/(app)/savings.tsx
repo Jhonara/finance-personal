@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSavings } from '@/features/secondary/use-secondary';
 import { usePrivacy } from '@/privacy/privacy-provider';
@@ -130,7 +131,7 @@ export default function SavingsScreen() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   hero: { gap: spacing.lg, padding: spacing.lg },
   heroHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -155,4 +156,4 @@ const styles = StyleSheet.create({
   },
   number: { ...typography.moneyLarge, color: colors.primary },
   section: { gap: spacing.md },
-});
+}));

@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -258,7 +259,7 @@ export default function BudgetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   period: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.xs },
   periodLabel: {
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
   heroEyebrow: { ...typography.caption, color: colors.mint, fontWeight: '700', letterSpacing: 0.3 },
   heroPeriod: { ...typography.caption, color: '#C3E5E4' },
   heroCaption: { ...typography.bodySecondary, color: '#C3E5E4' },
-  heroAmount: { ...typography.moneyLarge, color: colors.surface, fontSize: 34 },
+  heroAmount: { ...typography.moneyLarge, color: '#FFFFFF', fontSize: 34 },
   heroSubline: { ...typography.caption, color: '#C3E5E4' },
   heroBottom: {
     flexDirection: 'row',
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   heroHint: { ...typography.caption, color: '#C3E5E4', flex: 1 },
-  heroPercent: { ...typography.label, color: colors.surface },
+  heroPercent: { ...typography.label, color: '#FFFFFF' },
   heroStats: { flexDirection: 'row', gap: spacing.sm },
   heroStat: {
     flex: 1,
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   heroStatLabel: { ...typography.caption, color: '#C3E5E4' },
-  heroStatValue: { ...typography.moneySmall, color: colors.surface },
+  heroStatValue: { ...typography.moneySmall, color: '#FFFFFF' },
   list: { gap: spacing.md },
   categoryCard: { padding: spacing.lg, gap: spacing.md, borderRadius: radius.large, ...shadows.card },
   categoryTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -321,4 +322,4 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   currencyNote: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
-});
+}));

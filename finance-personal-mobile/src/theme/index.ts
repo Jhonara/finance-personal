@@ -1,6 +1,6 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
-export const colors = {
+const lightColors = {
   background: '#F2FAF8',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
@@ -45,6 +45,26 @@ export const colors = {
   heroSoft: 'rgba(255,255,255,0.13)',
   overlay: 'rgba(13,40,46,0.34)',
 } as const;
+export const lightPalette: Record<keyof typeof lightColors, string> = lightColors;
+
+let activeColors: Record<keyof typeof lightColors, string> = lightColors;
+let themeRevision = 0;
+export const colors = new Proxy(lightColors, {
+  get(target, key) {
+    return typeof key === 'string' && key in activeColors
+      ? activeColors[key as keyof typeof lightColors]
+      : Reflect.get(target, key);
+  },
+}) as typeof lightColors;
+export function setThemeColors(next: Record<keyof typeof lightColors, string>) {
+  if (activeColors !== next) {
+    activeColors = next;
+    themeRevision += 1;
+  }
+}
+export function getThemeRevision() {
+  return themeRevision;
+}
 
 export const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 40 } as const;
 export const radius = { small: 10, medium: 14, large: 20, pill: 999 } as const;
@@ -102,7 +122,7 @@ const systemFont = Platform.select({
 });
 const semiboldFont = 'Inter_600SemiBold';
 const boldFont = 'Inter_700Bold';
-export const typography: Record<
+const lightTypography: Record<
   | 'display'
   | 'screenTitle'
   | 'sectionTitle'
@@ -199,6 +219,20 @@ export const typography: Record<
   },
   button: { fontFamily: boldFont, fontSize: 16, lineHeight: 20, fontWeight: '700' },
 };
+
+export const typography = new Proxy(lightTypography, {
+  get(target, key) {
+    const style = Reflect.get(target, key) as TextStyle | undefined;
+    if (!style || typeof key !== 'string') return style;
+    const tone =
+      key === 'caption'
+        ? 'textMuted'
+        : key === 'label' || key === 'bodySecondary'
+          ? 'textSecondary'
+          : 'textPrimary';
+    return { ...style, color: activeColors[tone] };
+  },
+});
 
 export const lightTheme = { colors, spacing, radius, sizes, shadows, typography, motion } as const;
 export type AppTheme = typeof lightTheme;

@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
@@ -5,7 +6,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { applyApiFieldErrors } from '@/auth/form-errors';
 import { accountKeys, useAccounts } from '@/features/accounts/use-accounts';
 import { useCategories } from '@/features/categories/use-categories';
@@ -267,10 +268,10 @@ function NewIncomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   form: { gap: spacing.lg, paddingTop: spacing.sm },
   guidance: { ...typography.caption, color: colors.warning },
   error: { ...typography.caption, color: colors.danger },
-});
+}));
 
 export default withFormSession(NewIncomeScreen);

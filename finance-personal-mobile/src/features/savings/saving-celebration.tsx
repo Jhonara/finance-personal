@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { useEffect, useRef } from 'react';
-import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, ScrollView, Text, View } from 'react-native';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { Button } from '@/ui/primitives';
 import { FinancialCompanion } from '@/ui/brand-identity';
@@ -76,7 +77,7 @@ export function SavingCelebration({
     </Modal>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(32,45,50,0.38)' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl },
   panel: {
@@ -93,4 +94,4 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.pill,
   },
-});
+}));

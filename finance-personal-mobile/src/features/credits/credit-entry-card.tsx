@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { MotionPressable } from '@/ui/motion';
 import { colors, spacing, typography } from '@/theme';
 import { TourTarget } from '@/ui/tour-target';
@@ -21,7 +22,7 @@ export function CreditEntryCard({ summary, tourId = 'home-credits' }: { summary?
               <Ionicons name="card-outline" size={27} color={colors.mint} />
             </View>
             <Text style={styles.badge}>{summary ?? 'TU PLAN DE PAGOS'}</Text>
-            <Ionicons name="arrow-forward" size={22} color={colors.surface} />
+            <Ionicons name="arrow-forward" size={22} color="#FFFFFF" />
           </View>
           <Text style={styles.title}>Créditos y préstamos</Text>
           <Text style={styles.copy}>
@@ -36,7 +37,7 @@ export function CreditEntryCard({ summary, tourId = 'home-credits' }: { summary?
     </TourTarget>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   card: { borderRadius: 24, padding: spacing.lg, gap: spacing.sm },
   top: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   icon: {
@@ -48,7 +49,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badge: { ...typography.caption, color: '#C2EEE5', flex: 1, fontWeight: '600' },
-  title: { ...typography.sectionTitle, color: colors.surface },
+  title: { ...typography.sectionTitle, color: '#FFFFFF' },
   copy: { ...typography.caption, color: '#D8EAE9' },
   footer: {
     flexDirection: 'row',
@@ -61,4 +62,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   link: { ...typography.caption, color: colors.mint, fontWeight: '600', flexShrink: 1 },
-});
+}));

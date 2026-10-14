@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { dashboardPeriodFromParams, formatDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { useBudgets } from '@/features/secondary/use-secondary';
@@ -126,7 +127,7 @@ export default function BudgetDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   hero: { padding: spacing.lg, gap: spacing.md, borderRadius: radius.large },
   heading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -147,4 +148,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.medium,
     backgroundColor: colors.infoSoft,
   },
-});
+}));

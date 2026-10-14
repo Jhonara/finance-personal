@@ -104,8 +104,9 @@ export default function AppLayout() {
             }}
           />
           <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline', 'wallet')} />
-          <Tabs.Screen name="plan" options={options('Plan', 'grid-outline', 'grid')} />
+          <Tabs.Screen name="plan" options={options('Explorar', 'compass-outline', 'compass')} />
           <Tabs.Screen name="more" options={{ href: null }} />
+          <Tabs.Screen name="reports" options={{ href: null }} />
           <Tabs.Screen name="guide" options={{ href: null }} />
           <Tabs.Screen name="new-expense" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="new-income" options={{ href: null, tabBarStyle: { display: 'none' } }} />

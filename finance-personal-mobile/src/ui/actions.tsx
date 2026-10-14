@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef } from 'react';
-import { Animated, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMascot } from '@/ui/brand-media';
@@ -25,6 +26,7 @@ export function QuickActionModal({
   canTransfer?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const actionTone = getActionTone();
   const { height, width, fontScale } = useWindowDimensions();
   const compact = width / fontScale < 280;
   const reducedMotion = useReducedMotion();
@@ -180,7 +182,7 @@ export function QuickActionModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   full: { flex: 1 },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   sheet: {
@@ -251,10 +253,11 @@ const styles = StyleSheet.create({
   actionTitleCompact: { fontSize: 13, lineHeight: 18 },
   actionDescription: { ...typography.caption, fontSize: 11, lineHeight: 15 },
   badge: { ...typography.caption, fontSize: 8, lineHeight: 12, fontWeight: '700' },
-});
+}));
 
-const actionTone = {
-  income: { surface: '#E9FAF2', icon: '#C9F8E3', ink: colors.success },
-  expense: { surface: '#FFF0EF', icon: '#FFE0DC', ink: colors.danger },
-  info: { surface: '#EAF7FC', icon: '#D4EFF9', ink: colors.info },
-} as const;
+const getActionTone = () =>
+  ({
+    income: { surface: colors.successSoft, icon: colors.primarySoft, ink: colors.success },
+    expense: { surface: colors.expenseSoft, icon: colors.dangerSoft, ink: colors.danger },
+    info: { surface: colors.infoSoft, icon: colors.creditSoft, ink: colors.info },
+  }) as const;

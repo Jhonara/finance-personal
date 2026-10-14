@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
@@ -128,7 +129,7 @@ export function HomeAccountPreview({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   pressable: { flexGrow: 0, minWidth: 0, borderRadius: radius.large, ...shadows.card },
   pressed: { opacity: 0.84, transform: [{ scale: 0.98 }] },
   card: {
@@ -160,4 +161,4 @@ const styles = StyleSheet.create({
   },
   name: { ...typography.caption, fontSize: 11, lineHeight: 15, fontWeight: '600' },
   amount: { ...typography.moneySmall, fontSize: 18, lineHeight: 23 },
-});
+}));

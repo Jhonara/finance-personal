@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Text, View } from 'react-native';
 import { useEffect, useRef } from 'react';
 
 import { useAuth } from '@/auth/auth-provider';
@@ -163,10 +164,10 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   header: { gap: spacing.sm, paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
   form: { gap: spacing.lg },
   footer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, paddingTop: spacing.xxl },
   link: { ...typography.label, color: colors.primary },
   serverError: { ...typography.bodySecondary, color: colors.danger },
-});
+}));

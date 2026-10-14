@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -22,7 +23,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
       summary: plan.budget,
       icon: 'pie-chart-outline' as const,
       color: colors.danger,
-      soft: '#FFF0EE',
+      soft: colors.expenseSoft,
       progress: plan.budgetPercent,
       onPress: () => router.push({ pathname: '/(app)/budgets', params: period }),
       context: formatDashboardPeriod(period),
@@ -32,7 +33,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
       summary: plan.saving,
       icon: 'shield-checkmark-outline' as const,
       color: colors.success,
-      soft: '#E5FAEF',
+      soft: colors.successSoft,
       progress: plan.savingPercent,
       onPress: () => router.push('/(app)/savings'),
       context: '',
@@ -55,7 +56,12 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
           ? ('checkmark-circle-outline' as const)
           : ('notifications-outline' as const),
       color: alertsColor,
-      soft: plan.alertState === 'clear' ? '#E5FAEF' : plan.alertState === 'unknown' ? '#E8F7FC' : '#FFF2EB',
+      soft:
+        plan.alertState === 'clear'
+          ? colors.successSoft
+          : plan.alertState === 'unknown'
+            ? colors.infoSoft
+            : colors.warningSoft,
       onPress: () => router.push('/(app)/alerts'),
     },
   ];
@@ -132,7 +138,7 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   section: { gap: spacing.sm, marginTop: spacing.xl },
   heading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -182,4 +188,4 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1, gap: spacing.xxs },
   rowTitle: { ...typography.label, fontSize: 12, lineHeight: 16, color: colors.textPrimary },
   rowSummary: { ...typography.caption, fontSize: 11, lineHeight: 14, color: colors.textSecondary },
-});
+}));

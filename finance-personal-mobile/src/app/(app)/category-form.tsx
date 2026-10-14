@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, Text, View } from 'react-native';
 import {
   categoryAppearance,
   categoryColors,
@@ -106,7 +107,7 @@ function CategoryForm() {
         >
           <Ionicons name={visualIcon} size={46} color={visualColor.ink} />
           <View style={styles.previewEdit}>
-            <Ionicons name="pencil" size={15} color={colors.surface} />
+            <Ionicons name="pencil" size={15} color="#FFFFFF" />
           </View>
         </MotionPressable>
         <Text style={typography.bodySecondary}>Toca para cambiar ícono y color</Text>
@@ -255,7 +256,7 @@ function CategoryForm() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   previewWrap: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
   preview: { width: 104, height: 104, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   tabActive: { backgroundColor: colors.primaryStrong },
-  activeText: { color: colors.surface },
+  activeText: { color: '#FFFFFF' },
   section: { gap: spacing.md, padding: spacing.lg, borderRadius: 22, backgroundColor: colors.surface },
   ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   idea: {
@@ -328,6 +329,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
   },
-});
+}));
 
 export default withFormSession(CategoryForm);

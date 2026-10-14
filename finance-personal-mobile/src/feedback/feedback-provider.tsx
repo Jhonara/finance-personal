@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import {
   createContext,
   useCallback,
@@ -8,7 +9,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -181,7 +182,7 @@ export const FeedbackProvider = ({ children }: PropsWithChildren) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   root: { flex: 1 },
   content: { flex: 1 },
   feedback: {
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   closePressed: { backgroundColor: colors.surfaceSecondary },
-});
+}));
 
 export const useFeedback = () => {
   const x = useContext(C);

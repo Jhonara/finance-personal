@@ -1,9 +1,11 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
+import { useAppTheme } from '@/theme/theme-provider';
 import { BrandAvatar, BrandLogo, BrandMark } from './brand-identity';
 import { IconButton } from './primitives';
 
@@ -68,6 +70,7 @@ export function ScreenHeader({
   titleNumberOfLines?: number;
   brand?: boolean;
 }) {
+  const { palette } = useAppTheme();
   return (
     <View style={styles.header}>
       {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={onBack} /> : null}
@@ -76,11 +79,13 @@ export function ScreenHeader({
         <Text
           accessibilityRole="header"
           numberOfLines={titleNumberOfLines}
-          style={[typography.screenTitle, styles.title]}
+          style={[typography.screenTitle, styles.title, { color: palette.textPrimary }]}
         >
           {title}
         </Text>
-        {subtitle && <Text style={typography.bodySecondary}>{subtitle}</Text>}
+        {subtitle && (
+          <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>{subtitle}</Text>
+        )}
       </View>
       {rightAction}
     </View>
@@ -138,7 +143,7 @@ export function MoreListItem({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   homeHeader: { gap: spacing.xs },
   brandRow: {
     minHeight: 48,
@@ -178,4 +183,4 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
-});
+}));

@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState, type PropsWithChildren } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTour } from '@/features/onboarding/tour-context';
 import { TourTarget } from '@/ui/tour-target';
@@ -16,11 +17,14 @@ import { Card, Screen } from '@/ui/primitives';
 import { SettingsRow } from '@/ui/settings-row';
 import { ErrorState, SkeletonRow } from '@/ui/states';
 import { colors, radius, spacing, typography } from '@/theme';
+import { useAppTheme, type AppearanceMode } from '@/theme/theme-provider';
+import { MotionPressable } from '@/ui/motion';
 
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
+  const { palette } = useAppTheme();
   return (
     <View style={{ gap: spacing.sm }}>
-      <Text accessibilityRole="header" style={typography.sectionTitle}>
+      <Text accessibilityRole="header" style={[typography.sectionTitle, { color: palette.textPrimary }]}>
         {title}
       </Text>
       <Card style={{ paddingHorizontal: spacing.md }}>{children}</Card>
@@ -28,6 +32,7 @@ function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   );
 }
 export default function MoreScreen() {
+  const { mode, palette, setMode } = useAppTheme();
   const tour = useTour();
   const profile = useCurrentUser();
   const { logout, logoutAll } = useAuth();
@@ -116,7 +121,7 @@ export default function MoreScreen() {
                 importantForAccessibility="no-hide-descendants"
                 style={styles.avatar}
               >
-                <Text style={[typography.sectionTitle, { color: colors.surface }]}>
+                <Text style={[typography.sectionTitle, { color: '#FFFFFF' }]}>
                   {profileInitials(profile.data.name)}
                 </Text>
               </View>
@@ -141,6 +146,53 @@ export default function MoreScreen() {
         />
       </Section>
       <Section title="Preferencias">
+        <View style={styles.appearance}>
+          <View style={styles.appearanceTitle}>
+            <View style={[styles.appearanceIcon, { backgroundColor: palette.infoSoft }]}>
+              <Text style={{ fontSize: 21 }}>◐</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.cardTitle, { color: palette.textPrimary }]}>Apariencia</Text>
+              <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>
+                Elige cómo se ve la app.
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.appearanceOptions, { backgroundColor: palette.surfaceSecondary }]}>
+            {(
+              [
+                ['system', 'Sistema'],
+                ['light', 'Claro'],
+                ['dark', 'Oscuro'],
+              ] as const
+            ).map(([value, label]) => (
+              <MotionPressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityLabel={`Tema ${label.toLowerCase()}`}
+                accessibilityState={{ selected: mode === value }}
+                onPress={() =>
+                  void setMode(value as AppearanceMode).catch(() =>
+                    feedback.show('No pudimos guardar la apariencia.', 'error'),
+                  )
+                }
+                style={[
+                  styles.appearanceChoice,
+                  mode === value && { backgroundColor: palette.surface, borderColor: palette.border },
+                ]}
+              >
+                <Text
+                  style={[
+                    typography.label,
+                    { color: mode === value ? palette.textPrimary : palette.textSecondary },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </MotionPressable>
+            ))}
+          </View>
+        </View>
         <SettingsRow
           icon="eye-off-outline"
           title="Ocultar importes"
@@ -154,7 +206,7 @@ export default function MoreScreen() {
               value={hidden}
               disabled={privacyBusy}
               onValueChange={() => void changePrivacy()}
-              trackColor={{ true: colors.primary, false: colors.border }}
+              trackColor={{ true: palette.primaryStrong, false: palette.border }}
             />
           }
         />
@@ -199,7 +251,26 @@ export default function MoreScreen() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
+  appearance: { paddingVertical: spacing.lg, gap: spacing.md },
+  appearanceTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  appearanceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appearanceOptions: { flexDirection: 'row', padding: 4, borderRadius: radius.pill, gap: 4 },
+  appearanceChoice: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
   profileCard: { gap: spacing.md, padding: spacing.lg },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   profileCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
@@ -212,4 +283,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

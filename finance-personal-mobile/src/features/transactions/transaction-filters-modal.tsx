@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccounts } from '@/features/accounts/use-accounts';
@@ -317,7 +318,7 @@ function ClearChoice({ label, onPress }: { label: string; onPress(): void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(30,42,49,0.3)' },
   sheet: {
     maxHeight: '92%',
@@ -341,4 +342,4 @@ const styles = StyleSheet.create({
   clear: { ...typography.caption, color: colors.primary },
   error: { ...typography.caption, color: colors.danger },
   count: { ...typography.caption, color: colors.textSecondary },
-});
+}));

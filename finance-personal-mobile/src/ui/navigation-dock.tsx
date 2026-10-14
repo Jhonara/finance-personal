@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { Keyboard, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { Tabs } from 'expo-router';
@@ -5,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '@/theme';
+import { useAppTheme } from '@/theme/theme-provider';
 import { MotionPressable } from './motion';
 import { CenterActionButton } from './center-action';
 import { useReducedMotion } from './use-reduced-motion';
@@ -12,6 +14,7 @@ import { dockIndex, dockItems } from './navigation-model';
 
 type DockProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 export function NavigationDock({ state, descriptors, navigation }: DockProps) {
+  const { palette } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [keyboard, setKeyboard] = useState(false);
@@ -43,7 +46,7 @@ export function NavigationDock({ state, descriptors, navigation }: DockProps) {
         paddingBottom: Math.max(insets.bottom, 8),
         paddingHorizontal: 12,
         paddingTop: 10,
-        backgroundColor: colors.background,
+        backgroundColor: palette.background,
       }}
     >
       <View onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)} style={styles.bar}>
@@ -92,7 +95,7 @@ export function NavigationDock({ state, descriptors, navigation }: DockProps) {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   bar: {
     height: 74,
     flexDirection: 'row',
@@ -133,4 +136,4 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.mint,
   },
-});
+}));

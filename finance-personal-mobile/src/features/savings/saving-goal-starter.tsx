@@ -1,21 +1,24 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 import { MotionPressable } from '@/ui/motion';
 import { Button } from '@/ui/primitives';
 
-const ideas = [
-  { title: 'Un viaje', icon: 'airplane-outline', soft: colors.infoSoft, ink: colors.info },
-  {
-    title: 'Fondo de emergencia',
-    icon: 'shield-checkmark-outline',
-    soft: colors.successSoft,
-    ink: colors.success,
-  },
-  { title: 'Algo importante', icon: 'sparkles-outline', soft: colors.accentSoft, ink: colors.accent },
-] as const;
+const goalIdeas = () =>
+  [
+    { title: 'Un viaje', icon: 'airplane-outline', soft: colors.infoSoft, ink: colors.info },
+    {
+      title: 'Fondo de emergencia',
+      icon: 'shield-checkmark-outline',
+      soft: colors.successSoft,
+      ink: colors.success,
+    },
+    { title: 'Algo importante', icon: 'sparkles-outline', soft: colors.accentSoft, ink: colors.accent },
+  ] as const;
 
 export function SavingGoalStarter({ onCreate }: { onCreate(name?: string): void }) {
+  const ideas = goalIdeas();
   return (
     <View style={styles.card}>
       <View style={styles.art}>
@@ -23,7 +26,7 @@ export function SavingGoalStarter({ onCreate }: { onCreate(name?: string): void 
           <Ionicons name="flag-outline" size={42} color={colors.success} />
         </View>
         <View style={styles.coin}>
-          <Ionicons name="sparkles" size={23} color={colors.surface} />
+          <Ionicons name="sparkles" size={23} color="#FFFFFF" />
         </View>
       </View>
       <Text accessibilityRole="header" style={typography.sectionTitle}>
@@ -53,7 +56,7 @@ export function SavingGoalStarter({ onCreate }: { onCreate(name?: string): void 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   card: {
     gap: spacing.lg,
     padding: spacing.xl,
@@ -99,4 +102,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.medium,
   },
-});
+}));

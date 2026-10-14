@@ -27,7 +27,7 @@ export const guideTopics = [
       'Escribe el importe, elige la cuenta y una categoría. Revisa la fecha y añade una nota si te ayuda.',
       'Guarda una sola vez. En Movimientos puedes revisar, filtrar y abrir el detalle del registro.',
     ],
-    tip: 'La categoría es obligatoria: permite entender en qué gastas. Puedes gestionar tus categorías desde Perfil y ajustes.',
+    tip: 'La categoría es obligatoria: permite entender en qué gastas. Puedes gestionarlas desde Explorar o Perfil y ajustes.',
     action: 'Registrar movimiento',
     route: 'quick-action',
   },
@@ -39,7 +39,7 @@ export const guideTopics = [
     tone: 'coral',
     intro: 'Las categorías agrupan tus ingresos y gastos. Las eliges al registrar y al crear presupuestos.',
     steps: [
-      'En Perfil y ajustes, abre Categorías y elige Gastos o Ingresos.',
+      'En Explorar, abre Categorías y elige Gastos o Ingresos.',
       'Marca varias ideas y pulsa Agregar para guardarlas, o entra en Crear una a tu estilo.',
       'Si creas la tuya, elige nombre, ícono y color. Después puedes editarla, pausarla y reactivarla sin borrar su historial.',
     ],
@@ -71,7 +71,7 @@ export const guideTopics = [
     tone: 'coral',
     intro: 'Un presupuesto es un límite mensual para una categoría de gasto.',
     steps: [
-      'En Plan, entra en Presupuestos y elige el mes que quieres organizar.',
+      'En Explorar, entra en Presupuestos y elige el mes que quieres organizar.',
       'Crea un presupuesto: selecciona la categoría y escribe su límite.',
       'Registra tus gastos con esa categoría. El consumo del presupuesto se actualiza con tus movimientos.',
     ],
@@ -87,7 +87,7 @@ export const guideTopics = [
     tone: 'mint',
     intro: 'Una meta es un objetivo de ahorro, como un viaje o un fondo de reserva.',
     steps: [
-      'En Plan, abre Ahorros. Elige una idea o crea una meta con nombre e importe objetivo.',
+      'En Explorar, abre Ahorros. Elige una idea o crea una meta con nombre e importe objetivo.',
       'Entra en la meta para registrar un aporte. Revisa la cuenta de origen cuando corresponda.',
       'Consulta cuánto has reunido y lo que te falta antes de añadir otro aporte.',
     ],
@@ -103,7 +103,7 @@ export const guideTopics = [
     tone: 'lavender',
     intro: 'Aquí van tu hipoteca, préstamo de vehículo y otros créditos con sus condiciones reales.',
     steps: [
-      'En Plan, entra en Créditos y préstamos y pulsa Agregar crédito.',
+      'En Explorar, entra en Créditos y préstamos y pulsa Agregar crédito.',
       'Si ya lo pagabas, elige Ya lo venía pagando. Copia del extracto saldo pendiente, fecha de corte, cuotas restantes y próximo pago.',
       'Completa monto original, tasa EA, plazo y día de pago. Después registra cada pago real desde el detalle del crédito.',
     ],
@@ -128,6 +128,22 @@ export const guideTopics = [
     route: '/(app)/credits',
   },
   {
+    id: 'reports',
+    title: 'Reportes y gráficas',
+    short: 'Detecta tus hábitos',
+    icon: 'stats-chart-outline',
+    tone: 'blue',
+    intro: 'Compara tus meses y descubre qué categorías concentran tus gastos.',
+    steps: [
+      'Abre Reportes desde Inicio o desde Explorar.',
+      'Cambia el mes con las flechas para ver sus ingresos, gastos y categorías principales.',
+      'Compara la gráfica de seis meses. Si tienes cuentas en varias monedas, revisa cada moneda por separado.',
+    ],
+    tip: 'Los reportes usan tus registros. Si falta un gasto, corrígelo en Movimientos antes de interpretar la gráfica.',
+    action: 'Abrir Reportes',
+    route: '/(app)/reports',
+  },
+  {
     id: 'home',
     title: 'Entender tu Inicio',
     short: 'Una mirada a tu dinero',
@@ -137,7 +153,7 @@ export const guideTopics = [
     steps: [
       'Usa el selector de mes para revisar ingresos y gastos de otro período.',
       'El panorama muestra por separado el dinero en tus cuentas, el capital pendiente de tus créditos y las cuotas vencidas estimadas, por moneda.',
-      'En Tu plan abre presupuestos, ahorros, créditos o alertas. Para ti destaca una señal de tus datos.',
+      'En Explorar abre presupuestos, ahorros, créditos, alertas y reportes. Para ti destaca una señal de tus datos.',
     ],
     tip: 'El panorama solo incluye las cuentas y los créditos que registraste. Las cuotas vencidas son una estimación aparte. Para ti aún no es un asistente de IA.',
     action: 'Volver a Inicio',
@@ -151,7 +167,7 @@ export const guideTopics = [
     tone: 'amber',
     intro: 'Las alertas te ayudan a revisar lo que está pasando en tus datos.',
     steps: [
-      'Abre Alertas desde Plan o desde Tu plan en Inicio.',
+      'Abre Alertas desde Explorar o desde Tu plan en Inicio.',
       'Lee el motivo de cada aviso y abre el módulo relacionado para revisar sus datos.',
       'Comprueba tus cuentas y movimientos con tus extractos de vez en cuando. Corrige registros equivocados desde sus opciones disponibles.',
     ],
@@ -168,7 +184,7 @@ export const guideTopics = [
     intro: 'Tu avatar en Inicio abre el perfil, las preferencias y las categorías.',
     steps: [
       'Pulsa el ojo de Inicio para ocultar importes cuando estés acompañado.',
-      'En Perfil y ajustes puedes gestionar categorías y volver a abrir esta guía.',
+      'En Perfil y ajustes puedes cambiar el tema, gestionar tu privacidad y volver a abrir esta guía.',
       'Si usaste un dispositivo compartido, cierra sesión. También puedes cerrar tus sesiones en todos los dispositivos.',
     ],
     tip: 'La guía no modifica tus finanzas. Su avance de lectura se guarda por usuario en este dispositivo; puedes repasar cualquier tema.',

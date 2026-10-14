@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionEntry } from './motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 import { Button } from './primitives';
@@ -144,7 +145,7 @@ export function SkeletonRow() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   center: {
     alignItems: 'center',
     gap: spacing.md,
@@ -174,4 +175,4 @@ const styles = StyleSheet.create({
   },
   skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
   skeletonText: { flex: 1, gap: spacing.sm },
-});
+}));

@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 import { MotionPressable } from '@/ui/motion';
@@ -61,7 +62,7 @@ export function HomeHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   container: { gap: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.lg },
   topline: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -91,8 +92,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileText: { ...typography.label, color: colors.surface },
+  profileText: { ...typography.label, color: '#FFFFFF' },
   greeting: { gap: spacing.xs },
   greetingTitle: { ...typography.screenTitle, fontSize: 22, lineHeight: 28 },
   greetingCopy: { ...typography.caption, fontSize: 13, lineHeight: 18, color: colors.textSecondary },
-});
+}));

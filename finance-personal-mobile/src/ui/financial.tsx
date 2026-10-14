@@ -1,8 +1,9 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { Progress } from './progress';
 import { MotionPressable } from '@/ui/motion';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -278,7 +279,7 @@ export function AlertCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   grow: { flex: 1, gap: spacing.xs },
   stat: { flex: 1, minWidth: 150, padding: spacing.lg, gap: spacing.sm },
@@ -351,7 +352,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.medium,
     backgroundColor: colors.surfaceSecondary,
   },
-});
+}));
 
 const statTone = {
   primary: {

@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { firstRunStorage } from '@/features/onboarding/first-run-storage';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -145,7 +146,7 @@ export function FirstRunFabHint({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.overlay },
   card: {
     maxHeight: '90%',
@@ -180,4 +181,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     ...shadows.floating,
   },
-});
+}));

@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -187,7 +188,7 @@ export function CreditPaymentForm({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   extraCard: { gap: spacing.md, padding: spacing.lg, backgroundColor: colors.successSoft },
   extraHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   extraIcon: {
@@ -198,4 +199,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

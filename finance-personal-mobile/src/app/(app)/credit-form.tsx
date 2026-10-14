@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useForm } from 'react-hook-form';
@@ -201,7 +202,7 @@ function CreditForm() {
             if (!safety.busy) router.replace('/(app)/credits');
           }}
         />
-        <LinearGradient colors={[colors.creditSoft, '#F9FCFF']} style={styles.intro}>
+        <LinearGradient colors={[colors.creditSoft, colors.surface]} style={styles.intro}>
           <View style={styles.introIcon}>
             <Ionicons name="card-outline" size={25} color={colors.credit} />
           </View>
@@ -369,7 +370,7 @@ function CreditForm() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   intro: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,6 +387,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   introCopy: { flex: 1, gap: spacing.xs },
-});
+}));
 
 export default withFormSession(CreditForm);

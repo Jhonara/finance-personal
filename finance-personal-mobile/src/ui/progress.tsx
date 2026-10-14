@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useReducedMotion } from './use-reduced-motion';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, View } from 'react-native';
 import { colors, motion, radius } from '@/theme';
 
 export function Progress({
@@ -51,7 +52,7 @@ export function Progress({
     </View>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   track: {
     height: 9,
     borderRadius: radius.pill,
@@ -60,4 +61,4 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   fill: { height: '100%', borderRadius: radius.pill },
-});
+}));

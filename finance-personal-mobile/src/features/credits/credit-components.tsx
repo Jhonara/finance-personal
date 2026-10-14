@@ -1,9 +1,10 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { formatLocalDate } from '@/utils/local-date';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { Credit, CreditPlan, CreditSimulation } from '@/features/secondary/secondary-api';
 import { Card } from '@/ui/primitives';
 import { BrandSurface } from '@/ui/brand-surface';
@@ -103,7 +104,7 @@ export function CreditCard({
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.7}
-            style={[typography.moneyMedium, { color: colors.surface }]}
+            style={[typography.moneyMedium, { color: '#FFFFFF' }]}
           >
             {creditMoney(credit.remainingBalance, credit.currency, hidden)}
           </Text>
@@ -144,7 +145,7 @@ export function CreditCard({
     </MotionPressable>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   creditCard: {
     gap: spacing.md,
     padding: spacing.lg,
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
   heroHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   heroEyebrow: { ...typography.caption, color: colors.mint, fontWeight: '700', flex: 1 },
   heroStatus: { ...typography.bodySecondary, color: '#C3E5E4' },
-});
+}));
 export function CreditHero({ credit, hidden }: { credit: Credit; hidden: boolean }) {
   return (
     <BrandSurface tone="panorama" style={creditPanel}>
@@ -216,7 +217,7 @@ export function CreditHero({ credit, hidden }: { credit: Credit; hidden: boolean
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
-        style={[typography.moneyLarge, { color: colors.surface }]}
+        style={[typography.moneyLarge, { color: '#FFFFFF' }]}
       >
         {creditMoney(credit.remainingBalance, credit.currency, hidden)}
       </Text>
@@ -344,7 +345,7 @@ export function CreditSimulationView({
         {result.installmentValue !== undefined && (
           <View style={planStyles.installment}>
             <Text style={[typography.caption, { color: '#C3E5E4' }]}>CUOTA ESTIMADA</Text>
-            <Text style={[typography.moneyMedium, { color: colors.surface }]}>
+            <Text style={[typography.moneyMedium, { color: '#FFFFFF' }]}>
               {creditMoney(result.installmentValue, currency, hidden)}
             </Text>
           </View>
@@ -421,7 +422,7 @@ export function CreditSimulationView({
   );
 }
 
-const planStyles = StyleSheet.create({
+const planStyles = themedStyleSheet(() => ({
   content: { gap: spacing.md },
   status: {
     flexDirection: 'row',
@@ -495,4 +496,4 @@ const planStyles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.infoSoft,
   },
-});
+}));

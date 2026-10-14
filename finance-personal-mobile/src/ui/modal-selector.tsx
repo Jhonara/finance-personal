@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useModalMotion } from './use-modal-motion';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Animated, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from './primitives';
@@ -147,7 +148,7 @@ export function ModalSelector({
     </Modal>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   sheet: {
     gap: spacing.md,
@@ -213,4 +214,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   emptyText: { textAlign: 'center' },
-});
+}));

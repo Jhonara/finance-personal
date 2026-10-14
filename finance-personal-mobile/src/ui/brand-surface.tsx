@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radius, spacing } from '@/theme';
 
 export function BrandSurface({
@@ -41,7 +42,7 @@ export function BrandSurface({
     </LinearGradient>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   surface: {
     overflow: 'hidden',
     padding: spacing.lg,
@@ -76,4 +77,4 @@ const styles = StyleSheet.create({
     bottom: -70,
   },
   heroRing: { borderColor: colors.heroSoft, right: -65, bottom: -95 },
-});
+}));

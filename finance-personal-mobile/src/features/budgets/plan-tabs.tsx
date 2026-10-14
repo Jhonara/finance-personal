@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MotionPressable } from '@/ui/motion';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -46,7 +47,7 @@ export function PlanTabs({ selected }: { selected: 'budgets' | 'credits' }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   track: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -67,5 +68,5 @@ const styles = StyleSheet.create({
   active: { backgroundColor: colors.primaryStrong },
   label: { ...typography.label, fontSize: 13, color: colors.primaryStrong, flexShrink: 1 },
   compactLabel: { fontSize: 11, lineHeight: 16 },
-  activeLabel: { color: colors.surface },
-});
+  activeLabel: { color: '#FFFFFF' },
+}));

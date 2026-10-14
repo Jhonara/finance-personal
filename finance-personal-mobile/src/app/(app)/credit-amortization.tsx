@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -633,7 +634,7 @@ function Tab({ label, selected, onPress }: { label: string; selected: boolean; o
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   grow: { flex: 1, minWidth: 0 },
   hero: { gap: spacing.md, borderRadius: 26, padding: spacing.xl, ...shadows.card },
@@ -647,7 +648,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF1E',
   },
   heroEyebrow: { ...typography.caption, color: '#B9E9E3', fontWeight: '700', letterSpacing: 0.5 },
-  heroAmount: { ...typography.moneyLarge, color: colors.surface },
+  heroAmount: { ...typography.moneyLarge, color: '#FFFFFF' },
   heroHint: { ...typography.caption, color: '#C3E5E4' },
   heroFacts: { flexDirection: 'row', gap: spacing.sm },
   heroFact: {
@@ -659,7 +660,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   factLabel: { ...typography.caption, color: '#C3E5E4' },
-  factValue: { ...typography.label, color: colors.surface },
+  factValue: { ...typography.label, color: '#FFFFFF' },
   terms: { gap: spacing.md, padding: spacing.lg },
   recordedImpact: { gap: spacing.md, padding: spacing.lg, backgroundColor: colors.successSoft },
   recordedStats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
@@ -667,7 +668,7 @@ const styles = StyleSheet.create({
   termsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   fact: { flexBasis: '44%', flexGrow: 1, minWidth: 0, gap: spacing.xxs },
   darkLabel: { color: '#C3E5E4' },
-  darkValue: { color: colors.surface },
+  darkValue: { color: '#FFFFFF' },
   successCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -705,8 +706,8 @@ const styles = StyleSheet.create({
   error: { ...typography.bodySecondary, color: colors.danger },
   impactCard: { gap: spacing.md, padding: spacing.xl, backgroundColor: colors.primaryStrong },
   impactEyebrow: { ...typography.caption, color: colors.mint, fontWeight: '700' },
-  impactTitle: { ...typography.screenTitle, color: colors.surface },
-  impactBody: { ...typography.body, color: colors.surface },
+  impactTitle: { ...typography.screenTitle, color: '#FFFFFF' },
+  impactBody: { ...typography.body, color: '#FFFFFF' },
   impactDates: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -729,6 +730,6 @@ const styles = StyleSheet.create({
   },
   tabSelected: { backgroundColor: colors.primaryStrong },
   tabText: { ...typography.label, color: colors.primary },
-  tabTextSelected: { color: colors.surface },
+  tabTextSelected: { color: '#FFFFFF' },
   emptySchedule: { padding: spacing.lg },
-});
+}));

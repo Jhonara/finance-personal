@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { themedStyleSheet } from '@/theme/themed-styles';
+import { Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 
@@ -16,7 +17,7 @@ export function Chip({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   chip: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm,
@@ -24,7 +25,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   text: { ...typography.caption, fontWeight: '600' },
-});
+}));
 
 const toneStyles = {
   neutral: { backgroundColor: colors.surfaceSecondary },

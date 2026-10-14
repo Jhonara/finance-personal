@@ -1,5 +1,6 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { formatLocalDate } from '@/utils/local-date';
 import { MotionPressable } from '@/ui/motion';
@@ -277,7 +278,7 @@ export function RecordedPayments({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   list: { gap: spacing.md },
   grow: { flex: 1, minWidth: 0 },
   rowCard: { gap: spacing.md, padding: spacing.lg },
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.infoSoft,
   },
   activeFilter: { backgroundColor: colors.primaryStrong },
-  selectedCard: { borderColor: colors.success, backgroundColor: '#F2FCF8' },
+  selectedCard: { borderColor: colors.success, backgroundColor: colors.successSoft },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   numberBadge: {
     width: 38,
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   },
   selectedBadge: { backgroundColor: colors.success },
   number: { ...typography.label, color: colors.credit },
-  selectedNumber: { color: colors.surface },
+  selectedNumber: { color: colors.background },
   balanceStrip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -339,4 +340,4 @@ const styles = StyleSheet.create({
   empty: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
   paymentCard: { gap: spacing.md, padding: spacing.lg },
   paymentBadge: { backgroundColor: colors.successSoft },
-});
+}));

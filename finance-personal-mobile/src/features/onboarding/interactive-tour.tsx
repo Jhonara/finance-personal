@@ -1,3 +1,4 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { BackHandler, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { router, usePathname } from 'expo-router';
@@ -225,7 +226,7 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
     </TourContext.Provider>
   );
 }
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   card: {
     borderRadius: 28,
     borderWidth: 1,
@@ -261,4 +262,4 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.successSoft,
   },
-});
+}));

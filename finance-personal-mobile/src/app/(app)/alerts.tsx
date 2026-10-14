@@ -1,6 +1,7 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import { router } from 'expo-router';
 import { TourTarget } from '@/ui/tour-target';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ScreenHeader } from '@/ui/headers';
 import { Card, Screen } from '@/ui/primitives';
@@ -76,7 +77,7 @@ export default function AlertsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   summary: {
     flexDirection: 'row',
@@ -97,4 +98,4 @@ const styles = StyleSheet.create({
   summaryCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
   eyebrow: { ...typography.caption, color: colors.warning, fontWeight: '700', letterSpacing: 0.4 },
   group: { gap: spacing.md },
-});
+}));

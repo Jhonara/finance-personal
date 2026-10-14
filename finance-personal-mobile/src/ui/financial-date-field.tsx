@@ -1,7 +1,8 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { nativeFromLocalDate, localDateFromNative, formatLocalDate } from '@/utils/local-date';
 import { colors, radius, sizes, spacing, typography } from '@/theme';
 export function FinancialDateField({
@@ -49,7 +50,7 @@ export function FinancialDateField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyleSheet(() => ({
   field: { gap: spacing.sm },
   control: {
     minHeight: sizes.input,
@@ -67,4 +68,4 @@ const styles = StyleSheet.create({
   placeholder: { color: colors.textMuted },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
   error: { ...typography.caption, color: colors.danger },
-});
+}));
