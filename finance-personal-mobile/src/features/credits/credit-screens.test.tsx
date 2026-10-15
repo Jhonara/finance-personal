@@ -111,6 +111,8 @@ import CreditsScreen from '@/app/(app)/credits';
 import CreditForm from '@/app/(app)/credit-form';
 import CreditDetail from '@/app/(app)/credit-detail';
 import CreditAmortizationScreen from '@/app/(app)/credit-amortization';
+import CreditPayments from '@/app/(app)/credit-payments';
+import CreditOpeningScreen from '@/app/(app)/credit-opening';
 import AppLayout from '@/app/(app)/_layout';
 import { CreditCard, CreditPlanView, CreditSimulationView } from './credit-components';
 import { CreditPaymentForm } from './credit-payment-form';
@@ -118,6 +120,7 @@ import { CreditSimulationForm } from './credit-simulation-form';
 import type { Credit } from '@/features/secondary/secondary-api';
 
 import { ApiError } from '@/api/errors';
+import { localDateFromNative } from '@/utils/local-date';
 
 const base: Credit = {
   id: 1,
@@ -434,9 +437,9 @@ describe('Credit screens with real hooks and forms', () => {
     const ui = text(tree.toJSON());
     expect(ui).toContain('750 COP');
     expect(ui).toContain('10 USD');
-    expect(ui.indexOf('Activos')).toBeLessThan(ui.indexOf('Atrasados'));
+    expect(ui.indexOf('Activos')).toBeLessThan(ui.indexOf('Pagos por revisar'));
     expect(ui).toContain('Pagados');
-    expect(ui).not.toContain('Al día');
+    expect(ui).toContain('Al día');
     await press(tree, 'Agregar crédito');
     expect(mocks.push).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -651,8 +654,8 @@ describe('Credit screens with real hooks and forms', () => {
         hidden
       />,
     );
-    expect(text(plan.toJSON())).toContain('Planeado');
-    expect(text(plan.toJSON())).toContain('Real');
+    expect(text(plan.toJSON())).toContain('Plan estimado');
+    expect(text(plan.toJSON())).toContain('Anotado');
     expect(text(plan.toJSON())).not.toMatch(/789|456/);
     const scenario = await render(
       <CreditSimulationView
@@ -715,7 +718,7 @@ describe('Credit screens with real hooks and forms', () => {
     expect(text(tree.toJSON())).toContain('Pago registrado');
     expect(text(tree.toJSON())).toContain('Abono extra registrado');
     expect(text(tree.toJSON())).toContain('Tus abonos extra ya cuentan');
-    expect(text(tree.toJSON())).toContain('SALDO REAL');
+    expect(text(tree.toJSON())).toContain('SALDO REGISTRADO');
     await fill(tree, 'Abono extra a capital', '100');
     await press(tree, 'Calcular impacto');
     expect(mocks.post).toHaveBeenCalledWith('/credits/1/amortization/scenarios', {
@@ -727,6 +730,56 @@ describe('Credit screens with real hooks and forms', () => {
     expect(credits[0]).toEqual(base);
     await fill(tree, 'Abono extra a capital', '200');
     expect(text(tree.toJSON())).not.toContain('1 cuota menos');
+  });
+  it('opens this credit’s payments rather than unrelated account movements', async () => {
+    const detail = await render(<CreditDetail />);
+    await press(detail, 'Ver pagos de este crédito');
+    expect(mocks.push).toHaveBeenCalledWith({ pathname: '/(app)/credit-payments', params: { id: 1 } });
+    const history = await render(<CreditPayments />);
+    expect(mocks.get).toHaveBeenCalledWith('/credits/1/amortization');
+    expect(text(history.toJSON())).toContain('Pago registrado');
+    expect(text(history.toJSON())).toContain('incluso si no elegiste una cuenta');
+  });
+  it('sends a confirmed opening position while preserving earlier payment history', async () => {
+    const today = localDateFromNative(new Date());
+    const next = new Date();
+    next.setMonth(next.getMonth() + 1);
+    credits = [
+      {
+        ...base,
+        openingBalance: 650,
+        openingDate: today,
+        openingRemainingMonths: 7,
+        openingNextPaymentDate: localDateFromNative(next),
+      },
+    ];
+    const detail = await render(<CreditDetail />);
+    await press(detail, 'Actualizar saldo desde extracto');
+    expect(mocks.push).toHaveBeenCalledWith({ pathname: '/(app)/credit-opening', params: { id: 1 } });
+    const opening = await render(<CreditOpeningScreen />);
+    await press(opening, 'Guardar saldo del extracto');
+    expect(mocks.put).toHaveBeenCalledWith('/credits/1/opening-position', {
+      version: 1,
+      openingBalance: 650,
+      openingDate: today,
+      openingRemainingMonths: 7,
+      openingNextPaymentDate: localDateFromNative(next),
+    });
+  });
+  it('blocks an extract dated before a payment already in this credit history', async () => {
+    credits = [
+      {
+        ...base,
+        openingBalance: 650,
+        openingDate: '2026-03-01',
+        openingRemainingMonths: 7,
+        openingNextPaymentDate: '2026-04-01',
+      },
+    ];
+    const opening = await render(<CreditOpeningScreen />);
+    await press(opening, 'Guardar saldo del extracto');
+    expect(mocks.put).not.toHaveBeenCalled();
+    expect(text(opening.toJSON())).toContain('Usa un extracto del');
   });
   it('collects multiple installments, edits their amounts and removes contributions before recalculating', async () => {
     const originalGet = mocks.get.getMockImplementation()!;
@@ -917,7 +970,14 @@ describe('Credit screens with real hooks and forms', () => {
       'accounts',
       'plan',
     ]);
-    for (const name of ['credits', 'credit-form', 'credit-detail', 'credit-amortization'])
+    for (const name of [
+      'credits',
+      'credit-form',
+      'credit-detail',
+      'credit-amortization',
+      'credit-payments',
+      'credit-opening',
+    ])
       expect(routes.find((n) => n.props.name === name)?.props.options.href).toBeNull();
   });
 });
@@ -945,13 +1005,13 @@ it('clears payment fields and mutation errors after closing the retained modal',
 });
 
 import { FinancialDateField } from '@/ui/financial-date-field';
-import { localDateFromNative } from '@/utils/local-date';
 it('blocks future payments before the API, clears the date error on edit and accepts today', async () => {
   const tree = await render(
     <CreditPaymentForm credit={base} visible onClose={vi.fn()} onReview={vi.fn()} onSaved={vi.fn()} />,
   );
-  expect(text(tree.toJSON())).toContain('Registra un pago que ya hayas realizado.');
-  expect(text(tree.toJSON())).toContain('Este valor forma parte del monto total del pago.');
+  expect(text(tree.toJSON())).toContain('Registra un pago que ya hiciste.');
+  expect(text(tree.toJSON())).toContain('Ya está incluido en el total de arriba; no lo sumes de nuevo.');
+  expect(text(tree.toJSON())).toContain('no envía dinero al banco');
   await fill(tree, 'Monto del pago', '123');
   const field = tree.root.findByType(FinancialDateField);
   expect(field.props.maximumDate).toBe(localDateFromNative(new Date()));

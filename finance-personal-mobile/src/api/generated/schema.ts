@@ -24,6 +24,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/credits/{id}/opening-position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setOpeningPosition"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transfers": {
         parameters: {
             query?: never;
@@ -973,6 +989,17 @@ export interface components {
             deletable?: boolean;
             overdueAmount?: number;
         };
+        SetCreditOpeningRequest: {
+            /** Format: int64 */
+            version: number;
+            openingBalance: number;
+            /** Format: date */
+            openingDate: string;
+            /** Format: int32 */
+            openingRemainingMonths: number;
+            /** Format: date */
+            openingNextPaymentDate: string;
+        };
         CreateTransferRequest: {
             /** Format: int64 */
             sourceAccountId: number;
@@ -1552,7 +1579,7 @@ export interface components {
              */
             remainingInstallments?: number;
         };
-        /** @description Información necesaria para crear una nueva categoría de gastos. */
+        /** @description Información necesaria para crear una categoría de ingreso o gasto. */
         CreateCategoryRequest: {
             /**
              * @description Nombre de la categoría.
@@ -1564,7 +1591,7 @@ export interface components {
             iconKey?: string;
             colorKey?: string;
         };
-        /** @description Información de una categoría de gastos. */
+        /** @description Información de una categoría de ingreso o gasto. */
         CategoryResponse: {
             /**
              * Format: int64
@@ -2116,7 +2143,7 @@ export interface components {
              */
             total?: number;
         };
-        /** @description Representa una categoría personalizada utilizada para clasificar los gastos de un usuario. */
+        /** @description Representa una categoría personalizada para ingresos o gastos de un usuario. */
         Category: {
             /**
              * Format: int64
@@ -2129,6 +2156,8 @@ export interface components {
              * @example Alimentación
              */
             name?: string;
+            iconKey?: string;
+            colorKey?: string;
             /** @enum {string} */
             type?: "EXPENSE" | "INCOME";
             active?: boolean;
@@ -2345,6 +2374,7 @@ export interface components {
             principalAmount?: number;
             extraPrincipalAmount?: number;
             balanceAfter?: number;
+            includedInOpening?: boolean;
         };
         /** @description Historial real y proyecciones de amortización de un crédito del usuario. */
         CreditAmortizationResponse: {
@@ -2521,6 +2551,32 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    setOpeningPosition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetCreditOpeningRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreditResponse"];
+                };
             };
         };
     };

@@ -44,6 +44,8 @@ export default function HomeScreen() {
   const reducedMotion = useReducedMotion();
   const { width, fontScale } = useWindowDimensions();
   const [period, setPeriod] = useState(currentDashboardPeriod);
+  const todayPeriod = currentDashboardPeriod();
+  const viewingCurrentMonth = period.year === todayPeriod.year && period.month === todayPeriod.month;
   const { open: openQuickActions, openedCount } = useQuickActions();
   const [showFabHint, setShowFabHint] = useState(false);
   const greetingEntrance = useRef(new Animated.Value(0)).current;
@@ -129,7 +131,7 @@ export default function HomeScreen() {
   );
   const periodControl = (
     <View style={styles.periodRow}>
-      <Text style={styles.periodEyebrow}>MES</Text>
+      <Text style={styles.periodEyebrow}>ACTIVIDAD DEL MES</Text>
       <View style={styles.period}>
         <MotionPressable
           accessibilityRole="button"
@@ -190,32 +192,43 @@ export default function HomeScreen() {
   const accounts = view.accounts;
   const recent = data.recentTransactions ?? [];
   const hasAccounts = view.hasAccounts;
-  const guidedCard = guidedSetup.visible ? (
-    <Animated.View style={fadeSlide(summaryEntrance, 8)}>
-      <GuidedSetupCard
-        steps={setupSteps}
-        completed={setup.completed}
-        onContinue={() => {
-          void guidedSetup.dismiss().then((saved) => {
-            if (!saved)
-              feedback.show('No pudimos guardar tu avance. Pulsa Continuar para reintentar.', 'error');
-          });
-        }}
-        onAction={(id: SetupStepId) => {
-          if (id === 'account') openForm('/(app)/account-form');
-          if (id === 'openingBalance') router.push('/(app)/accounts');
-          if (id === 'movement') openQuickActions();
-          if (id === 'budget') openForm('/(app)/budget-form');
-        }}
-      />
-    </Animated.View>
-  ) : null;
+  const guidedCard =
+    viewingCurrentMonth && guidedSetup.visible ? (
+      <Animated.View style={fadeSlide(summaryEntrance, 8)}>
+        <GuidedSetupCard
+          steps={setupSteps}
+          completed={setup.completed}
+          onContinue={() => {
+            void guidedSetup.dismiss().then((saved) => {
+              if (!saved)
+                feedback.show('No pudimos guardar tu avance. Pulsa Continuar para reintentar.', 'error');
+            });
+          }}
+          onAction={(id: SetupStepId) => {
+            if (id === 'account') openForm('/(app)/account-form');
+            if (id === 'openingBalance') router.push('/(app)/accounts');
+            if (id === 'movement') openQuickActions();
+            if (id === 'budget') openForm('/(app)/budget-form');
+          }}
+        />
+      </Animated.View>
+    ) : null;
   return (
     <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
       <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
       <HomeShortcuts />
+      {hasAccounts ? (
+        <Animated.View style={fadeSlide(summaryEntrance, 6)}>
+          <FinancialPanorama data={data} />
+        </Animated.View>
+      ) : null}
       {hasAccounts ? periodControl : null}
+      {hasAccounts ? (
+        <Text style={styles.periodHint}>
+          {`Viendo ${formatDashboardPeriod(period)}: aquí cambian ingresos, gastos y movimientos. Los saldos de arriba siempre son de hoy.`}
+        </Text>
+      ) : null}
       {!hasAccounts ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
           <EmptyHome onCreateAccount={() => openForm('/(app)/account-form')} />
@@ -224,14 +237,11 @@ export default function HomeScreen() {
       {guidedCard}
       {hasAccounts ? (
         <>
-          <Animated.View style={fadeSlide(summaryEntrance, 6)}>
-            <FinancialPanorama data={data} />
-          </Animated.View>
           {view.hasMonthlyTotals && view.monthlyCurrency ? (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
               <HomeMetrics data={data} currency={view.monthlyCurrency} period={period} />
             </Animated.View>
-          ) : view.showFirstMovement ? (
+          ) : view.showFirstMovement && viewingCurrentMonth ? (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
               <FirstMovementPrompt onRegister={openQuickActions} />
             </Animated.View>
@@ -239,49 +249,71 @@ export default function HomeScreen() {
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
               <QuietMonthNotice
                 currencyUnavailable={view.hasMonthlyTotals}
+                period={period}
                 onMovements={() => router.push({ pathname: '/(app)/transactions', params: period })}
               />
             </Animated.View>
           )}
-          <Animated.View style={fadeSlide(planEntrance, 6)}>
-            <HomeModules data={data} period={period} />
-          </Animated.View>
-          <Animated.View style={fadeSlide(insightEntrance, 6)}>
-            <FinancialProgressSection dashboard={data} period={period} />
-          </Animated.View>
+          {!viewingCurrentMonth ? (
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={`Ver presupuesto de ${formatDashboardPeriod(period)}`}
+              onPress={() => router.push({ pathname: '/(app)/budgets', params: period })}
+              style={styles.monthLink}
+            >
+              <Ionicons name="pie-chart-outline" size={19} color={colors.primary} />
+              <Text style={styles.monthLinkText}>Ver presupuesto de {formatDashboardPeriod(period)}</Text>
+              <Ionicons name="arrow-forward" size={17} color={colors.primary} />
+            </MotionPressable>
+          ) : null}
+          {viewingCurrentMonth ? (
+            <>
+              <Animated.View style={fadeSlide(planEntrance, 6)}>
+                <HomeModules data={data} period={period} />
+              </Animated.View>
+              <Animated.View style={fadeSlide(insightEntrance, 6)}>
+                <FinancialProgressSection dashboard={data} period={period} />
+              </Animated.View>
+            </>
+          ) : null}
           <Animated.View style={fadeSlide(restEntrance, 6)}>
-            <View style={styles.sectionRow}>
-              <Text accessibilityRole="header" style={styles.sectionTitle}>
-                Mis cuentas
-              </Text>
-              <MotionPressable
-                accessibilityRole="button"
-                accessibilityLabel="Ver todas las cuentas"
-                onPress={() => router.push('/(app)/accounts')}
-                style={styles.sectionAction}
-              >
-                <Text style={styles.sectionActionText}>Ver todas →</Text>
-              </MotionPressable>
-            </View>
-            <View style={styles.accountGrid}>
-              {accounts.slice(0, 3).map((account) => (
-                <HomeAccountPreview
-                  key={account.id}
-                  account={account}
-                  compact={homeColumns(width, fontScale) === 1}
-                  privacyHidden={hidden}
-                  onPress={
-                    account.id
-                      ? () => router.push({ pathname: '/(app)/account-detail', params: { id: account.id! } })
-                      : undefined
-                  }
-                />
-              ))}
-            </View>
+            {viewingCurrentMonth ? (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text accessibilityRole="header" style={styles.sectionTitle}>
+                    Mis cuentas
+                  </Text>
+                  <MotionPressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Ver todas las cuentas"
+                    onPress={() => router.push('/(app)/accounts')}
+                    style={styles.sectionAction}
+                  >
+                    <Text style={styles.sectionActionText}>Ver todas →</Text>
+                  </MotionPressable>
+                </View>
+                <View style={styles.accountGrid}>
+                  {accounts.slice(0, 3).map((account) => (
+                    <HomeAccountPreview
+                      key={account.id}
+                      account={account}
+                      compact={homeColumns(width, fontScale) === 1}
+                      privacyHidden={hidden}
+                      onPress={
+                        account.id
+                          ? () =>
+                              router.push({ pathname: '/(app)/account-detail', params: { id: account.id! } })
+                          : undefined
+                      }
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
             {recent.length ? (
               <>
                 <Text accessibilityRole="header" style={[styles.sectionTitle, styles.movementsHeading]}>
-                  Movimientos recientes
+                  Movimientos de {formatDashboardPeriod(period)}
                 </Text>
                 <Card style={styles.recentList}>
                   {recent.slice(0, 3).map((transaction) => (
@@ -320,6 +352,18 @@ const styles = themedStyleSheet(() => ({
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
   accountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   periodRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  periodHint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  monthLink: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.large,
+    backgroundColor: colors.infoSoft,
+    marginTop: spacing.md,
+  },
+  monthLinkText: { ...typography.label, color: colors.primary, flex: 1 },
   periodEyebrow: {
     ...typography.caption,
     fontSize: 10,

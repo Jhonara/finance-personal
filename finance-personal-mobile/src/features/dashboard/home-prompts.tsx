@@ -7,6 +7,7 @@ import { BrandSurface } from '@/ui/brand-surface';
 import { HomeCompanion } from './home-brand';
 import { Button } from '@/ui/primitives';
 import { MotionPressable } from '@/ui/motion';
+import { formatDashboardPeriod, type DashboardPeriod } from './dashboard-period';
 
 export function EmptyHome({ onCreateAccount }: { onCreateAccount(): void }) {
   return (
@@ -55,9 +56,11 @@ export function FirstMovementPrompt({ onRegister }: { onRegister(): void }) {
 
 export function QuietMonthNotice({
   currencyUnavailable,
+  period,
   onMovements,
 }: {
   currencyUnavailable: boolean;
+  period: DashboardPeriod;
   onMovements(): void;
 }) {
   return (
@@ -69,7 +72,7 @@ export function QuietMonthNotice({
         <Text style={typography.cardTitle}>
           {currencyUnavailable
             ? 'Revisa tus movimientos por moneda'
-            : 'Este mes aún no tiene ingresos ni gastos'}
+            : `${formatDashboardPeriod(period)} aún no tiene ingresos ni gastos`}
         </Text>
         <Text style={typography.bodySecondary}>
           {currencyUnavailable

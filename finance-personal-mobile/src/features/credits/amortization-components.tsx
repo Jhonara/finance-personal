@@ -217,12 +217,14 @@ export function RecordedPayments({
   payments,
   currency,
   hidden,
+  initialExpanded = false,
 }: {
   payments: RecordedCreditPayment[];
   currency: string;
   hidden: boolean;
+  initialExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initialExpanded);
   const rows = expanded ? [...payments].reverse() : [...payments].reverse().slice(0, 3);
   return (
     <View style={styles.list}>
@@ -255,9 +257,15 @@ export function RecordedPayments({
                 <Amount value={payment.extraPrincipalAmount} currency={currency} hidden={hidden} />
               </View>
             ) : null}
-            <Text style={typography.caption}>
-              Saldo después del pago: {creditMoney(payment.balanceAfter, currency, hidden)}
-            </Text>
+            {payment.includedInOpening ? (
+              <Text style={typography.caption}>
+                Incluido en el saldo del extracto. No se descuenta otra vez del saldo actual.
+              </Text>
+            ) : (
+              <Text style={typography.caption}>
+                Saldo después del pago: {creditMoney(payment.balanceAfter, currency, hidden)}
+              </Text>
+            )}
           </Card>
         ))
       )}

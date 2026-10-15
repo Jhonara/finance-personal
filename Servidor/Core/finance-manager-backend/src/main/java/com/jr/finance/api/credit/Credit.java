@@ -109,6 +109,9 @@ public class Credit {
     private LocalDate openingNextPaymentDate;
 
     public BigDecimal trackingPrincipal() { return openingBalance == null ? principal : openingBalance; }
+    public boolean appliesAfterOpening(CreditPayment payment) {
+        return openingDate == null || payment.getPaymentDate().isAfter(openingDate);
+    }
     public int trackingMonths() { return openingRemainingMonths == null ? termMonths : openingRemainingMonths; }
     public int trackingFirstInstallment() { return termMonths - trackingMonths() + 1; }
     public LocalDate trackingDueDate(int installment) {

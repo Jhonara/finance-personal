@@ -110,6 +110,35 @@ public class CreditService {
     }
 
     @org.springframework.transaction.annotation.Transactional
+    public Credit setOpeningPosition(Long userId, Long id, com.jr.finance.api.credit.dto.SetCreditOpeningRequest req) {
+        Credit credit = creditRepository.findWithLockByIdAndUserId(id, userId)
+                .orElseThrow(() -> new NotFoundException("El crédito no existe"));
+        if (!java.util.Objects.equals(credit.getVersion(), req.version()))
+            throw new com.jr.finance.api.common.exception.ConflictException("El crédito cambió. Vuelve a abrirlo antes de actualizar el saldo");
+        CreateCreditRequest validation = new CreateCreditRequest();
+        validation.setPrincipal(credit.getPrincipal());
+        validation.setTermMonths(credit.getTermMonths());
+        validation.setDisbursementDate(credit.getDisbursementDate());
+        validation.setOpeningBalance(req.openingBalance());
+        validation.setOpeningDate(req.openingDate());
+        validation.setOpeningRemainingMonths(req.openingRemainingMonths());
+        validation.setOpeningNextPaymentDate(req.openingNextPaymentDate());
+        validateOpening(validation);
+        if (req.openingDate().isAfter(java.time.LocalDate.now()))
+            throw new com.jr.finance.api.common.exception.BadRequestException("La fecha de corte no puede ser futura");
+        boolean hasLaterPayment = creditPayments.findByCreditIdOrderByPaymentDateAsc(id).stream()
+                .anyMatch(payment -> payment.getStatus() == CreditPaymentStatus.POSTED
+                        && payment.getPaymentDate().isAfter(req.openingDate()));
+        if (hasLaterPayment)
+            throw new com.jr.finance.api.common.exception.BadRequestException("El extracto debe ser posterior a tus pagos anotados. Así no se descuentan dos veces");
+        credit.setOpeningBalance(req.openingBalance());
+        credit.setOpeningDate(req.openingDate());
+        credit.setOpeningRemainingMonths(req.openingRemainingMonths());
+        credit.setOpeningNextPaymentDate(req.openingNextPaymentDate());
+        return creditRepository.saveAndFlush(credit);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
     public void delete(Long userId, Long id) {
         Credit credit = creditRepository.findWithLockByIdAndUserId(id, userId)
                 .orElseThrow(() -> new NotFoundException("El crédito no existe"));

@@ -6,7 +6,7 @@ import { Text, View } from 'react-native';
 import { useState } from 'react';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
-import type { DashboardPeriod } from './dashboard-period';
+import { formatDashboardPeriod, type DashboardPeriod } from './dashboard-period';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -39,7 +39,9 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
         <Text accessibilityRole="header" style={styles.sectionHeading}>
           Panorama financiero
         </Text>
-        <Text style={styles.sectionSubtitle}>Tu dinero y tus créditos, cada uno en su lugar.</Text>
+        <Text style={styles.sectionSubtitle}>
+          Saldos actuales de cuentas y créditos. El resumen del mes aparece más abajo.
+        </Text>
       </View>
       {visibleCurrencies.map((currency) => {
         const accountCount = (data.accounts ?? []).filter((account) => account.currency === currency).length;
@@ -250,7 +252,7 @@ export function HomeMetrics({
     <View style={styles.section}>
       <View style={styles.monthHeading}>
         <Text accessibilityRole="header" style={styles.sectionHeading}>
-          Este mes
+          {formatDashboardPeriod(period)}
         </Text>
         <Text style={styles.monthCurrency}>{currency}</Text>
       </View>

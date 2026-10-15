@@ -97,13 +97,21 @@ export function CreditPaymentForm({
       <Screen scroll keyboard style={{ gap: spacing.lg }}>
         <ScreenHeader title="Registrar pago" subtitle={credit.name} back onBack={close} />
         <Card tone="info" style={{ padding: spacing.md, gap: spacing.sm }}>
-          <Text style={typography.cardTitle}>Registra un pago que ya hayas realizado.</Text>
+          <Text style={typography.cardTitle}>Registra un pago que ya hiciste.</Text>
+          <Text style={typography.bodySecondary}>
+            Esto actualiza el crédito en la app; no envía dinero al banco. Elige la fecha real del pago.
+          </Text>
+          <Text style={typography.caption}>
+            La parte de intereses y capital es una estimación. Tu extracto es la referencia para corregir el
+            saldo si no coincide.
+          </Text>
           <Text style={typography.bodySecondary}>
             Saldo pendiente · {creditMoney(credit.remainingBalance, credit.currency, hidden)}
           </Text>
         </Card>
         <MoneyInput
           label="Monto del pago"
+          helperText="Escribe el total que salió de tu bolsillo, incluido cualquier abono extra."
           placeholder="0"
           currency={credit.currency ?? ''}
           value={values.amount}
@@ -129,7 +137,7 @@ export function CreditPaymentForm({
             <View style={{ flex: 1 }}>
               <Text style={typography.cardTitle}>¿Hiciste un abono extra?</Text>
               <Text style={typography.bodySecondary}>
-                Indica cuánto quieres aplicar directamente a capital.
+                Si parte del total fue un abono extra que reduce la deuda, escríbelo aquí.
               </Text>
             </View>
           </View>
@@ -140,7 +148,7 @@ export function CreditPaymentForm({
             value={values.extraPrincipalAmount}
             onChangeText={(v) => changed('extraPrincipalAmount', v)}
             error={form.formState.errors.extraPrincipalAmount?.message}
-            helperText="Este valor forma parte del monto total del pago."
+            helperText="Ya está incluido en el total de arriba; no lo sumes de nuevo."
             disabled={safety.busy}
             secureTextEntry={hidden}
           />

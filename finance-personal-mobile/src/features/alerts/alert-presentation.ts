@@ -15,12 +15,14 @@ const definitions: Record<string, { title: string; description: string; level: A
   },
   CREDIT_BEHIND: {
     title: 'Pago de crédito pendiente',
-    description: 'Los pagos registrados van por detrás del plan del crédito.',
+    description:
+      'Según los pagos anotados, hay cuotas por cubrir. Si ya pagaste, anótalo en el crédito o actualiza el saldo con tu extracto.',
     level: 'Importante',
   },
   HIGH_INTEREST: {
     title: 'Intereses por encima del plan',
-    description: 'Los intereses pagados superan lo esperado en el plan de este crédito.',
+    description:
+      'Los intereses anotados superan la estimación del plan. Revisa el detalle del crédito y compáralo con tu extracto.',
     level: 'Atención',
   },
   OPPORTUNITY_PREPAY: {

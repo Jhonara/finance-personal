@@ -42,7 +42,9 @@ export function CreditAccountSelector({
         {selected?.label ?? 'Sin vincular una cuenta'}
       </Button>
       {selected && <Text style={typography.caption}>Disponible · {selected.subtitle}</Text>}
-      <Text style={typography.caption}>Sin cuenta, el registro solo actualiza el crédito.</Text>
+      <Text style={typography.caption}>
+        Si eliges una cuenta, también se descontará allí el pago. Sin cuenta, solo se actualiza el crédito.
+      </Text>
       {value !== undefined && (
         <Button variant="ghost" disabled={disabled} onPress={() => onChange(undefined)}>
           Quitar cuenta

@@ -251,6 +251,12 @@ function CreditForm() {
           >
             Desde el desembolso
           </Button>
+          {!imported ? (
+            <Text style={typography.bodySecondary}>
+              Para un préstamo recién recibido. Si ya pagaste cuotas antes de usar la app, tendrás que
+              anotarlas una por una o elegir «Ya lo venía pagando» y empezar con el saldo de tu extracto.
+            </Text>
+          ) : null}
           <Button
             variant={imported ? 'primary' : 'secondary'}
             disabled={safety.busy || saved}

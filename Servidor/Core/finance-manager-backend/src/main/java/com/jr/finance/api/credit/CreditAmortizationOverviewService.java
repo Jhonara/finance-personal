@@ -34,16 +34,23 @@ public class CreditAmortizationOverviewService {
         Credit credit = credits.findByIdForUser(userId, creditId);
         List<CreditPayment> posted = postedPayments(creditId);
         BigDecimal balance = credit.trackingPrincipal().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal historicalBalance = credit.getPrincipal().setScale(2, RoundingMode.HALF_UP);
         BigDecimal recordedExtra = BigDecimal.ZERO;
         List<CreditAmortizationPaymentRow> history = new ArrayList<>();
         for (CreditPayment payment : posted) {
             BigDecimal extra = zeroIfNull(payment.getExtraPrincipalAmount());
-            recordedExtra = recordedExtra.add(extra);
-            balance = balance.subtract(payment.getPrincipalAmount()).subtract(extra)
-                    .max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+            boolean includedInOpening = !credit.appliesAfterOpening(payment);
+            if (includedInOpening) {
+                historicalBalance = historicalBalance.subtract(payment.getPrincipalAmount()).subtract(extra)
+                        .max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+            } else {
+                recordedExtra = recordedExtra.add(extra);
+                balance = balance.subtract(payment.getPrincipalAmount()).subtract(extra)
+                        .max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+            }
             history.add(new CreditAmortizationPaymentRow(payment.getId(), payment.getPaymentDate(),
                     payment.getTotalAmount(), payment.getInterestAmount(), payment.getPrincipalAmount(),
-                    extra, balance));
+                    extra, includedInOpening ? historicalBalance : balance, includedInOpening));
         }
 
         BigDecimal monthlyRate = amortization.monthlyRate(credit.getAnnualRate());

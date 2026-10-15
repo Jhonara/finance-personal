@@ -60,6 +60,7 @@ export default function AppLayout() {
     <QuickActionProvider>
       <InteractiveTourProvider>
         <Tabs
+          backBehavior="history"
           tabBar={(props) => <NavigationDock {...props} />}
           screenOptions={{
             headerShown: false,
@@ -105,7 +106,7 @@ export default function AppLayout() {
           />
           <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline', 'wallet')} />
           <Tabs.Screen name="plan" options={options('Explorar', 'compass-outline', 'compass')} />
-          <Tabs.Screen name="more" options={{ href: null }} />
+          <Tabs.Screen name="more" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="reports" options={{ href: null }} />
           <Tabs.Screen name="guide" options={{ href: null }} />
           <Tabs.Screen name="new-expense" options={{ href: null, tabBarStyle: { display: 'none' } }} />
@@ -126,6 +127,8 @@ export default function AppLayout() {
           <Tabs.Screen name="credit-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="credit-detail" options={{ href: null }} />
           <Tabs.Screen name="credit-amortization" options={{ href: null }} />
+          <Tabs.Screen name="credit-payments" options={{ href: null }} />
+          <Tabs.Screen name="credit-opening" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         </Tabs>
       </InteractiveTourProvider>
     </QuickActionProvider>

@@ -20,6 +20,7 @@ import {
   payCredit,
   reverseCreditPayment,
   simulateCredit,
+  setCreditOpeningPosition,
   updateBudget,
   type SavingGoal,
   type Credit,
@@ -163,6 +164,18 @@ export const useUpdateCredit = () => {
     retry: false,
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateCredit>[1] }) =>
       updateCredit(id, data),
+    onSuccess: (credit, { id }) => {
+      c.setQueryData(secondaryKeys.credit(id), credit);
+      return refreshCredit(c, id);
+    },
+  });
+};
+export const useSetCreditOpeningPosition = () => {
+  const c = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof setCreditOpeningPosition>[1] }) =>
+      setCreditOpeningPosition(id, data),
     onSuccess: (credit, { id }) => {
       c.setQueryData(secondaryKeys.credit(id), credit);
       return refreshCredit(c, id);

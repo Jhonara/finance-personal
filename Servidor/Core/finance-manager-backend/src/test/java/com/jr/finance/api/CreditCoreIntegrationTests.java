@@ -3,6 +3,7 @@ package com.jr.finance.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jr.finance.api.auth.JwtService;
 import com.jr.finance.api.credit.Credit;
+import com.jr.finance.api.credit.CreditAmortizationService;
 import com.jr.finance.api.credit.CreditRepository;
 import com.jr.finance.api.credit.CreditPaymentRepository;
 import com.jr.finance.api.account.Account;
@@ -44,6 +45,88 @@ class CreditCoreIntegrationTests {
     @Autowired private CreditPaymentRepository payments;
     @Autowired private AccountRepository accounts;
     @Autowired private LedgerService ledger;
+
+    @Test
+    void reconcilesAnExistingLoanWithoutErasingOrDoubleCountingRecordedPayments() throws Exception {
+        User owner = user();
+        String auth = bearer(owner);
+        LocalDate firstDate = LocalDate.now().minusDays(2);
+        LocalDate cutoff = LocalDate.now().minusDays(1);
+        String created = mvc.perform(post("/api/v1/credits").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Casa\",\"principal\":1000,\"annualRate\":0,\"termMonths\":12,\"disbursementDate\":\""
+                                + LocalDate.now().minusMonths(6) + "\",\"paymentDay\":15,\"currency\":\"COP\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long id = mapper.readTree(created).path("id").asLong();
+        long version = mapper.readTree(created).path("version").asLong();
+        org.assertj.core.api.Assertions.assertThat(LocalDate.parse(mapper.readTree(created).path("nextPaymentDate").asText()))
+                .isBefore(LocalDate.now());
+        mvc.perform(post("/api/v1/credits/{id}/payments", id).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100,\"paymentDate\":\"" + firstDate + "\"}"))
+                .andExpect(status().isOk());
+        String opening = "{\"version\":" + version + ",\"openingBalance\":700,\"openingDate\":\""
+                + cutoff + "\",\"openingRemainingMonths\":7,\"openingNextPaymentDate\":\""
+                + cutoff.plusDays(8) + "\"}";
+        mvc.perform(put("/api/v1/credits/{id}/opening-position", id).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content(opening))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.remainingBalance").value(700))
+                .andExpect(jsonPath("$.overdueAmount").value(0)).andExpect(jsonPath("$.status").value("ACTIVE"));
+        mvc.perform(get("/api/v1/credits/{id}/plan-vs-real", id).header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AL_DIA"));
+        String alerts = mvc.perform(get("/api/v1/alerts").header("Authorization", auth))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(alerts).doesNotContain("CREDIT_BEHIND");
+        mvc.perform(get("/api/v1/credits/{id}/amortization", id).header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.payments.length()").value(1))
+                .andExpect(jsonPath("$.payments[0].includedInOpening").value(true))
+                .andExpect(jsonPath("$.currentBalance").value(700));
+        mvc.perform(post("/api/v1/credits/{id}/payments", id).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":50,\"paymentDate\":\"" + LocalDate.now() + "\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.newBalance").value(650));
+        mvc.perform(get("/api/v1/credits/{id}/amortization", id).header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.payments.length()").value(2))
+                .andExpect(jsonPath("$.payments[0].includedInOpening").value(true))
+                .andExpect(jsonPath("$.payments[1].includedInOpening").value(false))
+                .andExpect(jsonPath("$.currentBalance").value(650));
+        mvc.perform(put("/api/v1/credits/{id}/opening-position", id).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content(opening))
+                .andExpect(status().isConflict());
+        long updatedVersion = mapper.readTree(mvc.perform(get("/api/v1/credits/{id}", id)
+                .header("Authorization", auth)).andReturn().getResponse().getContentAsString()).path("version").asLong();
+        mvc.perform(put("/api/v1/credits/{id}/opening-position", id).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(opening.replace("\"version\":" + version, "\"version\":" + updatedVersion)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void doesNotChargeMonthlyInterestTwiceForTwoPartialPayments() throws Exception {
+        User owner = user();
+        String auth = bearer(owner);
+        LocalDate paymentDate = LocalDate.now();
+        String created = mvc.perform(post("/api/v1/credits").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Cuotas parciales\",\"principal\":1200,\"annualRate\":12,\"termMonths\":12,\"disbursementDate\":\""
+                                + paymentDate.minusMonths(1) + "\",\"paymentDay\":15,\"currency\":\"COP\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long id = mapper.readTree(created).path("id").asLong();
+        for (int amount : new int[]{5, 20})
+            mvc.perform(post("/api/v1/credits/{id}/payments", id).header("Authorization", auth)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"amount\":" + amount + ",\"paymentDate\":\"" + paymentDate + "\"}"))
+                    .andExpect(status().isOk());
+        var recorded = payments.findByCreditIdOrderByPaymentDateAsc(id);
+        BigDecimal interest = recorded.stream().map(p -> p.getInterestAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal expected = new BigDecimal("1200").multiply(new CreditAmortizationService().monthlyRate(new BigDecimal("12")))
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+        org.assertj.core.api.Assertions.assertThat(interest).isEqualByComparingTo(expected);
+        org.assertj.core.api.Assertions.assertThat(recorded.get(1).getPrincipalAmount()).isPositive();
+        mvc.perform(post("/api/v1/credits/{id}/simulate", id).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.remainingInstallments").value(12));
+    }
 
     @Test
     void createsCreditAndAllocatesPaymentWithoutUsingInterestAsPrincipal() throws Exception {

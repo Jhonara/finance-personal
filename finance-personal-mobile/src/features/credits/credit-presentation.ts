@@ -3,7 +3,7 @@ import { canonicalAmount, moneyUnits } from '@/utils/decimal-money';
 import { formatMoneyInput } from '@/ui/presentation';
 
 export const creditStatus = (status: Credit['status']) =>
-  status ? { ACTIVE: 'Activo', LATE: 'Atrasado', PAID: 'Pagado' }[status] : 'Estado no disponible';
+  status ? { ACTIVE: 'Al día', LATE: 'Pago por revisar', PAID: 'Pagado' }[status] : 'Estado no disponible';
 export function creditMoney(
   value: number | string | undefined,
   currency: string | undefined,
@@ -18,14 +18,27 @@ export function creditMoney(
 export function creditProgress(credit: Credit) {
   const principal = moneyUnits(credit.principal);
   const paid = moneyUnits(credit.paidPrincipal);
-  // Explicit capital paid from CreditSnapshot; interest is excluded by the server.
-  if (principal === undefined || principal <= 0n || paid === undefined || paid > principal) return undefined;
-  return Number((paid * 10000n) / principal) / 100;
+  const opening =
+    credit.openingBalance === undefined || credit.openingBalance === null
+      ? principal
+      : moneyUnits(credit.openingBalance);
+  // Confirmed statement capital plus principal paid since that statement, both supplied by the server.
+  if (
+    principal === undefined ||
+    principal <= 0n ||
+    paid === undefined ||
+    opening === undefined ||
+    opening > principal
+  )
+    return undefined;
+  const reduced = principal - opening + paid;
+  if (reduced > principal) return undefined;
+  return Number((reduced * 10000n) / principal) / 100;
 }
 export function creditGroups(credits: Credit[]) {
   return [
     { title: 'Activos', credits: credits.filter((c) => c.status === 'ACTIVE') },
-    { title: 'Atrasados', credits: credits.filter((c) => c.status === 'LATE') },
+    { title: 'Pagos por revisar', credits: credits.filter((c) => c.status === 'LATE') },
     { title: 'Pagados', credits: credits.filter((c) => c.status === 'PAID') },
     { title: 'Otros créditos', credits: credits.filter((c) => !c.status) },
   ].filter((group) => group.credits.length);

@@ -32,6 +32,13 @@ public class CreditController {
     private final CreditService creditService;
     private final CreditMapper creditMapper;
 
+    @PutMapping("/{id}/opening-position")
+    public CreditResponse setOpeningPosition(@PathVariable Long id,
+            @Valid @RequestBody com.jr.finance.api.credit.dto.SetCreditOpeningRequest request, Authentication auth) {
+        return creditMapper.toResponse(creditService.setOpeningPosition(
+                ((UserPrincipal) auth.getPrincipal()).getUser().getId(), id, request));
+    }
+
     @PutMapping("/{id}")
     public CreditResponse update(@PathVariable Long id,
             @Valid @RequestBody com.jr.finance.api.credit.dto.UpdateCreditRequest request, Authentication auth) {

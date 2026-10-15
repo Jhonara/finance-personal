@@ -723,16 +723,20 @@ it('keeps November authoritative when September and October resolve out of order
       requests.get(10)!.resolve({ data: monthData(10) });
       requests.get(9)!.resolve({ data: monthData(9) });
     });
-    expect(textContent(tree.toJSON())).toContain('Cuenta mes 11');
+    expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 11');
+    expect(textContent(tree.toJSON())).toContain('Panorama financiero');
+    expect(textContent(tree.toJSON())).toContain('Noviembre de 2026');
     expect(textContent(tree.toJSON())).toContain('11% utilizado');
     expect(textContent(tree.toJSON())).toContain('Movimiento mes 11');
     expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 10');
     expect(textContent(tree.toJSON())).not.toContain('Movimiento mes 9');
-    const monthlySignal = tree.root
-      .findAllByType(ProgressSignal)
-      .find((node) => node.props.signal.kind === 'flow');
-    expect(monthlySignal?.props.signal.destination.params).toEqual({ year: 2026, month: 11 });
-    await act(async () => press(tree, 'Ver presupuestos'));
+    expect(tree.root.findAllByType(ProgressSignal)).toHaveLength(0);
+    await act(async () => press(tree, 'Ver todos los movimientos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/transactions',
+      params: { year: 2026, month: 11 },
+    });
+    await act(async () => press(tree, 'Ver presupuesto de Noviembre de 2026'));
     expect(mocks.push).toHaveBeenLastCalledWith({
       pathname: '/(app)/budgets',
       params: { year: 2026, month: 11 },
@@ -1093,11 +1097,11 @@ describe('Home visual hub', () => {
     const content = textContent(tree.toJSON());
     const titles = [
       'Panorama financiero',
-      'Este mes',
+      'Flujo neto',
       'Tu plan',
       'Para ti',
       'Mis cuentas',
-      'Movimientos recientes',
+      'Movimientos de',
     ];
     const positions = titles.map((title) => content.indexOf(title));
     expect(positions.every((value) => value >= 0)).toBe(true);

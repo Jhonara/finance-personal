@@ -37,6 +37,9 @@ export const createCredit = async (data: components['schemas']['CreateCreditRequ
   (await api.post<Credit>('/credits', data)).data;
 export const updateCredit = async (id: number, data: components['schemas']['UpdateCreditRequest']) =>
   (await api.put<Credit>(`/credits/${id}`, data)).data;
+export type CreditOpeningPosition = components['schemas']['SetCreditOpeningRequest'];
+export const setCreditOpeningPosition = async (id: number, data: CreditOpeningPosition) =>
+  (await api.put<Credit>(`/credits/${id}/opening-position`, data)).data;
 export const deleteCredit = async (id: number) => {
   await api.delete(`/credits/${id}`);
 };

@@ -87,7 +87,7 @@ public class AlertService {
                                 "CREDIT_BEHIND",
                                 "WARNING",
                                 90,
-                                "Vas atrasado en el crédito #" + credit.getId() + ". Revisa tus pagos.",
+                                "Según tus pagos anotados, faltan cuotas por cubrir en el crédito #" + credit.getId() + ". Si ya pagaste, registra los pagos o actualiza el saldo con tu extracto.",
                                 Map.of(
                                         "creditId", credit.getId(),
                                         "status", planVsReal.getStatus()
@@ -96,7 +96,7 @@ public class AlertService {
                 );
             }
 
-            if (planVsReal.getRealInterestPaid().compareTo(
+            if (planVsReal.getPlannedInterestPaid().signum() > 0 && planVsReal.getRealInterestPaid().compareTo(
                     planVsReal.getPlannedInterestPaid().multiply(BigDecimal.valueOf(1.10))) > 0) {
 
                 addIfNotSeen(
@@ -108,7 +108,7 @@ public class AlertService {
                                 "HIGH_INTEREST",
                                 "WARNING",
                                 70,
-                                "Estás pagando más interés de lo esperado en el crédito #" + credit.getId() + ".",
+                                "Los intereses anotados superan el plan estimado del crédito #" + credit.getId() + ". Compáralos con tu extracto.",
                                 Map.of(
                                         "creditId", credit.getId(),
                                         "realInterest", planVsReal.getRealInterestPaid(),

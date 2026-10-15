@@ -1,6 +1,7 @@
 package com.jr.finance.api.credit;
 
 import com.jr.finance.api.auth.UserPrincipal;
+import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.credit.dto.CreditScenarioCompareRequest;
 import com.jr.finance.api.credit.dto.CreditScenarioCompareResponse;
 import com.jr.finance.api.credit.dto.CreditSimulationRequest;
@@ -32,7 +33,7 @@ public class CreditSimulationController {
     private final CreditService creditService;
     private final CreditScenarioCompareService creditScenarioCompareService;
     private final CreditSnapshotService creditSnapshotService;
-    private final CreditPaymentRepository creditPaymentRepository;
+    private final CreditAmortizationService amortization;
 
     @Operation(
             summary = "Simular un crédito libre",
@@ -79,10 +80,13 @@ public class CreditSimulationController {
 
         CreditSimulationRequest req = new CreditSimulationRequest();
         var snapshot = creditSnapshotService.snapshot(credit);
+        if (snapshot.remainingBalance().signum() == 0)
+            throw new BadRequestException("Este crédito ya está pagado");
         req.setPrincipal(snapshot.remainingBalance());
         req.setAnnualRate(credit.getAnnualRate());
-        req.setTermMonths(Math.max(1, credit.trackingMonths() - (int) creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(id).stream()
-                .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED).count()));
+        long remainingInstallments = CreditTrackingSchedule.build(credit, amortization).stream()
+                .filter(row -> !row.getDate().isBefore(snapshot.nextPaymentDate())).count();
+        req.setTermMonths(Math.max(1, (int) remainingInstallments));
         req.setDisbursementDate(java.time.LocalDate.now());
         req.setPaymentDay(credit.getPaymentDay());
 

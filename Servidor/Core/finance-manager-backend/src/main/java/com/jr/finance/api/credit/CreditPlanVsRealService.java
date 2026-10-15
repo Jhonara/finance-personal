@@ -44,7 +44,7 @@ public class CreditPlanVsRealService {
 
         List<CreditPayment> payments =
                 paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).stream()
-                        .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED).toList();
+                        .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED && credit.appliesAfterOpening(payment)).toList();
 
         // Plan teórico
         CreditSimulationRequest simulationRequest = new CreditSimulationRequest();
@@ -68,7 +68,7 @@ public class CreditPlanVsRealService {
                 : CreditTrackingSchedule.build(credit, new CreditAmortizationService());
         for (AmortizationRow row : trackedSchedule) {
 
-            if (credit.getOpeningBalance() == null ? !row.getDate().isAfter(today) : row.getDate().isBefore(today)) {
+            if (row.getDate().isBefore(today)) {
 
                 plannedTotalPaid = plannedTotalPaid
                         .add(row.getInterest())
@@ -88,16 +88,21 @@ public class CreditPlanVsRealService {
         BigDecimal realTotalPaid = payments.stream().map(CreditPayment::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal realCapitalPaid = payments.stream().map(p -> p.getPrincipalAmount().add(p.getExtraPrincipalAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal realInterestPaid = payments.stream().map(CreditPayment::getInterestAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal currentBalance = snapshotService.snapshot(credit).remainingBalance();
+        CreditSnapshot snapshot = snapshotService.snapshot(credit);
+        BigDecimal currentBalance = snapshot.remainingBalance();
 
         int realInstallments = payments.size();
 
         String status;
 
-        if (realInstallments > plannedInstallments) {
-            status = "ADELANTADO";
-        } else if (realInstallments < plannedInstallments) {
+        BigDecimal regularPaid = payments.stream()
+                .filter(payment -> !payment.getPaymentDate().isAfter(today))
+                .map(payment -> payment.getTotalAmount().subtract(payment.getExtraPrincipalAmount()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (snapshot.status() == CreditStatus.LATE) {
             status = "ATRASADO";
+        } else if (regularPaid.subtract(plannedTotalPaid).compareTo(new BigDecimal("0.01")) > 0) {
+            status = "ADELANTADO";
         } else {
             status = "AL_DIA";
         }

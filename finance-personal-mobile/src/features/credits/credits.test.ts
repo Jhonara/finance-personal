@@ -33,8 +33,8 @@ const terms = {
 };
 describe('Credit contract presentation', () => {
   it.each([
-    ['ACTIVE', 'Activo'],
-    ['LATE', 'Atrasado'],
+    ['ACTIVE', 'Al día'],
+    ['LATE', 'Pago por revisar'],
     ['PAID', 'Pagado'],
   ] as const)('translates %s', (status, label) => expect(creditStatus(status)).toBe(label));
   it('uses explicit paid capital, independently of outstanding or interest', () => {
@@ -44,6 +44,9 @@ describe('Credit contract presentation', () => {
     expect(creditProgress({ principal: 1000, remainingBalance: 500 })).toBeUndefined();
     expect(creditProgress({ principal: 0, paidPrincipal: 0 })).toBeUndefined();
     expect(creditProgress({ principal: 100, paidPrincipal: 110 })).toBeUndefined();
+    expect(
+      creditProgress({ principal: 1000, openingBalance: 600, paidPrincipal: 100, remainingBalance: 500 }),
+    ).toBe(50);
   });
   it('sums exact decimals within each currency', () =>
     expect(
@@ -80,7 +83,7 @@ describe('Credit contract presentation', () => {
     expect(label).toContain('•••••• COP');
     expect(label).not.toContain('12345');
     expect(label).toContain('18.4');
-    expect(label).toContain('Activo');
+    expect(label).toContain('Al día');
   });
   it('accepts only explicitly linked backend credit alerts', () =>
     expect(

@@ -16,7 +16,7 @@ public class CreditSnapshotService {
 
     public CreditSnapshot snapshot(Credit credit) {
         List<CreditPayment> all = payments.findByCreditIdOrderByPaymentDateAsc(credit.getId()).stream()
-                .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED).toList();
+                .filter(payment -> payment.getStatus() == CreditPaymentStatus.POSTED && credit.appliesAfterOpening(payment)).toList();
         BigDecimal paidPrincipal = all.stream().map(p -> p.getPrincipalAmount().add(p.getExtraPrincipalAmount()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal paidInterest = all.stream().map(CreditPayment::getInterestAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -31,10 +31,18 @@ public class CreditSnapshotService {
                 .map(p -> p.getTotalAmount().subtract(p.getExtraPrincipalAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal overdue = requiredToDate.subtract(paidToDate).max(BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP);
         CreditStatus status = paidToDate.add(new BigDecimal("0.01")).compareTo(requiredToDate) < 0 ? CreditStatus.LATE : CreditStatus.ACTIVE;
-        LocalDate next = schedule.stream().map(AmortizationRow::getDate).filter(date -> !date.isBefore(today)).findFirst()
-                .orElse(credit.trackingDueDate(credit.getTermMonths()));
-        BigDecimal expected = amortization.fixedPayment(balance, amortization.monthlyRate(credit.getAnnualRate()),
-                Math.max(1, credit.trackingMonths() - all.size()));
+        BigDecimal covered = BigDecimal.ZERO;
+        LocalDate next = null;
+        for (AmortizationRow row : schedule) {
+            covered = covered.add(row.getInterest()).add(row.getPrincipalPayment());
+            if (covered.compareTo(paidToDate.add(new BigDecimal("0.01"))) > 0) {
+                next = row.getDate();
+                break;
+            }
+        }
+        if (next == null) next = credit.trackingDueDate(credit.getTermMonths());
+        BigDecimal expected = amortization.fixedPayment(credit.trackingPrincipal(),
+                amortization.monthlyRate(credit.getAnnualRate()), credit.trackingMonths());
         return new CreditSnapshot(balance, paidPrincipal, paidInterest, status, next, expected, overdue);
     }
 }

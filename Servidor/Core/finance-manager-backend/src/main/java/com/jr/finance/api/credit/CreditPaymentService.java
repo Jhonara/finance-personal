@@ -2,7 +2,6 @@ package com.jr.finance.api.credit;
 
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.common.exception.NotFoundException;
-import com.jr.finance.api.credit.dto.AmortizationRow;
 import com.jr.finance.api.credit.dto.CreateCreditPaymentRequest;
 import com.jr.finance.api.credit.dto.CreditPaymentResponse;
 import com.jr.finance.api.account.Account;
@@ -46,15 +45,22 @@ public class CreditPaymentService {
 
         CreditSnapshot before = snapshotService.snapshot(credit);
         if (before.remainingBalance().signum() == 0) throw new BadRequestException("El crédito ya está pagado");
-        List<AmortizationRow> schedule = amortization.schedule(credit.getPrincipal(), credit.getAnnualRate(),
-                credit.getTermMonths(), credit.getDisbursementDate(), credit.getPaymentDay(), null);
-        int count = (int) paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).stream()
-                .filter(p -> p.getStatus() == CreditPaymentStatus.POSTED).count();
-        BigDecimal interestDue = schedule.stream().filter(row -> row.getInstallment() == count + 1)
-                .findFirst().map(AmortizationRow::getInterest).orElse(BigDecimal.ZERO);
-        if (credit.getOpeningBalance() != null)
-            interestDue = before.remainingBalance().multiply(amortization.monthlyRate(credit.getAnnualRate()))
-                    .setScale(2, RoundingMode.HALF_UP);
+        List<CreditPayment> posted = paymentRepository.findByCreditIdOrderByPaymentDateAsc(creditId).stream()
+                .filter(p -> p.getStatus() == CreditPaymentStatus.POSTED && credit.appliesAfterOpening(p))
+                .toList();
+        if (posted.stream().anyMatch(p -> p.getPaymentDate().isAfter(request.getPaymentDate())))
+            throw new BadRequestException("Registra los pagos en orden de fecha. Ya hay un pago posterior anotado para este crédito");
+        List<CreditPayment> thisMonth = posted.stream()
+                .filter(p -> java.time.YearMonth.from(p.getPaymentDate()).equals(java.time.YearMonth.from(request.getPaymentDate())))
+                .toList();
+        BigDecimal monthOpeningBalance = before.remainingBalance().add(thisMonth.stream()
+                .map(p -> p.getPrincipalAmount().add(p.getExtraPrincipalAmount()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal monthlyInterest = monthOpeningBalance.multiply(amortization.monthlyRate(credit.getAnnualRate()))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal interestAlreadyPaidThisMonth = thisMonth.stream().map(CreditPayment::getInterestAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal interestDue = monthlyInterest.subtract(interestAlreadyPaidThisMonth).max(BigDecimal.ZERO);
         BigDecimal normal = request.getAmount().subtract(extra);
         BigDecimal interest = normal.min(interestDue).setScale(2, RoundingMode.HALF_UP);
         BigDecimal principal = normal.subtract(interest).setScale(2, RoundingMode.HALF_UP);

@@ -129,6 +129,13 @@ export default function CreditsScreen() {
                     </Text>
                     <Text style={typography.caption}>{group.credits.length}</Text>
                   </View>
+                  {group.title === 'Atrasados' ? (
+                    <Text style={typography.bodySecondary}>
+                      Según los pagos registrados, hay cuotas del calendario pendientes. Esto no incluye
+                      posibles intereses de mora. Abre cada crédito para revisar la fecha y registrar un pago
+                      que ya hayas hecho.
+                    </Text>
+                  ) : null}
                   {group.credits.map((credit, index) => (
                     <CreditCard
                       key={credit.id ?? index}

@@ -152,7 +152,29 @@ function CreditDetailContent({ id }: { id: number }) {
             </Text>
           )}
           <CreditHero credit={credit} hidden={hidden} />
-          {credit.status !== 'PAID' && <Button onPress={() => setPayOpen(true)}>Registrar pago</Button>}
+          {credit.status !== 'PAID' && (
+            <>
+              <Button onPress={() => setPayOpen(true)}>Registrar pago</Button>
+              <Text style={typography.caption}>
+                Si ya pagaste a la entidad, anótalo aquí para actualizar el saldo y el historial.
+              </Text>
+            </>
+          )}
+          {credit.status === 'LATE' && !credit.openingDate ? (
+            <Card tone="info" style={creditPanel}>
+              <Text style={typography.cardTitle}>¿Ya habías pagado antes de usar la app?</Text>
+              <Text style={typography.bodySecondary}>
+                El atraso se estima con los pagos que conocemos. Si faltan pagos antiguos, copia el capital
+                pendiente de un extracto reciente para empezar desde ahí, sin borrar tus pagos anotados.
+              </Text>
+              <Button
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/(app)/credit-opening', params: { id } })}
+              >
+                Usar saldo de mi extracto
+              </Button>
+            </Card>
+          ) : null}
           {credit.status !== 'PAID' && (
             <Card style={[styles.nextPayment, credit.status === 'LATE' && styles.latePayment]}>
               <View style={styles.nextIcon}>
@@ -169,9 +191,26 @@ function CreditDetailContent({ id }: { id: number }) {
                 {credit.nextPaymentDate && (
                   <Text style={typography.bodySecondary}>{formatLocalDate(credit.nextPaymentDate)}</Text>
                 )}
-                {credit.expectedPaymentAmount !== undefined && (
+                {(credit.status === 'LATE' ? credit.overdueAmount : credit.expectedPaymentAmount) !==
+                  undefined && (
+                  <Text style={typography.caption}>
+                    {credit.status === 'LATE' ? 'Sin cubrir según tus registros' : 'Cuota estimada'}
+                  </Text>
+                )}
+                {(credit.status === 'LATE' ? credit.overdueAmount : credit.expectedPaymentAmount) !==
+                  undefined && (
                   <Text style={typography.moneyMedium}>
-                    {creditMoney(credit.expectedPaymentAmount, credit.currency, hidden)}
+                    {creditMoney(
+                      credit.status === 'LATE' ? credit.overdueAmount : credit.expectedPaymentAmount,
+                      credit.currency,
+                      hidden,
+                    )}
+                  </Text>
+                )}
+                {credit.status === 'LATE' && (
+                  <Text style={typography.caption}>
+                    Según los pagos anotados, hay una cuota del calendario sin cubrir. Si ya la pagaste,
+                    regístrala para actualizar este estado. Consulta con tu entidad el valor exacto con mora.
                   </Text>
                 )}
               </View>
@@ -187,7 +226,7 @@ function CreditDetailContent({ id }: { id: number }) {
                   Amortización y aportes
                 </Text>
                 <Text style={typography.bodySecondary}>
-                  Mira cómo avanza tu capital y explora un abono adicional.
+                  Entiende qué parte de cada cuota paga intereses y qué parte reduce la deuda.
                 </Text>
               </View>
             </View>
@@ -200,7 +239,8 @@ function CreditDetailContent({ id }: { id: number }) {
               Ver amortización
             </Button>
             <Text style={typography.caption}>
-              Revisa pagos reales, cuotas pendientes y el efecto de un abono sin registrarlo.
+              Compara el plan original, tus pagos registrados y una simulación de abonos. Simular no cambia tu
+              crédito.
             </Text>
             {plan.isPending ? (
               <Skeleton height={100} />
@@ -295,9 +335,14 @@ function CreditDetailContent({ id }: { id: number }) {
               Actualizar crédito
             </Button>
           )}
-          <Text style={typography.caption}>Consulta tus pagos registrados desde «Ver amortización».</Text>
-          <Button variant="ghost" onPress={() => router.push('/(app)/transactions')}>
-            Ver todos los movimientos
+          <Text style={typography.caption}>
+            Historial propio de este crédito, también con pagos sin cuenta vinculada.
+          </Text>
+          <Button
+            variant="ghost"
+            onPress={() => router.push({ pathname: '/(app)/credit-payments', params: { id } })}
+          >
+            Ver pagos de este crédito
           </Button>
           <SectionHeader title="Gestionar crédito" />
           {credit ? (
@@ -327,6 +372,17 @@ function CreditDetailContent({ id }: { id: number }) {
                   Editar crédito o saldo inicial
                 </Button>
               ) : null}
+              <Text style={typography.bodySecondary}>
+                ¿Ya venías pagando este préstamo antes de anotarlo aquí? Usa tu extracto para que el saldo y
+                las cuotas pendientes partan de la cifra real de tu entidad.
+              </Text>
+              <Button
+                variant="secondary"
+                disabled={safety.busy}
+                onPress={() => router.push({ pathname: '/(app)/credit-opening', params: { id } })}
+              >
+                Actualizar saldo desde extracto
+              </Button>
               {credit.deletable ? (
                 <Button variant="ghost" disabled={safety.busy} onPress={deleteCurrent}>
                   Eliminar crédito

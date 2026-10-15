@@ -13,5 +13,6 @@ public record CreditAmortizationPaymentRow(
         BigDecimal interestAmount,
         BigDecimal principalAmount,
         BigDecimal extraPrincipalAmount,
-        BigDecimal balanceAfter
+        BigDecimal balanceAfter,
+        boolean includedInOpening
 ) { }

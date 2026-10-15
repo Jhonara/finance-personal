@@ -29,9 +29,13 @@ export function CreditProgress({ credit, dark = false }: { credit: Credit; dark?
   return percent === undefined ? null : (
     <View style={{ gap: spacing.sm }}>
       <Text style={[typography.caption, dark && { color: '#C3E5E4' }]}>
-        {percent.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% del capital pagado
+        {percent.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% del capital original reducido
       </Text>
-      <Progress value={percent} label="Capital pagado" color={dark ? colors.mint : colors.success} />
+      <Progress
+        value={percent}
+        label="Capital original reducido"
+        color={dark ? colors.mint : colors.success}
+      />
     </View>
   );
 }
@@ -124,7 +128,8 @@ export function CreditCard({
             {credit.nextPaymentDate && (
               <View style={styles.metaPill}>
                 <Text style={typography.caption}>
-                  Próximo pago · {formatLocalDate(credit.nextPaymentDate, 'compact')}
+                  {credit.status === 'LATE' ? 'Cuota por revisar' : 'Próximo pago'} ·{' '}
+                  {formatLocalDate(credit.nextPaymentDate, 'compact')}
                 </Text>
               </View>
             )}
@@ -140,6 +145,9 @@ export function CreditCard({
         <View style={styles.progressPanel}>
           <CreditProgress credit={credit} />
         </View>
+        {credit.status === 'LATE' && (
+          <Text style={typography.caption}>Revisa las cuotas pendientes y tus pagos registrados.</Text>
+        )}
         {credit.status === 'PAID' && <Text style={typography.caption}>Esta deuda ya está completada.</Text>}
       </MotionEntry>
     </MotionPressable>
@@ -271,7 +279,7 @@ export function CreditPlanView({
           <Text style={[typography.label, { color: colors.textPrimary }]}>{row.label}</Text>
           <View style={planStyles.columns}>
             <View style={planStyles.column}>
-              <Text style={typography.caption}>Planeado</Text>
+              <Text style={typography.caption}>Plan estimado</Text>
               <Text style={planStyles.value} adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1}>
                 {row.money
                   ? creditMoney(row.planned, currency, hidden)
@@ -279,7 +287,7 @@ export function CreditPlanView({
               </Text>
             </View>
             <View style={[planStyles.column, planStyles.realColumn]}>
-              <Text style={typography.caption}>Real</Text>
+              <Text style={typography.caption}>Anotado</Text>
               <Text style={planStyles.value} adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1}>
                 {row.money ? creditMoney(row.real, currency, hidden) : String(row.real ?? 'No disponible')}
               </Text>
@@ -311,13 +319,18 @@ export function CreditPlanView({
         <Text style={typography.bodySecondary}>
           {
             {
-              AL_DIA: 'Cantidad de pagos conforme al plan.',
-              ATRASADO: 'Hay menos pagos registrados que cuotas previstas.',
-              ADELANTADO: 'Hay más pagos registrados que cuotas previstas.',
+              AL_DIA: 'Los pagos anotados cubren las cuotas vencidas del plan estimado.',
+              ATRASADO:
+                'Los pagos anotados no cubren todo lo previsto hasta hoy. Si pagaste antes de usar la app, actualiza el saldo con tu extracto.',
+              ADELANTADO: 'Los pagos ordinarios anotados superan lo previsto hasta hoy.',
             }[plan.status]
           }
         </Text>
       )}
+      <Text style={typography.caption}>
+        Los abonos extra reducen capital; este estado revisa si las cuotas ordinarias vencidas están
+        cubiertas.
+      </Text>
     </View>
   );
 }

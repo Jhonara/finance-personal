@@ -175,14 +175,14 @@ function CreditAmortizationContent({ id }: { id: number }) {
               <View style={styles.heroIcon}>
                 <Ionicons name="layers-outline" size={24} color={colors.mint} />
               </View>
-              <Text style={styles.heroEyebrow}>SALDO REAL · {currency}</Text>
+              <Text style={styles.heroEyebrow}>SALDO REGISTRADO · {currency}</Text>
             </View>
             <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
               {creditMoney(data.currentBalance, currency, hidden)}
             </Text>
             <Text style={styles.heroHint}>
-              Monto original: {creditMoney(data.principal, currency, hidden)}. El saldo incluye tus pagos
-              contabilizados.
+              Monto original: {creditMoney(data.principal, currency, hidden)}. El saldo parte de tu extracto,
+              si lo agregaste, y descuenta los pagos posteriores anotados.
             </Text>
             <View style={styles.heroFacts}>
               <View style={styles.heroFact}>
@@ -197,6 +197,14 @@ function CreditAmortizationContent({ id }: { id: number }) {
               </View>
             </View>
           </LinearGradient>
+          <Card tone="info" style={styles.terms}>
+            <Text style={typography.cardTitle}>Cómo leer este plan</Text>
+            <Text style={typography.bodySecondary}>
+              Cada cuota paga intereses y reduce una parte del capital. El saldo registrado refleja lo que
+              registraste; las cuotas futuras son una estimación. Un abono extra puede cambiar ese plan, pero
+              debes registrarlo después de pagarlo a tu entidad.
+            </Text>
+          </Card>
           {credit.data?.openingDate ? (
             <Card style={styles.terms}>
               <Text style={typography.cardTitle}>Tu punto de partida</Text>
@@ -234,8 +242,8 @@ function CreditAmortizationContent({ id }: { id: number }) {
                 <Card style={styles.warningCard}>
                   <Ionicons name="alert-circle-outline" size={24} color={colors.warning} />
                   <Text style={[typography.bodySecondary, styles.grow]}>
-                    Este crédito figura atrasado. La proyección parte del saldo registrado y no incluye
-                    posibles intereses de mora o cargos de tu entidad.
+                    Según los pagos anotados, hay cuotas por revisar. La proyección parte del saldo registrado
+                    y no incluye posibles intereses de mora o cargos de tu entidad.
                   </Text>
                 </Card>
               ) : null}
