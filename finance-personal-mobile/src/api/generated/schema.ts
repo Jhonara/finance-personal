@@ -494,6 +494,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/savings/goals/{id}/currency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["assignCurrency"];
+        trace?: never;
+    };
     "/api/v1/categories/{id}": {
         parameters: {
             query?: never;
@@ -610,6 +626,22 @@ export interface paths {
          * @description Obtiene el porcentaje de progreso alcanzado en una meta de ahorro.
          */
         get: operations["progress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/month": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["month"];
         put?: never;
         post?: never;
         delete?: never;
@@ -749,7 +781,7 @@ export interface paths {
          * Obtener dashboard mensual
          * @description Retorna flujo operativo, activos, pasivos y patrimonio neto por moneda, además de cuentas, presupuestos, ahorro, créditos, alertas y transacciones recientes. aiSummary es un campo reservado y actualmente es null.
          */
-        get: operations["month"];
+        get: operations["month_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1033,6 +1065,7 @@ export interface components {
              * @example Viaje a Europa
              */
             name: string;
+            currency: string;
             /**
              * @description Monto objetivo que se desea alcanzar.
              * @example 10000000
@@ -1052,6 +1085,8 @@ export interface components {
              * @example Comprar moto
              */
             name?: string;
+            /** @description Moneda de la meta. Es null en metas creadas antes de guardar la moneda. */
+            currency?: string;
             /**
              * @description Monto objetivo.
              * @example 15000000
@@ -1750,6 +1785,9 @@ export interface components {
             effectiveDate?: string;
             description?: string;
         };
+        AssignSavingCurrencyRequest: {
+            currency: string;
+        };
         /** @description Metadatos editables de una categoría. El tipo es inmutable. */
         UpdateCategoryRequest: {
             name?: string;
@@ -1823,6 +1861,13 @@ export interface components {
             destinationAccountName?: string;
             /** Format: int64 */
             reversalOfId?: number;
+        };
+        MonthlyCurrencyReport: {
+            income?: number;
+            expense?: number;
+            expensesByCategory?: {
+                [key: string]: number;
+            };
         };
         /** @description Perfil seguro del usuario autenticado actual. */
         CurrentUserResponse: {
@@ -2109,6 +2154,7 @@ export interface components {
              * @example Viaje a Japón
              */
             name?: string;
+            currency?: string;
             /**
              * @description Monto objetivo de la meta.
              * @example 15000000
@@ -3620,6 +3666,32 @@ export interface operations {
             };
         };
     };
+    assignCurrency: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignSavingCurrencyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
     get: {
         parameters: {
             query?: never;
@@ -3980,6 +4052,31 @@ export interface operations {
             };
         };
     };
+    month: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: components["schemas"]["MonthlyCurrencyReport"];
+                    };
+                };
+            };
+        };
+    };
     getCurrentUser: {
         parameters: {
             query?: never;
@@ -4219,7 +4316,7 @@ export interface operations {
             };
         };
     };
-    month: {
+    month_1: {
         parameters: {
             query: {
                 /**

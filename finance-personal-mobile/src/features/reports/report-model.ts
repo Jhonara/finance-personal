@@ -1,12 +1,16 @@
-import type { DashboardMonth } from '@/api/dashboard-api';
 import type { DashboardPeriod } from '@/features/dashboard/dashboard-period';
 
-export function reportCurrency(data?: DashboardMonth): string | undefined {
-  const currencies = new Set([
-    ...(data?.accounts ?? []).map((account) => account.currency).filter(Boolean),
-    ...(data?.recentTransactions ?? []).map((transaction) => transaction.currency).filter(Boolean),
-  ]);
-  return currencies.size === 1 ? [...currencies][0] : undefined;
+export type CurrencyMonth = {
+  income: number;
+  expense: number;
+  expensesByCategory: Record<string, number>;
+};
+export type ReportMonth = Record<string, CurrencyMonth>;
+
+export function reportCurrencies(months: (ReportMonth | undefined)[], accountCurrencies: string[]) {
+  return [...new Set([...accountCurrencies, ...months.flatMap((month) => Object.keys(month ?? {}))])]
+    .filter((currency) => /^[A-Z]{3}$/.test(currency))
+    .sort();
 }
 
 export function reportMonths(period: DashboardPeriod, count = 6): DashboardPeriod[] {
@@ -16,8 +20,8 @@ export function reportMonths(period: DashboardPeriod, count = 6): DashboardPerio
   });
 }
 
-export function reportCategories(data?: DashboardMonth) {
-  return Object.entries(data?.expenseSummary?.totalByCategory ?? {})
+export function reportCategories(data?: CurrencyMonth) {
+  return Object.entries(data?.expensesByCategory ?? {})
     .filter((entry): entry is [string, number] => Number.isFinite(entry[1]) && entry[1] > 0)
     .sort((a, b) => b[1] - a[1]);
 }

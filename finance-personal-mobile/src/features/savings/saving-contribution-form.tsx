@@ -98,7 +98,9 @@ export function SavingContributionForm({
       <Screen scroll keyboard style={{ gap: spacing.lg }}>
         <ScreenHeader title="Nuevo aporte" subtitle={goal.name} back onBack={close} />
         <Text style={typography.cardTitle}>Progreso actual · {presentSavingGoal(goal).percentageLabel}</Text>
-        <Text style={typography.bodySecondary}>Ahorrado · {savingsAmount(goal.currentAmount, hidden)}</Text>
+        <Text style={typography.bodySecondary}>
+          Ahorrado · {savingsAmount(goal.currentAmount, hidden, goal.currency)}
+        </Text>
         <Controller
           control={form.control}
           name="amount"
@@ -106,7 +108,7 @@ export function SavingContributionForm({
             <MoneyInput
               label="Monto del aporte"
               placeholder="0"
-              currency=""
+              currency={goal.currency ?? ''}
               value={field.value}
               onChangeText={field.onChange}
               error={form.formState.errors.amount?.message}
@@ -126,7 +128,10 @@ export function SavingContributionForm({
             />
           )}
         />
-        <Text style={typography.bodySecondary}>Usa la misma moneda que elegiste para el objetivo.</Text>
+        <Text style={typography.bodySecondary}>
+          Anota dinero que ya apartaste en la moneda de esta meta. Este registro actualiza tu progreso; no
+          retira dinero de tus cuentas.
+        </Text>
         {error ? (
           <Text accessibilityLiveRegion="polite" style={typography.bodySecondary}>
             {error}

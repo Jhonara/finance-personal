@@ -109,6 +109,11 @@ export default function Categories() {
           <Text style={typography.bodySecondary}>
             Empieza con ideas o crea las tuyas. Podrás cambiarlas cuando quieras.
           </Text>
+          <Text style={typography.caption}>
+            {activeQuery.isPending
+              ? 'Cargando tus categorías…'
+              : `${active.length} ${active.length === 1 ? 'categoría activa' : 'categorías activas'} de ${type === 'EXPENSE' ? 'gasto' : 'ingreso'}`}
+          </Text>
         </View>
       </View>
       <View style={styles.tabs}>
@@ -151,7 +156,7 @@ export default function Categories() {
                     Son ideas. Solo se guardan las que selecciones.
                   </Text>
                 </View>
-                <Text style={styles.counter}>{selected.length} elegidas</Text>
+                <Text style={styles.counter}>{selected.length} por agregar</Text>
               </View>
               <View style={styles.grid}>
                 {suggestions.map((name) => {

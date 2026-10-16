@@ -46,6 +46,7 @@ export function SavingGoalCard({
           <View style={styles.grow}>
             <Text style={typography.sectionTitle}>{goal.name}</Text>
             <Text style={[typography.caption, { color: tone.color }]}>{goal.status}</Text>
+            <Text style={typography.caption}>{goal.currency ?? 'Moneda por definir'}</Text>
           </View>
           <View style={[styles.percent, { backgroundColor: tone.soft }]}>
             <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
@@ -54,11 +55,13 @@ export function SavingGoalCard({
         <View style={styles.amounts}>
           <View>
             <Text style={typography.caption}>YA AHORRASTE</Text>
-            <Text style={typography.moneyMedium}>{savingsAmount(goal.currentAmount, hidden)}</Text>
+            <Text style={typography.moneyMedium}>
+              {savingsAmount(goal.currentAmount, hidden, goal.currency)}
+            </Text>
           </View>
           <View style={styles.target}>
             <Text style={typography.caption}>META</Text>
-            <Text style={typography.label}>{savingsAmount(goal.targetAmount, hidden)}</Text>
+            <Text style={typography.label}>{savingsAmount(goal.targetAmount, hidden, goal.currency)}</Text>
           </View>
         </View>
       </MotionPressable>
@@ -74,7 +77,7 @@ export function SavingGoalCard({
         <Text style={[typography.bodySecondary, styles.noteText]}>
           {goal.completed
             ? '¡Lo lograste! Completaste tu objetivo de ahorro.'
-            : `${goal.copy} Te faltan ${savingsAmount(goal.remaining, hidden)}.`}
+            : `${goal.copy} Te faltan ${savingsAmount(goal.remaining, hidden, goal.currency)}.`}
         </Text>
       </View>
       <View style={styles.actionRow}>
@@ -82,10 +85,10 @@ export function SavingGoalCard({
           size="compact"
           variant="secondary"
           tone={goal.completed ? 'success' : 'primary'}
-          onPress={goal.completed ? onOpen : onContribute}
-          accessibilityLabel={`${goal.completed ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
+          onPress={goal.completed || !goal.currency ? onOpen : onContribute}
+          accessibilityLabel={`${!goal.currency ? 'Definir moneda de' : goal.completed ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
         >
-          {goal.completed ? 'Ver meta' : 'Aportar a esta meta'}
+          {!goal.currency ? 'Definir moneda' : goal.completed ? 'Ver meta' : 'Aportar a esta meta'}
         </Button>
       </View>
     </MotionEntry>

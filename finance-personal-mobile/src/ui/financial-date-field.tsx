@@ -39,10 +39,11 @@ export function FinancialDateField({
           value={nativeFromLocalDate(pickerValue)}
           mode="date"
           maximumDate={maximumDate ? nativeFromLocalDate(maximumDate) : undefined}
-          onChange={(event, date) => {
+          onValueChange={(_, date) => {
             setOpen(false);
-            if (event.type === 'set' && date) onChange(localDateFromNative(date));
+            onChange(localDateFromNative(date));
           }}
+          onDismiss={() => setOpen(false)}
         />
       )}
       {error && <Text style={styles.error}>{error}</Text>}

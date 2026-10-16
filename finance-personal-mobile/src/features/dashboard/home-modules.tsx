@@ -8,7 +8,6 @@ import type { DashboardMonth } from '@/api/dashboard-api';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { MotionPressable } from '@/ui/motion';
 import { Progress } from '@/ui/progress';
-import { CreditEntryCard } from '@/features/credits/credit-entry-card';
 import { formatDashboardPeriod, type DashboardPeriod } from './dashboard-period';
 import { homeColumns, homePlan } from './home-plan';
 
@@ -37,32 +36,6 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
       progress: plan.savingPercent,
       onPress: () => router.push('/(app)/savings'),
       context: '',
-    },
-  ];
-  const alertsColor =
-    plan.alertState === 'important'
-      ? colors.danger
-      : plan.alertState === 'attention'
-        ? colors.warning
-        : plan.alertState === 'clear'
-          ? colors.success
-          : colors.info;
-  const rows = [
-    {
-      title: 'Alertas',
-      summary: plan.alerts,
-      icon:
-        plan.alertState === 'clear'
-          ? ('checkmark-circle-outline' as const)
-          : ('notifications-outline' as const),
-      color: alertsColor,
-      soft:
-        plan.alertState === 'clear'
-          ? colors.successSoft
-          : plan.alertState === 'unknown'
-            ? colors.infoSoft
-            : colors.warningSoft,
-      onPress: () => router.push('/(app)/alerts'),
     },
   ];
   return (
@@ -110,30 +83,6 @@ export function HomeModules({ data, period }: { data: DashboardMonth; period: Da
           </MotionPressable>
         ))}
       </View>
-      <View style={styles.rows}>
-        <CreditEntryCard summary={plan.credit} />
-        {rows.map((row) => (
-          <MotionPressable
-            key={row.title}
-            accessibilityRole="button"
-            accessibilityLabel={`Ver ${row.title.toLowerCase()}`}
-            accessibilityValue={{ text: row.summary }}
-            onPress={row.onPress}
-            style={styles.row}
-          >
-            <View style={[styles.rowIcon, { backgroundColor: row.soft }]}>
-              <Ionicons name={row.icon} size={20} color={row.color} />
-            </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>{row.title}</Text>
-              <Text numberOfLines={1} style={styles.rowSummary}>
-                {row.summary}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={row.color} />
-          </MotionPressable>
-        ))}
-      </View>
     </View>
   );
 }
@@ -166,26 +115,4 @@ const styles = themedStyleSheet(() => ({
   tileTitle: { ...typography.label, fontSize: 13, lineHeight: 17, color: colors.textPrimary },
   tileSummary: { ...typography.caption, fontSize: 11, lineHeight: 15, color: colors.textSecondary },
   explore: { ...typography.caption, fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  rows: { gap: spacing.sm },
-  row: {
-    minHeight: 57,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.large,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowCopy: { flex: 1, gap: spacing.xxs },
-  rowTitle: { ...typography.label, fontSize: 12, lineHeight: 16, color: colors.textPrimary },
-  rowSummary: { ...typography.caption, fontSize: 11, lineHeight: 14, color: colors.textSecondary },
 }));

@@ -853,6 +853,41 @@ describe('Credit screens with real hooks and forms', () => {
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
+  it('guides an existing credit through saldo, conditions and review without losing its draft', async () => {
+    mocks.params = { id: '' };
+    const tree = await render(<CreditForm />);
+    await press(tree, 'Ya lo venía pagando');
+    expect(text(tree.toJSON())).toContain('PASO 1 DE 3');
+    expect(text(tree.toJSON())).not.toContain('Principal original');
+    await fill(tree, 'Nombre del crédito', 'Casa');
+    await fill(tree, 'Saldo de capital pendiente', '650');
+    await fill(tree, 'Cuotas que faltan', '6');
+    const today = new Date();
+    const nextPayment = localDateFromNative(new Date(today.getFullYear(), today.getMonth() + 1, 15));
+    await act(async () => {
+      tree.root
+        .findAllByType(FinancialDateField)
+        .find((node) => node.props.label === 'Próximo pago del extracto')!
+        .props.onChange(nextPayment);
+    });
+    await press(tree, 'Siguiente: condiciones');
+    expect(text(tree.toJSON())).toContain('PASO 2 DE 3');
+    await fill(tree, 'Principal original', '1000');
+    await fill(tree, 'Tasa efectiva anual (EA)', '8.4');
+    await fill(tree, 'Plazo en meses', '12');
+    await fill(tree, 'Día de pago', '15');
+    await press(tree, 'Siguiente: revisar');
+    expect(text(tree.toJSON())).toContain('PASO 3 DE 3');
+    expect(text(tree.toJSON())).toContain('Casa · COP');
+    await press(tree, 'Editar condiciones');
+    expect(
+      tree.root
+        .findAll((node) => (node.type as unknown) === 'TextInput')
+        .find((node) => node.props.accessibilityLabel === 'Principal original')?.props.value,
+    ).toBe('1.000');
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['openingBalance', 'Saldo pendiente: escribe un valor mayor que cero'],
     ['openingDate', 'Fecha de corte: debe ser de hoy o anterior'],

@@ -29,7 +29,10 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
     ...new Set([
       ...Object.keys(data.assetsByCurrency ?? {}),
       ...Object.keys(data.liabilitiesByCurrency ?? {}),
-      ...(data.accounts ?? []).map((account) => account.currency).filter(Boolean),
+      ...(data.accounts ?? [])
+        .filter((account) => account.active)
+        .map((account) => account.currency)
+        .filter(Boolean),
     ]),
   ] as string[];
   const visibleCurrencies: Array<string | undefined> = currencies.length ? currencies : [undefined];
@@ -44,7 +47,9 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
         </Text>
       </View>
       {visibleCurrencies.map((currency) => {
-        const accountCount = (data.accounts ?? []).filter((account) => account.currency === currency).length;
+        const accountCount = (data.accounts ?? []).filter(
+          (account) => account.active && account.currency === currency,
+        ).length;
         const accountBalance =
           currency && data.assetsByCurrency ? (data.assetsByCurrency[currency] ?? 0) : undefined;
         const debtBalance =
@@ -240,7 +245,7 @@ export function HomeMetrics({
       ink: colors.danger,
     },
     {
-      label: 'Flujo neto',
+      label: 'Balance del mes',
       value: flow,
       prefix: !hidden && typeof flow === 'number' && flow > 0 ? '+' : '',
       icon: 'swap-horizontal-outline' as const,
@@ -278,6 +283,9 @@ export function HomeMetrics({
             </View>
           ))}
         </View>
+        <Text style={styles.sectionSubtitle}>
+          Ingresos menos gastos de este mes. No es el saldo de tus cuentas.
+        </Text>
         {budgetPercent !== undefined ? (
           <View style={styles.budgetFoot}>
             <View style={styles.budgetCaption}>

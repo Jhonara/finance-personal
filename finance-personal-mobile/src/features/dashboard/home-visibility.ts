@@ -19,6 +19,10 @@ export function homeVisibility(data: DashboardMonth, hasHistoricalMovement?: boo
   return {
     accounts,
     hasAccounts: accounts.length > 0,
+    hasPanorama:
+      accounts.length > 0 ||
+      (data.credits?.length ?? 0) > 0 ||
+      Object.values(data.liabilitiesByCurrency ?? {}).some((value) => finite(value) && value > 0),
     hasMonthlyTotals,
     monthlyCurrency,
     showFirstMovement: accounts.length > 0 && hasHistoricalMovement === false && !hasMonthlyTotals,

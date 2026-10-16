@@ -34,8 +34,8 @@ export default function SavingsScreen() {
       onRefresh={() => void query.refetch()}
     >
       <ScreenHeader
-        title="Ahorros"
-        subtitle="Convierte tus planes en metas."
+        title="Metas de ahorro"
+        subtitle="Sigue lo que llevas para cada objetivo."
         back
         onBack={() => router.back()}
         rightAction={

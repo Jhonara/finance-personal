@@ -54,6 +54,9 @@ public class SavingGoal {
     )
     private String name;
 
+    @Column(length = 3)
+    private String currency;
+
     @Column(name = "target_amount", nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Monto objetivo que se desea alcanzar.",

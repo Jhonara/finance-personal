@@ -6,12 +6,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ScreenHeader } from '@/ui/headers';
 import { Card, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
-import { useAlerts } from '@/features/secondary/use-secondary';
+import { useAlerts, useCredits } from '@/features/secondary/use-secondary';
 import { actionableAlerts, alertLevels, presentAlert } from '@/features/alerts/alert-presentation';
 import { FinancialAlertCard } from '@/features/alerts/financial-alert-card';
 import { colors, radius, spacing, typography } from '@/theme';
 export default function AlertsScreen() {
   const q = useAlerts();
+  const credits = useCredits();
   const alerts = actionableAlerts(q.data ?? []);
   const important = alerts.some((alert) => presentAlert(alert).level === 'Importante');
   return (
@@ -56,7 +57,11 @@ export default function AlertsScreen() {
                   {level}
                 </Text>
                 {group.map((alert, index) => (
-                  <FinancialAlertCard key={`${presentAlert(alert).key}:${index}`} alert={alert} />
+                  <FinancialAlertCard
+                    key={`${presentAlert(alert).key}:${index}`}
+                    alert={alert}
+                    credit={credits.data?.find((credit) => credit.id === alert.data?.creditId)}
+                  />
                 ))}
               </View>
             ) : null;

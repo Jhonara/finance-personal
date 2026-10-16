@@ -1,4 +1,5 @@
 import type { Alert, SeenAlert } from '@/features/secondary/secondary-api';
+import { formatPrivateMoney } from '@/privacy/privacy-format';
 
 export const alertLevels = ['Importante', 'Atención', 'Información'] as const;
 export type AlertLevel = (typeof alertLevels)[number];
@@ -44,7 +45,10 @@ const definitions: Record<string, { title: string; description: string; level: A
 export function positiveId(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
-export function presentAlert(alert: Alert) {
+export function presentAlert(
+  alert: Alert,
+  creditContext?: { name: string; currency: string; hidden: boolean },
+) {
   const code = alert.code ?? '';
   const definition = definitions[code] ?? {
     title: 'Aviso financiero',
@@ -62,13 +66,29 @@ export function presentAlert(alert: Alert) {
   if (budget && typeof data.categoryName === 'string' && data.categoryName.trim())
     context.push(`Categoría ${data.categoryName}`);
   if (budget && period) context.push(`Período ${period.year}-${String(period.month).padStart(2, '0')}`);
-  if (credit && relatedId) context.push(`Crédito #${relatedId}`);
+  if (credit && relatedId)
+    context.push(creditContext?.name ? `Crédito: ${creditContext.name}` : `Crédito #${relatedId}`);
   if (
     code === 'HIGH_INTEREST' &&
     typeof data.annualEffectiveRatePercent === 'number' &&
     Number.isFinite(data.annualEffectiveRatePercent)
   )
     context.push(`Tasa EA ${data.annualEffectiveRatePercent}%`);
+  if (
+    code === 'HIGH_INTEREST' &&
+    creditContext &&
+    typeof data.realInterest === 'number' &&
+    Number.isFinite(data.realInterest) &&
+    typeof data.plannedInterest === 'number' &&
+    Number.isFinite(data.plannedInterest)
+  ) {
+    context.push(
+      `Intereses pagados: ${formatPrivateMoney(data.realInterest, creditContext.currency, creditContext.hidden)}`,
+    );
+    context.push(
+      `Estimación del plan: ${formatPrivateMoney(data.plannedInterest, creditContext.currency, creditContext.hidden)}`,
+    );
+  }
   if (
     code === 'SPEND_SPIKE' &&
     typeof data.differencePercent === 'number' &&

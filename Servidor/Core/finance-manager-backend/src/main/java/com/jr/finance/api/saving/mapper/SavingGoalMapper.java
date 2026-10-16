@@ -20,6 +20,7 @@ public class SavingGoalMapper {
 
         response.setId(goal.getId());
         response.setName(goal.getName());
+        response.setCurrency(goal.getCurrency());
         response.setTargetAmount(goal.getTargetAmount());
         response.setCurrentAmount(goal.getCurrentAmount());
         response.setCompleted(goal.isCompleted());

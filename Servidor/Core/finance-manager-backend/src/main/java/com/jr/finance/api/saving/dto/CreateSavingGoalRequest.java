@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -22,6 +23,10 @@ public class CreateSavingGoalRequest {
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     private String name;
+
+    @NotBlank(message = "La moneda es obligatoria")
+    @Pattern(regexp = "[A-Z]{3}", message = "Usa una moneda de tres letras")
+    private String currency;
 
     @NotNull(message = "El monto objetivo es obligatorio")
     @Positive(message = "El monto objetivo debe ser mayor que 0")

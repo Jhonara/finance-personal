@@ -1,10 +1,10 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
-import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
+import { useAlerts } from '@/features/secondary/use-secondary';
 import { homePlan } from '@/features/dashboard/home-plan';
 import { CreditEntryCard } from '@/features/credits/credit-entry-card';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
@@ -16,9 +16,10 @@ import { useAppTheme } from '@/theme/theme-provider';
 
 export default function PlanScreen() {
   const { palette } = useAppTheme();
-  const [period] = useState(currentDashboardPeriod);
+  const period = currentDashboardPeriod();
   const dashboard = useDashboardMonth(period);
-  const summary = dashboard.data ? homePlan(dashboard.data, period) : undefined;
+  const alerts = useAlerts();
+  const summary = dashboard.data ? homePlan({ ...dashboard.data, alerts: alerts.data }, period) : undefined;
   const destinations = [
     {
       title: 'Presupuestos',
@@ -31,25 +32,23 @@ export default function PlanScreen() {
     },
     {
       title: 'Ahorros y metas',
-      subtitle: 'Separa dinero para lo que quieres lograr.',
+      subtitle: 'Registra cuánto llevas para cada objetivo.',
       summary: summary?.saving,
       icon: 'flag-outline',
       tone: colors.successSoft,
       color: colors.success,
       route: '/(app)/savings',
     },
-    {
-      title: 'Alertas',
-      subtitle: 'Revisa los avisos de tus finanzas.',
-      summary: summary?.alerts,
-      icon: summary?.alertState === 'clear' ? 'checkmark-circle-outline' : 'notifications-outline',
-      tone: summary?.alertState === 'clear' ? colors.successSoft : colors.infoSoft,
-      color: colors.info,
-      route: '/(app)/alerts',
-    },
   ] as const;
   return (
-    <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
+    <Screen
+      scroll
+      refreshing={dashboard.isRefetching || alerts.isRefetching}
+      onRefresh={() => {
+        void dashboard.refetch();
+        void alerts.refetch();
+      }}
+    >
       <View style={styles.content}>
         <ScreenHeader
           title="Explorar"
@@ -58,7 +57,7 @@ export default function PlanScreen() {
         <MotionPressable
           accessibilityRole="button"
           accessibilityLabel="Abrir reportes"
-          onPress={() => router.push('/(app)/reports')}
+          onPress={() => router.push({ pathname: '/(app)/reports', params: period })}
           style={styles.reports}
         >
           <View style={styles.reportsIcon}>
@@ -71,12 +70,19 @@ export default function PlanScreen() {
           </View>
           <Ionicons name="arrow-forward" size={20} color={colors.secondary} />
         </MotionPressable>
+        <SettingsRow
+          icon="notifications-outline"
+          title="Alertas"
+          subtitle={
+            summary?.alerts
+              ? `${summary.alerts}. Revisa qué necesita atención.`
+              : 'Avisos sobre cuotas y límites de gasto.'
+          }
+          onPress={() => router.push('/(app)/alerts')}
+        />
         <Text accessibilityRole="header" style={[typography.sectionTitle, { color: palette.textPrimary }]}>
-          Planifica lo que viene
+          Planifica tus gastos y objetivos
         </Text>
-        <MotionEntry>
-          <CreditEntryCard summary={summary?.credit} tourId="plan-credits" />
-        </MotionEntry>
         {destinations.map((item) => (
           <MotionPressable
             key={item.title}
@@ -100,6 +106,9 @@ export default function PlanScreen() {
             <Ionicons name="chevron-forward" size={20} color={palette.primary} />
           </MotionPressable>
         ))}
+        <MotionEntry>
+          <CreditEntryCard summary={summary?.credit} tourId="plan-credits" />
+        </MotionEntry>
         {dashboard.isError && (
           <>
             <Text style={typography.caption}>
@@ -111,14 +120,8 @@ export default function PlanScreen() {
           </>
         )}
         <Text accessibilityRole="header" style={[typography.sectionTitle, { color: palette.textPrimary }]}>
-          Organiza a tu manera
+          Ayuda y preferencias
         </Text>
-        <SettingsRow
-          icon="pricetags-outline"
-          title="Categorías"
-          subtitle="Ponle nombre a tus ingresos y gastos."
-          onPress={() => router.push('/(app)/categories')}
-        />
         <View style={[styles.guide, { backgroundColor: palette.primarySoft }]}>
           <Ionicons name="compass-outline" size={28} color={colors.success} />
           <Text style={[typography.sectionTitle, { color: palette.textPrimary }]}>¿Por dónde empiezo?</Text>
@@ -132,7 +135,7 @@ export default function PlanScreen() {
         <SettingsRow
           icon="person-circle-outline"
           title="Perfil y ajustes"
-          subtitle="Apariencia, privacidad y sesiones."
+          subtitle="Categorías, apariencia, privacidad y sesiones."
           onPress={() => router.push('/(app)/more')}
         />
       </View>

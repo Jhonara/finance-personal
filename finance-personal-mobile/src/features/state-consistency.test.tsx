@@ -222,6 +222,7 @@ beforeEach(() => {
   mocks.get.mockImplementation(async (url: string) => {
     if (url === '/accounts') return { data: [account] };
     if (url === '/dashboard/month') return { data: dashboard };
+    if (url === '/alerts') return { data: dashboard.alerts ?? [] };
     if (url === '/me') return { data: { id: 10, name: 'Ana' } };
     if (url === '/transactions') return { data: { totalElements: 1 } };
     throw new Error(`Unexpected GET ${url}`);
@@ -563,7 +564,8 @@ describe.each(cases)('$name retained-route lifecycle', ({ Screen, label, value, 
     await fill(tree);
     await act(async () => press(tree, submit));
     await settled(() => expect(mocks.feedback).toHaveBeenCalled());
-    expect(input(tree, label).props.value).toBe('');
+    if (Screen === AccountForm) expect(textContent(tree.toJSON())).toContain('Registrar dinero que ya tenía');
+    else expect(input(tree, label).props.value).toBe('');
     await reenter(tree, Screen, { formSession: 'B', id: '' });
     await fill(tree);
     await act(async () => press(tree, submit));
@@ -713,7 +715,8 @@ it('keeps November authoritative when September and October resolve out of order
     await act(async () => press(tree, 'Mes siguiente'));
     await act(async () => press(tree, 'Mes siguiente'));
     expect(textContent(tree.toJSON()).toLowerCase()).toContain('noviembre de 2026');
-    expect(signals.get(9)?.aborted).toBe(true);
+    // Current balances remain subscribed even while a different activity month loads.
+    expect(signals.get(9)?.aborted).toBe(false);
     expect(signals.get(10)?.aborted).toBe(true);
     await act(async () => requests.get(11)!.resolve({ data: monthData(11) }));
     await settled(() =>
@@ -723,6 +726,9 @@ it('keeps November authoritative when September and October resolve out of order
       requests.get(10)!.resolve({ data: monthData(10) });
       requests.get(9)!.resolve({ data: monthData(9) });
     });
+    await settled(() =>
+      expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 9 }))?.status).toBe('success'),
+    );
     expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 11');
     expect(textContent(tree.toJSON())).toContain('Panorama financiero');
     expect(textContent(tree.toJSON())).toContain('Noviembre de 2026');
@@ -741,8 +747,12 @@ it('keeps November authoritative when September and October resolve out of order
       pathname: '/(app)/budgets',
       params: { year: 2026, month: 11 },
     });
-    await act(async () => press(tree, 'Mes anterior'));
-    await act(async () => press(tree, 'Mes anterior'));
+    await act(async () => press(tree, 'Ver reportes de este mes'));
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/reports',
+      params: { year: 2026, month: 11 },
+    });
+    await act(async () => press(tree, 'Volver al mes actual'));
     await settled(() =>
       expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 9 }))?.status).toBe('success'),
     );
@@ -758,6 +768,20 @@ it('keeps November authoritative when September and October resolve out of order
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('refreshes both account details and their current balances when pulling Accounts to refresh', async () => {
+  const tree = await render(<AccountsScreen />);
+  await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+  expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+  dashboard = { ...dashboard, accounts: [{ ...account, balance: 220000 }] };
+  mocks.get.mockClear();
+  const refresh = tree.root.find((node) => (node.type as unknown) === 'ScrollView').props.refreshControl;
+  await act(async () => refresh.props.onRefresh());
+  await settled(() => expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(220000, 'COP', false)));
+  expect(mocks.get.mock.calls.map(([url]) => url)).toEqual(
+    expect.arrayContaining(['/accounts', '/dashboard/month']),
+  );
 });
 
 it('opens account detail read-only, edits only name and cancels without a request', async () => {
@@ -1021,6 +1045,105 @@ describe('Para ti on Home', () => {
 });
 
 describe('Home visual hub', () => {
+  it('includes credit alerts from the complete feed and updates when they are dismissed', async () => {
+    dashboard = { ...dashboard, alerts: [{ code: 'ALL_GOOD' }] };
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation((url: string, options?: unknown) =>
+      url === '/alerts'
+        ? Promise.resolve({
+            data: [
+              { code: 'HIGH_INTEREST', data: { creditId: 5 } },
+              { code: 'CREDIT_BEHIND', data: { creditId: 3 } },
+            ],
+          })
+        : originalGet(url, options),
+    );
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(secondaryKeys.alerts)?.status).toBe('success'));
+    expect(textContent(tree.toJSON())).toContain('2 avisos por revisar');
+    expect(textContent(tree.toJSON())).toContain('Pago de crédito pendiente. Ver detalles');
+    await act(async () => {
+      client.setQueryData(secondaryKeys.alerts, [{ code: 'ALL_GOOD' }]);
+    });
+    await settled(() => expect(textContent(tree.toJSON())).not.toContain('avisos por revisar'));
+  });
+
+  it('shows current credit capital even when no account has been created', async () => {
+    dashboard = {
+      accounts: [],
+      credits: [{ id: 3, name: 'Casa', status: 'ACTIVE' }],
+      assetsByCurrency: { COP: 0 },
+      liabilitiesByCurrency: { COP: 45000000 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Capital pendiente de tus créditos');
+    expect(content).toContain(formatPrivateMoney(45000000, 'COP', false));
+    expect(content).not.toContain('Tu dinero empieza aquí.');
+    await act(async () => press(tree, 'Ver créditos desde el panorama'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+  });
+
+  it('opens and closes the selected recent movement without leaving Home', async () => {
+    dashboard = {
+      ...dashboard,
+      recentTransactions: [
+        {
+          transactionId: 42,
+          type: 'EXPENSE',
+          description: 'Compra del mercado',
+          amount: 68000,
+          currency: 'COP',
+          effectiveDate: '2026-10-12',
+          accountName: 'Principal',
+          categoryName: 'Alimentación',
+        },
+      ],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    await act(async () => tree.root.findByType(TransactionRow).props.onPress());
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('IMPORTE');
+    expect(content).toContain('12 de octubre de 2026');
+    expect(content).toContain('DescripciónCompra del mercado');
+    expect(content).toContain('CategoríaAlimentación');
+    expect(mocks.push).not.toHaveBeenCalled();
+    await act(async () => press(tree, 'Cerrar detalle'));
+    expect(textContent(tree.toJSON())).not.toContain('IMPORTE');
+    expect(tree.root.findAllByType(TransactionRow)).toHaveLength(1);
+  });
+
+  it('keeps current balances visible when a different activity month fails', async () => {
+    dashboard = {
+      ...dashboard,
+      assetsByCurrency: { COP: 110000 },
+      liabilitiesByCurrency: { COP: 400000 },
+      totalExpense: 1000,
+      alerts: [{ code: 'ALL_GOOD' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const originalGet = mocks.get.getMockImplementation()!;
+    const request = deferred<{ data: DashboardMonth }>();
+    mocks.get.mockImplementation((url: string, options?: { params?: { month: number } }) =>
+      url === '/dashboard/month' && options?.params?.month !== period.month
+        ? request.promise
+        : originalGet(url, options),
+    );
+    await act(async () => press(tree, 'Mes siguiente'));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(400000, 'COP', false));
+    await act(async () => request.reject(new Error('Offline')));
+    await settled(() => expect(textContent(tree.toJSON())).toContain('No pudimos cargar este mes'));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(400000, 'COP', false));
+    expect(textContent(tree.toJSON())).not.toContain('aviso por revisar');
+    await act(async () => press(tree, 'Volver al mes actual'));
+    expect(textContent(tree.toJSON())).not.toContain('No pudimos cargar este mes');
+    expect(textContent(tree.toJSON())).toContain('Balance del mes');
+  });
+
   it('shows account money and credit capital separately without leading with negative net worth', async () => {
     dashboard = {
       ...dashboard,
@@ -1087,7 +1210,7 @@ describe('Home visual hub', () => {
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
     expect(
       tree.root.findByType(HomeModules).findAll((node) => (node.type as unknown) === 'Pressable'),
-    ).toHaveLength(4);
+    ).toHaveLength(2);
     expect(tree.root.findAllByType(ProgressSignal)).toHaveLength(1);
     expect(tree.root.findAllByType(HomeAccountPreview)).toHaveLength(3);
     expect(tree.root.findAllByType(TransactionRow)).toHaveLength(3);
@@ -1097,7 +1220,7 @@ describe('Home visual hub', () => {
     const content = textContent(tree.toJSON());
     const titles = [
       'Panorama financiero',
-      'Flujo neto',
+      'Balance del mes',
       'Tu plan',
       'Para ti',
       'Mis cuentas',
@@ -1109,7 +1232,7 @@ describe('Home visual hub', () => {
     await act(async () => press(tree, 'Ver todos los movimientos'));
     expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/transactions', params: period });
   });
-  it('promotes budgets, savings and credits from Dashboard without new requests', async () => {
+  it('promotes budgets, savings and the complete alert feed from the existing APIs', async () => {
     dashboard = {
       ...dashboard,
       savings: [{ id: 2, name: 'Moto', progressPercent: 70 }],
@@ -1127,11 +1250,13 @@ describe('Home visual hub', () => {
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
     expect(textContent(tree.toJSON())).toContain('Tu plan');
     expect(textContent(tree.toJSON())).toContain('38% utilizado');
-    expect(textContent(tree.toJSON())).toContain('1 activo');
-    expect(textContent(tree.toJSON())).toContain('1 por revisar');
+    expect(textContent(tree.toJSON())).toContain('Tienes un aviso por revisar');
+    expect(textContent(tree.toJSON()).indexOf('Tienes un aviso por revisar')).toBeLessThan(
+      textContent(tree.toJSON()).indexOf('Panorama financiero'),
+    );
     for (const [label, target] of [
       ['Ver ahorros', '/(app)/savings'],
-      ['Ver créditos', '/(app)/credits'],
+      ['Abrir créditos y préstamos', '/(app)/credits'],
       ['Ver alertas', '/(app)/alerts'],
     ] as const) {
       await act(async () => press(tree, label));
@@ -1141,7 +1266,7 @@ describe('Home visual hub', () => {
     expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/budgets', params: period });
     expect(
       mocks.get.mock.calls.every(([url]) =>
-        ['/dashboard/month', '/accounts', '/transactions', '/me'].includes(url),
+        ['/dashboard/month', '/accounts', '/transactions', '/me', '/alerts'].includes(url),
       ),
     ).toBe(true);
   });

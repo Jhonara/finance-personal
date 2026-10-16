@@ -63,7 +63,7 @@ export function HomeHeader({
 }
 
 const styles = themedStyleSheet(() => ({
-  container: { gap: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.lg },
+  container: { gap: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
   topline: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   brandEyebrow: {

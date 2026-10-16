@@ -3,6 +3,13 @@ import { openForm } from '@/features/forms/form-session';
 import { HomeMetrics, FinancialPanorama } from '@/features/dashboard/home-metrics';
 import { HomeModules } from '@/features/dashboard/home-modules';
 import { HomeShortcuts } from '@/features/dashboard/home-shortcuts';
+import { HomeAttention } from '@/features/dashboard/home-attention';
+import {
+  presentTransaction,
+  type PresentedTransaction,
+} from '@/features/transactions/transaction-presentation';
+import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
+import { useAlerts } from '@/features/secondary/use-secondary';
 import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
@@ -56,40 +63,56 @@ export default function HomeScreen() {
   const restEntrance = useRef(new Animated.Value(0)).current;
   const { hidden, toggle } = usePrivacy();
   const dashboard = useDashboardMonth(period);
+  const currentDashboard = useDashboardMonth(todayPeriod);
+  const alerts = useAlerts();
+  const currentData = currentDashboard.data;
+  const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
   const currentUser = useCurrentUser();
   const guidedSetup = useGuidedSetupVisibility(currentUser.data?.id);
   const feedback = useFeedback();
   const openingBalanceExists = useOpeningBalanceExists(
-    Boolean(dashboard.data?.accounts?.some((account) => account.active)),
+    Boolean(currentData?.accounts?.some((account) => account.active)),
   );
   const firstOrdinaryMovement = useFirstOrdinaryMovementExists(
-    Boolean(dashboard.data?.accounts?.some((account) => account.active)),
+    Boolean(currentData?.accounts?.some((account) => account.active)),
   );
-  const dashboardAccounts = dashboard.data?.accounts?.filter((account) => account.active) ?? [];
+  const dashboardAccounts = currentData?.accounts?.filter((account) => account.active) ?? [];
   const setupSteps = createSetupSteps({
     accountCount: dashboardAccounts.length,
-    budgetCount: dashboard.data?.budgets?.items?.length ?? 0,
+    budgetCount: currentData?.budgets?.items?.length ?? 0,
     openingBalanceRegistered: openingBalanceExists.data ?? false,
     firstMovementRegistered: firstOrdinaryMovement.data,
-    recentTransactions: dashboard.data?.recentTransactions ?? [],
+    recentTransactions: currentData?.recentTransactions ?? [],
   });
   const setup = setupProgress(setupSteps);
   const hasGuidedMovement = setupSteps.some((step) => step.id === 'movement' && step.completed);
   const greeting = dashboardGreeting(new Date(), currentUser.data?.name);
   useEffect(() => {
     const userId = currentUser.data?.id;
-    if (!userId || !dashboard.isSuccess || !dashboardAccounts.length || hasGuidedMovement || openedCount > 0)
+    if (
+      !userId ||
+      !currentDashboard.isSuccess ||
+      !dashboardAccounts.length ||
+      hasGuidedMovement ||
+      openedCount > 0
+    )
       return;
     void firstRunStorage
       .read(firstRunStorage.hintKey(userId, 'fab'))
       .then((value) => setShowFabHint(value !== 'done'));
-  }, [currentUser.data?.id, dashboard.isSuccess, dashboardAccounts.length, hasGuidedMovement, openedCount]);
+  }, [
+    currentUser.data?.id,
+    currentDashboard.isSuccess,
+    dashboardAccounts.length,
+    hasGuidedMovement,
+    openedCount,
+  ]);
   useEffect(() => {
     if (openedCount > 0 || hasGuidedMovement) setShowFabHint(false);
   }, [openedCount, hasGuidedMovement]);
   useFocusEffect(
     useCallback(() => {
-      if (!dashboard.isSuccess) return;
+      if (!currentDashboard.isSuccess) return;
       const sections = [
         greetingEntrance,
         summaryEntrance,
@@ -117,7 +140,7 @@ export default function HomeScreen() {
       animation.start();
       return () => animation.stop();
     }, [
-      dashboard.isSuccess,
+      currentDashboard.isSuccess,
       reducedMotion,
       greetingEntrance,
       summaryEntrance,
@@ -125,8 +148,6 @@ export default function HomeScreen() {
       planEntrance,
       insightEntrance,
       restEntrance,
-      period.year,
-      period.month,
     ]),
   );
   const periodControl = (
@@ -164,7 +185,7 @@ export default function HomeScreen() {
       onProfile={() => router.push('/(app)/more')}
     />
   );
-  if (dashboard.isPending)
+  if (currentDashboard.isPending)
     return (
       <Screen scroll>
         {header}
@@ -179,18 +200,20 @@ export default function HomeScreen() {
         <SkeletonRow />
       </Screen>
     );
-  if (dashboard.isError)
+  if (!currentData)
     return (
       <Screen>
         {header}
         {periodControl}
-        <ErrorState onRetry={() => void dashboard.refetch()} />
+        <HomeShortcuts />
+        <ErrorState title="No pudimos cargar tu inicio" onRetry={() => void currentDashboard.refetch()} />
       </Screen>
     );
-  const data = dashboard.data;
+  const data = currentData;
   const view = homeVisibility(data, firstOrdinaryMovement.data);
+  const monthlyView = homeVisibility(dashboard.data ?? {}, firstOrdinaryMovement.data);
   const accounts = view.accounts;
-  const recent = data.recentTransactions ?? [];
+  const recent = dashboard.data?.recentTransactions ?? [];
   const hasAccounts = view.hasAccounts;
   const guidedCard =
     viewingCurrentMonth && guidedSetup.visible ? (
@@ -214,46 +237,94 @@ export default function HomeScreen() {
       </Animated.View>
     ) : null;
   return (
-    <Screen scroll refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
+    <Screen
+      scroll
+      refreshing={dashboard.isRefetching || currentDashboard.isRefetching || alerts.isRefetching}
+      onRefresh={() => {
+        void currentDashboard.refetch();
+        void alerts.refetch();
+        if (!viewingCurrentMonth) void dashboard.refetch();
+      }}
+    >
       <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
+      <HomeAttention alerts={alerts.data} unavailable={alerts.isError && !alerts.data} />
       <HomeShortcuts />
-      {hasAccounts ? (
+      {currentDashboard.isError ? (
+        <ErrorState
+          title="No pudimos actualizar tus saldos"
+          message="Ves la última información disponible. Desliza hacia abajo para volver a intentar."
+          onRetry={() => void currentDashboard.refetch()}
+        />
+      ) : null}
+      {view.hasPanorama ? (
         <Animated.View style={fadeSlide(summaryEntrance, 6)}>
           <FinancialPanorama data={data} />
         </Animated.View>
       ) : null}
-      {hasAccounts ? periodControl : null}
-      {hasAccounts ? (
+      {view.hasPanorama ? periodControl : null}
+      {view.hasPanorama ? (
         <Text style={styles.periodHint}>
           {`Viendo ${formatDashboardPeriod(period)}: aquí cambian ingresos, gastos y movimientos. Los saldos de arriba siempre son de hoy.`}
         </Text>
       ) : null}
-      {!hasAccounts ? (
+      {!hasAccounts && !view.hasPanorama ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
           <EmptyHome onCreateAccount={() => openForm('/(app)/account-form')} />
         </Animated.View>
       ) : null}
       {guidedCard}
-      {hasAccounts ? (
+      {hasAccounts || view.hasPanorama ? (
         <>
-          {view.hasMonthlyTotals && view.monthlyCurrency ? (
+          {!viewingCurrentMonth ? (
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Volver al mes actual"
+              onPress={() => setPeriod(currentDashboardPeriod())}
+              style={styles.returnToToday}
+            >
+              <Ionicons name="today-outline" size={17} color={colors.primary} />
+              <Text style={styles.sectionActionText}>Volver al mes actual</Text>
+            </MotionPressable>
+          ) : null}
+          {dashboard.isPending ? (
+            <SkeletonCard />
+          ) : !dashboard.data ? (
+            <ErrorState
+              title="No pudimos cargar este mes"
+              message="Tus saldos actuales siguen arriba. Puedes reintentar el resumen del mes."
+              onRetry={() => void dashboard.refetch()}
+            />
+          ) : monthlyView.hasMonthlyTotals && monthlyView.monthlyCurrency ? (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
-              <HomeMetrics data={data} currency={view.monthlyCurrency} period={period} />
+              <HomeMetrics data={dashboard.data} currency={monthlyView.monthlyCurrency} period={period} />
             </Animated.View>
-          ) : view.showFirstMovement && viewingCurrentMonth ? (
+          ) : monthlyView.showFirstMovement && viewingCurrentMonth ? (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
               <FirstMovementPrompt onRegister={openQuickActions} />
             </Animated.View>
           ) : (
             <Animated.View style={fadeSlide(flowEntrance, 6)}>
               <QuietMonthNotice
-                currencyUnavailable={view.hasMonthlyTotals}
+                currencyUnavailable={monthlyView.hasMonthlyTotals}
                 period={period}
                 onMovements={() => router.push({ pathname: '/(app)/transactions', params: period })}
+                onReports={() => router.push({ pathname: '/(app)/reports', params: period })}
               />
             </Animated.View>
           )}
+          {dashboard.data && monthlyView.hasMonthlyTotals && monthlyView.monthlyCurrency ? (
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Ver reportes de este mes"
+              onPress={() => router.push({ pathname: '/(app)/reports', params: period })}
+              style={styles.monthLink}
+            >
+              <Ionicons name="stats-chart-outline" size={19} color={colors.primary} />
+              <Text style={styles.monthLinkText}>Ver en qué gastaste este mes</Text>
+              <Ionicons name="arrow-forward" size={17} color={colors.primary} />
+            </MotionPressable>
+          ) : null}
           {!viewingCurrentMonth ? (
             <MotionPressable
               accessibilityRole="button"
@@ -322,7 +393,7 @@ export default function HomeScreen() {
                       {...toTransaction(transaction)}
                       privacyHidden={hidden}
                       compact
-                      onPress={() => router.push({ pathname: '/(app)/transactions', params: period })}
+                      onPress={() => setSelectedTransaction(presentTransaction(transaction))}
                     />
                   ))}
                   <MotionPressable
@@ -344,6 +415,11 @@ export default function HomeScreen() {
         visible={hasAccounts && showFabHint}
         onDismiss={() => setShowFabHint(false)}
       />
+      <TransactionDetailSheet
+        transaction={selectedTransaction}
+        privacyHidden={hidden}
+        onClose={() => setSelectedTransaction(undefined)}
+      />
     </Screen>
   );
 }
@@ -353,6 +429,13 @@ const styles = themedStyleSheet(() => ({
   accountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   periodRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   periodHint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  returnToToday: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+  },
   monthLink: {
     minHeight: 48,
     flexDirection: 'row',

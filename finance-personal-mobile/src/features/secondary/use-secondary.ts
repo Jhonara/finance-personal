@@ -4,6 +4,7 @@ import { dashboardKeys } from '@/features/dashboard/use-dashboard-month';
 import { transactionKeys } from '@/features/transactions/use-transactions';
 import {
   addSavingContribution,
+  assignSavingCurrency,
   createBudget,
   createCredit,
   updateCredit,
@@ -129,6 +130,22 @@ export const useContributeSaving = () => {
         c.invalidateQueries({ queryKey: secondaryKeys.savings, exact: true }),
         c.invalidateQueries({ queryKey: secondaryKeys.savingProgress(variables.id), exact: true }),
         c.invalidateQueries({ queryKey: dashboardKeys.all }),
+      ]);
+    },
+  });
+};
+export const useAssignSavingCurrency = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, currency }: { id: number; currency: string }) => assignSavingCurrency(id, currency),
+    retry: false,
+    onSuccess: async (goal) => {
+      client.setQueryData<SavingGoal[]>(secondaryKeys.savings, (current) =>
+        current?.map((item) => (item.id === goal.id ? goal : item)),
+      );
+      await Promise.all([
+        client.invalidateQueries({ queryKey: secondaryKeys.savings, exact: true }),
+        client.invalidateQueries({ queryKey: dashboardKeys.all }),
       ]);
     },
   });

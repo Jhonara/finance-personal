@@ -58,10 +58,12 @@ export function QuietMonthNotice({
   currencyUnavailable,
   period,
   onMovements,
+  onReports,
 }: {
   currencyUnavailable: boolean;
   period: DashboardPeriod;
   onMovements(): void;
+  onReports(): void;
 }) {
   return (
     <BrandSurface tone="insight" style={styles.quiet}>
@@ -71,17 +73,17 @@ export function QuietMonthNotice({
       <View style={styles.promptText}>
         <Text style={typography.cardTitle}>
           {currencyUnavailable
-            ? 'Revisa tus movimientos por moneda'
+            ? 'Tu resumen, separado por moneda'
             : `${formatDashboardPeriod(period)} aún no tiene ingresos ni gastos`}
         </Text>
         <Text style={typography.bodySecondary}>
           {currencyUnavailable
-            ? 'Consulta los movimientos para ver cada importe en su moneda.'
+            ? 'Tienes registros en distintas monedas. En Reportes puedes ver los ingresos y gastos de cada una sin mezclarlos.'
             : 'Cuando registres actividad, verás aquí el resumen del mes.'}
         </Text>
       </View>
-      <Button variant="secondary" onPress={onMovements}>
-        Ver movimientos
+      <Button variant="secondary" onPress={currencyUnavailable ? onReports : onMovements}>
+        {currencyUnavailable ? 'Ver resumen por moneda' : 'Ver movimientos'}
       </Button>
     </BrandSurface>
   );

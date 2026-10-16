@@ -2,7 +2,9 @@ import type { components, operations } from '@/api/generated/schema';
 import { api } from '@/auth/auth-provider';
 
 export type Budget = components['schemas']['BudgetResponse'];
-export type SavingGoal = components['schemas']['SavingGoalResponse'];
+export type SavingGoal = Omit<components['schemas']['SavingGoalResponse'], 'currency'> & {
+  currency?: string | null;
+};
 export type Credit = components['schemas']['CreditResponse'];
 export type Alert = components['schemas']['AlertResponse'];
 export type CreditPayment = components['schemas']['CreditPaymentResponse'];
@@ -27,6 +29,12 @@ export const getSavingProgress = async (id: number) =>
   ).data;
 export const createSavingGoal = async (data: components['schemas']['CreateSavingGoalRequest']) =>
   (await api.post<SavingGoal>('/savings/goals', data)).data;
+export const assignSavingCurrency = async (id: number, currency: string) =>
+  (
+    await api.patch<SavingGoal>(`/savings/goals/${id}/currency`, {
+      currency,
+    } satisfies components['schemas']['AssignSavingCurrencyRequest'])
+  ).data;
 export const addSavingContribution = async (
   id: number,
   data: components['schemas']['AddSavingMovementRequest'],

@@ -52,6 +52,14 @@ describe('Alert contract presentation', () => {
     expect(JSON.stringify(result)).not.toContain('123456');
     expect(result.context).toContain('Tasa EA 18%');
   });
+  it('shows the loan name and the two comparable interest amounts while respecting privacy', () => {
+    const alert = { code: 'HIGH_INTEREST', data: { creditId: 4, realInterest: 120, plannedInterest: 100 } };
+    const visible = presentAlert(alert, { name: 'Casa', currency: 'COP', hidden: false });
+    expect(visible.context).toContain('Crédito: Casa');
+    expect(visible.context.join(' ')).toContain('120');
+    const hidden = presentAlert(alert, { name: 'Casa', currency: 'COP', hidden: true });
+    expect(hidden.context.join(' ')).not.toContain('120');
+  });
   it('excludes ALL_GOOD from active counts without losing real alerts', () => {
     expect(actionableAlerts([{ code: 'ALL_GOOD' }, { code: 'CREDIT_BEHIND' }])).toEqual([
       { code: 'CREDIT_BEHIND' },

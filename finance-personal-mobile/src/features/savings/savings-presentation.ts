@@ -35,12 +35,12 @@ export function presentSavingGoal(goal: SavingGoal, progress = goal.progress) {
 export type PresentedSavingGoal = ReturnType<typeof presentSavingGoal>;
 
 export function savingsAccessibility(goal: PresentedSavingGoal, hidden: boolean) {
-  return `${goal.name}. ${goal.percentageLabel.replace('%', ' por ciento completado')}. ${goal.status}. ${hidden ? 'Importes ocultos.' : `${savingsAmount(goal.currentAmount, false)} ahorrados de ${savingsAmount(goal.targetAmount, false)}. Te faltan ${savingsAmount(goal.remaining, false)}.`}`;
+  return `${goal.name}. ${goal.percentageLabel.replace('%', ' por ciento completado')}. ${goal.status}. ${goal.currency ?? 'Moneda por definir'}. ${hidden ? 'Importes ocultos.' : `${savingsAmount(goal.currentAmount, false, goal.currency)} ahorrados de ${savingsAmount(goal.targetAmount, false, goal.currency)}. Te faltan ${savingsAmount(goal.remaining, false, goal.currency)}.`}`;
 }
 
 export function savingsSummary(goals: SavingGoal[]) {
   const presented = goals.map((goal) => presentSavingGoal(goal));
-  // No currency field exists in this contract, so amounts cannot be safely aggregated.
+  // Goals without currency are legacy records; never assume their amounts are COP.
   return {
     active: presented.filter((goal) => !goal.completed),
     completed: presented.filter((goal) => goal.completed),

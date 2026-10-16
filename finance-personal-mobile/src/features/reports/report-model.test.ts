@@ -1,25 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { reportCategories, reportCurrency, reportMonths } from './report-model';
+import { reportCategories, reportCurrencies, reportMonths } from './report-model';
 
 describe('report data', () => {
-  it('keeps monthly summaries gated to a single currency', () => {
+  it('offers every valid currency without adding their amounts', () => {
     expect(
-      reportCurrency({
-        accounts: [
-          { currency: 'COP', active: true },
-          { currency: 'USD', active: true },
+      reportCurrencies(
+        [
+          { COP: { income: 10, expense: 2, expensesByCategory: {} } },
+          { USD: { income: 8, expense: 3, expensesByCategory: {} } },
         ],
-      }),
-    ).toBeUndefined();
-    expect(
-      reportCurrency({
-        accounts: [
-          { currency: 'COP', active: true },
-          { currency: 'USD', active: false },
-        ],
-      }),
-    ).toBeUndefined();
-    expect(reportCurrency({ accounts: [{ currency: 'COP', active: true }] })).toBe('COP');
+        ['COP', 'EUR'],
+      ),
+    ).toEqual(['COP', 'EUR', 'USD']);
   });
   it('moves the six month window across years', () => {
     expect(reportMonths({ year: 2026, month: 2 })).toEqual([
@@ -33,7 +25,7 @@ describe('report data', () => {
   });
   it('sorts only valid category totals', () => {
     expect(
-      reportCategories({ expenseSummary: { totalByCategory: { Comida: 20, Viajes: 100, Otro: 0 } } }),
+      reportCategories({ income: 0, expense: 120, expensesByCategory: { Comida: 20, Viajes: 100, Otro: 0 } }),
     ).toEqual([
       ['Viajes', 100],
       ['Comida', 20],

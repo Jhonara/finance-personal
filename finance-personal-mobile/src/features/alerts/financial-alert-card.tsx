@@ -3,7 +3,8 @@ import { AccessibilityInfo, Animated, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Alert } from '@/features/secondary/secondary-api';
+import type { Alert, Credit } from '@/features/secondary/secondary-api';
+import { usePrivacy } from '@/privacy/privacy-provider';
 import { useSeenAlert } from '@/features/secondary/use-secondary';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { Button, Card } from '@/ui/primitives';
@@ -11,8 +12,12 @@ import { colors, spacing, typography } from '@/theme';
 import { presentAlert } from './alert-presentation';
 import { alertDestination } from './alert-navigation';
 
-export function FinancialAlertCard({ alert }: { alert: Alert }) {
-  const item = presentAlert(alert);
+export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: Credit }) {
+  const { hidden } = usePrivacy();
+  const item = presentAlert(
+    alert,
+    credit?.name && credit.currency ? { name: credit.name, currency: credit.currency, hidden } : undefined,
+  );
   const opacity = useRef(new Animated.Value(1)).current;
   const reduced = useRef(true);
   const lock = useRef(false);

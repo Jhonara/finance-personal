@@ -9,8 +9,10 @@ export function remainingAmount(target: number | undefined, current: number | un
   return canonicalAmount(targetUnits > currentUnits ? targetUnits - currentUnits : 0n);
 }
 
-export function savingsAmount(value: string | number | undefined, hidden: boolean) {
+export function savingsAmount(value: string | number | undefined, hidden: boolean, currency?: string | null) {
   if (hidden) return '••••••';
   const units = moneyUnits(value);
-  return units === undefined ? 'No disponible' : formatMoneyInput(canonicalAmount(units));
+  return units === undefined
+    ? 'No disponible'
+    : `${formatMoneyInput(canonicalAmount(units))}${currency ? ` ${currency}` : ''}`;
 }

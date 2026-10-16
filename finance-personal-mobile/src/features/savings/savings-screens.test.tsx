@@ -121,6 +121,7 @@ let storage: Map<string, string>;
 const firstGoal = {
   id: 1,
   name: 'Viaje a Japón',
+  currency: 'COP',
   currentAmount: 0,
   targetAmount: 1000,
   progress: 0,
@@ -211,7 +212,7 @@ describe('Savings list', () => {
   it('offers a free-name goal and optional ideas without saving example data', async () => {
     const tree = await render(<SavingsScreen />);
     expect(text(tree.toJSON())).toContain('¿Qué quieres lograr?');
-    expect(text(tree.toJSON())).toContain('Convierte tus planes en metas.');
+    expect(text(tree.toJSON())).toContain('Sigue lo que llevas para cada objetivo.');
     expect(text(tree.toJSON())).toContain('Fondo de emergencia');
     await act(async () => press(tree, 'Crear meta Un viaje'));
     expect(mocks.push).toHaveBeenCalledWith(
@@ -239,7 +240,7 @@ describe('Savings list', () => {
     expect(text(tree.toJSON())).toContain('En progreso');
     expect(text(tree.toJSON())).toContain('Cumplidas');
     expect(text(tree.toJSON())).not.toContain('1.200.100');
-    expect(text(tree.toJSON())).not.toContain('COP');
+    expect(text(tree.toJSON())).toContain('COP');
     expect(text(tree.toJSON())).not.toContain('USD');
     await act(async () => press(tree, 'Aportar a Viaje a Japón'));
     expect(mocks.push).toHaveBeenCalledWith({
@@ -303,7 +304,11 @@ describe('Create goal', () => {
       press(tree, 'Crear meta');
     });
     await flush(() => expect(mocks.post).toHaveBeenCalledOnce());
-    expect(mocks.post).toHaveBeenCalledWith('/savings/goals', { name: 'Viaje', targetAmount: 3000000.25 });
+    expect(mocks.post).toHaveBeenCalledWith('/savings/goals', {
+      name: 'Viaje',
+      targetAmount: 3000000.25,
+      currency: 'COP',
+    });
     expect(text(tree.toJSON())).toContain('Tu primera meta está lista');
     expect(storage.get(savingsEventKey(10, 'first-goal'))).toBe('seen');
     await act(async () => press(tree, 'Continuar'));
@@ -312,15 +317,21 @@ describe('Create goal', () => {
 });
 
 describe('Goal detail and contributions', () => {
+  it('asks for the currency of a legacy goal before taking more contributions', async () => {
+    goals = [{ ...firstGoal, currency: null }];
+    const tree = await render(<SavingDetail />);
+    expect(text(tree.toJSON())).toContain('¿En qué moneda llevas esta meta?');
+    expect(text(tree.toJSON())).not.toContain('Aportar a esta meta');
+  });
   it('reads the numeric progress contract and actual goal fields', async () => {
     goals = [{ ...firstGoal, currentAmount: 400, progress: 40 }];
     const tree = await render(<SavingDetail />);
     await flush(() => expect(client.getQueryData(secondaryKeys.savingProgress(1))).toBe(40));
     expect(text(tree.toJSON())).toContain('Viaje a Japón');
     expect(text(tree.toJSON())).toContain('40%');
-    expect(text(tree.toJSON())).toContain('Te faltan600');
+    expect(text(tree.toJSON())).toContain('Te faltan600 COP');
     expect(text(tree.toJSON())).not.toContain('Fecha objetivo');
-    expect(text(tree.toJSON())).not.toContain('COP');
+    expect(text(tree.toJSON())).not.toContain('¿En qué moneda llevas esta meta?');
   });
   it('refreshes list and progress after success, keeps the local date and celebrates the crossing', async () => {
     goals = [{ ...firstGoal, currentAmount: 400, progress: 40 }];
@@ -333,7 +344,7 @@ describe('Goal detail and contributions', () => {
     await act(async () =>
       tree.root
         .findAll((node) => (node.type as unknown) === 'DateTimePicker')[0]!
-        .props.onChange({ type: 'set' }, new Date(2026, 11, 31)),
+        .props.onValueChange({ nativeEvent: {} }, new Date(2026, 11, 31)),
     );
     await act(async () => {
       press(tree, 'Registrar aporte');

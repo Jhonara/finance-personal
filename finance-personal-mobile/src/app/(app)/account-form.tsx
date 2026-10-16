@@ -44,6 +44,7 @@ function AccountForm() {
   const [nameError, setNameError] = useState('');
   const [currencyError, setCurrencyError] = useState('');
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [createdAccountId, setCreatedAccountId] = useState<number>();
   const mutation = useAccountMutation();
   const feedback = useFeedback();
   const tour = useTour();
@@ -59,16 +60,14 @@ function AccountForm() {
     mutation.mutate(
       { name: name.trim(), type, currency: currency.trim() },
       {
-        onSuccess: () => {
+        onSuccess: (created) => {
           if (!active()) return;
-          setName('');
-          setType('BANK');
-          setCurrency('COP');
           setSelectorOpen(false);
           mutation.reset();
-          feedback.show('Cuenta creada. Ya puedes registrar movimientos.', 'success');
+          if (created.id) setCreatedAccountId(created.id);
+          feedback.show('Cuenta creada.', 'success');
           tour?.completeStep?.('add-account');
-          router.back();
+          if (!created.id) router.back();
         },
         onError: (error) => {
           if (!active()) return;
@@ -81,6 +80,30 @@ function AccountForm() {
       },
     );
   };
+  if (createdAccountId)
+    return (
+      <Screen entry scroll style={{ gap: spacing.lg }}>
+        <MovementFormHeader title="Cuenta creada" onBack={() => router.replace('/(app)/accounts')} />
+        <View style={styles.section}>
+          <Ionicons name="checkmark-circle-outline" size={38} color={colors.success} />
+          <Text style={typography.sectionTitle}>{name} está lista</Text>
+          <Text style={typography.bodySecondary}>
+            ¿Ya tenías dinero en esta cuenta antes de usar la app? Registra ese saldo inicial una sola vez. No
+            lo contaremos como ingreso del mes.
+          </Text>
+          <Button
+            onPress={() =>
+              router.replace({ pathname: '/(app)/account-detail', params: { id: String(createdAccountId) } })
+            }
+          >
+            Registrar dinero que ya tenía
+          </Button>
+          <Button variant="secondary" onPress={() => router.replace('/(app)/accounts')}>
+            Empezar en cero
+          </Button>
+        </View>
+      </Screen>
+    );
   return (
     <Screen entry scroll keyboard>
       <MovementFormHeader title="Nueva cuenta" onBack={() => router.back()} />

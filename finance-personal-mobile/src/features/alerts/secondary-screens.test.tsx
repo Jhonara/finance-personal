@@ -357,8 +357,6 @@ describe('More, preferences and session UI', () => {
   it.each([
     ['presupuestos', 'budgets'],
     ['ahorros', 'savings'],
-    ['créditos', 'credits'],
-    ['alertas', 'alerts'],
   ])('opens %s from Tu plan on Home', async (label, route) => {
     const tree = await render(<HomeModules data={{}} period={{ year: 2026, month: 10 }} />);
     await press(tree, `Ver ${label}`);
@@ -447,7 +445,7 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
-    expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos');
+    await vi.waitFor(() => expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos'));
     await press(tree, 'Abrir Cuentas →');
     expect(mocks.push).toHaveBeenCalledWith('/(app)/accounts');
     expect(mocks.write).not.toHaveBeenCalled();
@@ -471,7 +469,7 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
-    expect(text(tree.toJSON())).toContain('TEMA 7 DE 12');
+    await vi.waitFor(() => expect(text(tree.toJSON())).toContain('TEMA 7 DE 12'));
     expect(text(tree.toJSON())).toContain('2 de 12 temas recorridos');
     await act(async () => {
       client.setQueryData(currentUserKeys.current(), { ...profile, id: 99 });
@@ -490,6 +488,7 @@ describe('Ecosystem guide and plan navigation', () => {
         <GuideScreen />
       </QuickActionProvider>,
     );
+    await vi.waitFor(() => expect(buttons(tree, 'Entendido, siguiente tema')).toHaveLength(1));
     await press(tree, 'Entendido, siguiente tema');
     expect(text(tree.toJSON())).toContain('No pudimos guardar tu recorrido');
     expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos');

@@ -145,7 +145,15 @@ export default function AccountsScreen() {
     active.some((other) => account.id !== other.id && account.currency === other.currency),
   );
   return (
-    <Screen entry scroll refreshing={accounts.isRefetching} onRefresh={() => void accounts.refetch()}>
+    <Screen
+      entry
+      scroll
+      refreshing={accounts.isRefetching || dashboard.isRefetching}
+      onRefresh={() => {
+        void accounts.refetch();
+        void dashboard.refetch();
+      }}
+    >
       <View style={styles.header}>
         <BrandMark size={36} />
         <View style={styles.headerCopy}>
@@ -178,6 +186,9 @@ export default function AccountsScreen() {
           </MotionPressable>
         </TourTarget>
       </View>
+      <Text style={typography.caption}>
+        Registra dónde tienes tu dinero. Agregar una cuenta no conecta tu banco.
+      </Text>
       {active.length ? (
         <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.overview}>
           <Text style={styles.overviewEyebrow}>TU DINERO POR MONEDA</Text>
@@ -277,7 +288,7 @@ export default function AccountsScreen() {
               </View>
               <View style={styles.managementCopy}>
                 <Text style={typography.cardTitle}>Transferir entre cuentas</Text>
-                <Text style={typography.caption}>Mueve dinero entre cuentas de la misma moneda.</Text>
+                <Text style={typography.caption}>Anota un traslado entre cuentas de la misma moneda.</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </MotionPressable>

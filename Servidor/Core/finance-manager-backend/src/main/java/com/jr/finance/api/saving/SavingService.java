@@ -42,6 +42,7 @@ public class SavingService {
         SavingGoal goal = new SavingGoal();
         goal.setUser(user);
         goal.setName(req.getName());
+        goal.setCurrency(req.getCurrency());
         goal.setTargetAmount(req.getTargetAmount());
         goal.setCurrentAmount(BigDecimal.ZERO);
         goal.setCompleted(false);
@@ -60,6 +61,18 @@ public class SavingService {
         log.info("Consultando metas de ahorro del usuario {}.", userId);
 
         return savingGoalRepository.findByUserId(userId);
+    }
+
+    @Transactional
+    public SavingGoal assignCurrency(Long userId, Long goalId, String currency) {
+        SavingGoal goal = savingGoalRepository.findById(goalId)
+                .filter(item -> item.getUser().getId().equals(userId))
+                .orElseThrow(() -> new NotFoundException("La meta de ahorro no existe"));
+        if (goal.getCurrency() != null) {
+            throw new BadRequestException("La moneda de esta meta ya está definida");
+        }
+        goal.setCurrency(currency);
+        return savingGoalRepository.saveAndFlush(goal);
     }
 
     @Transactional

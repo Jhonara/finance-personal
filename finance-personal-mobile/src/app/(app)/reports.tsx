@@ -1,17 +1,18 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueries } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Text, View } from 'react-native';
-import { getDashboardMonth } from '@/api/dashboard-api';
+import { useAccounts } from '@/features/accounts/use-accounts';
 import {
   currentDashboardPeriod,
+  dashboardPeriodFromParams,
   formatDashboardPeriod,
   shiftDashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
-import { dashboardKeys } from '@/features/dashboard/use-dashboard-month';
-import { reportCategories, reportCurrency, reportMonths } from '@/features/reports/report-model';
+import { reportCategories, reportCurrencies, reportMonths } from '@/features/reports/report-model';
+import { getReportMonth } from '@/features/reports/reports-api';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors, motion, radius, spacing, typography } from '@/theme';
@@ -45,26 +46,36 @@ function ChartBar({ height, color }: { height: number; color: string }) {
 }
 
 export default function ReportsScreen() {
-  const [period, setPeriod] = useState(currentDashboardPeriod);
+  const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
+  const [period, setPeriod] = useState(
+    () => dashboardPeriodFromParams(year, month) ?? currentDashboardPeriod(),
+  );
+  useEffect(() => {
+    const requested = dashboardPeriodFromParams(year, month);
+    if (requested) setPeriod(requested);
+  }, [year, month]);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>();
   const { palette } = useAppTheme();
   const { hidden } = usePrivacy();
   const periods = useMemo(() => reportMonths(period), [period]);
+  const accounts = useAccounts();
   const queries = useQueries({
     queries: periods.map((entry) => ({
-      queryKey: dashboardKeys.month(entry),
-      queryFn: ({ signal }: { signal: AbortSignal }) => getDashboardMonth(entry.year, entry.month, signal),
+      queryKey: ['reports', 'month', entry.year, entry.month],
+      queryFn: ({ signal }: { signal: AbortSignal }) => getReportMonth(entry.year, entry.month, signal),
       staleTime: 60_000,
     })),
   });
-  const current = queries.at(-1)?.data;
-  const currency = reportCurrency(current);
+  const available = reportCurrencies(
+    queries.map((query) => query.data),
+    (accounts.data ?? []).map((account) => account.currency ?? '').filter(Boolean),
+  );
+  const currency = selectedCurrency && available.includes(selectedCurrency) ? selectedCurrency : available[0];
+  const current = currency ? queries.at(-1)?.data?.[currency] : undefined;
   const categories = reportCategories(current).slice(0, 5);
   const trend = periods.map((entry, index) => ({
     label: monthName(entry.year, entry.month),
-    value:
-      reportCurrency(queries[index]?.data) === currency && currency
-        ? (queries[index]?.data?.totalExpense ?? 0)
-        : undefined,
+    value: currency ? (queries[index]?.data?.[currency]?.expense ?? 0) : undefined,
   }));
   const maxExpense = Math.max(1, ...trend.map((item) => item.value ?? 0));
   const money = (value: number) => (currency ? formatPrivateMoney(value, currency, hidden) : '—');
@@ -76,6 +87,7 @@ export default function ReportsScreen() {
       refreshing={refreshing}
       onRefresh={() => {
         queries.forEach((query) => void query.refetch());
+        void accounts.refetch();
       }}
       style={{ gap: spacing.lg }}
     >
@@ -109,16 +121,22 @@ export default function ReportsScreen() {
           <Ionicons name="chevron-forward" size={20} color={palette.primary} />
         </MotionPressable>
       </View>
-      {queries.at(-1)?.isPending ? (
+      {queries.some((query) => query.isPending) || accounts.isPending ? (
         <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>
           Preparando tu reporte…
         </Text>
-      ) : queries.at(-1)?.isError ? (
+      ) : queries.some((query) => query.isError) || (accounts.isError && !available.length) ? (
         <Card style={styles.panel}>
           <Text style={[typography.cardTitle, { color: palette.textPrimary }]}>
-            No pudimos cargar este mes
+            No pudimos cargar el reporte
           </Text>
-          <MotionPressable accessibilityRole="button" onPress={() => void queries.at(-1)?.refetch()}>
+          <MotionPressable
+            accessibilityRole="button"
+            onPress={() => {
+              queries.forEach((query) => void query.refetch());
+              void accounts.refetch();
+            }}
+          >
             <Text style={{ color: palette.primary }}>Volver a intentar</Text>
           </MotionPressable>
         </Card>
@@ -127,21 +145,42 @@ export default function ReportsScreen() {
           <Card style={styles.panel}>
             <Ionicons name="globe-outline" size={28} color={palette.info} />
             <Text style={[typography.cardTitle, { color: palette.textPrimary }]}>
-              Tus monedas, por separado
+              Aún no hay datos para reportar
             </Text>
             <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>
-              Este mes tiene varias monedas o aún no hay una cuenta activa. Para evitar sumas engañosas, el
-              gráfico de ingresos y gastos aparece cuando tus cuentas usan una sola moneda.
+              Crea una cuenta o registra un ingreso o gasto para empezar a comparar tus meses.
             </Text>
-            {Object.entries(current?.assetsByCurrency ?? {}).map(([code, amount]) => (
-              <Text key={code} style={[typography.label, { color: palette.textPrimary }]}>
-                {code} en cuentas · {formatPrivateMoney(amount, code, hidden)}
-              </Text>
-            ))}
           </Card>
         </MotionEntry>
       ) : (
         <>
+          <View style={styles.currencyRow}>
+            {available.map((code) => (
+              <MotionPressable
+                key={code}
+                accessibilityRole="button"
+                accessibilityState={{ selected: code === currency }}
+                onPress={() => setSelectedCurrency(code)}
+                style={[
+                  styles.currencyChip,
+                  {
+                    backgroundColor: code === currency ? palette.primary : palette.surface,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[typography.label, { color: code === currency ? '#FFFFFF' : palette.textPrimary }]}
+                >
+                  {code}
+                </Text>
+              </MotionPressable>
+            ))}
+          </View>
+          <Text style={[typography.caption, { color: palette.textSecondary }]}>
+            Elige una moneda. Los gráficos muestran solo movimientos en {currency}; no convierten ni suman
+            monedas diferentes.
+          </Text>
           <MotionEntry>
             <Card style={styles.hero}>
               <View style={styles.heroHead}>
@@ -154,17 +193,20 @@ export default function ReportsScreen() {
                 <View style={styles.total}>
                   <Text style={styles.totalCaption}>Ingresos</Text>
                   <Text adjustsFontSizeToFit numberOfLines={1} style={styles.totalValue}>
-                    {money(current?.totalIncome ?? 0)}
+                    {money(current?.income ?? 0)}
                   </Text>
                 </View>
                 <View style={styles.total}>
                   <Text style={styles.totalCaption}>Gastos</Text>
                   <Text adjustsFontSizeToFit numberOfLines={1} style={styles.totalValue}>
-                    {money(current?.totalExpense ?? 0)}
+                    {money(current?.expense ?? 0)}
                   </Text>
                 </View>
               </View>
-              <Text style={styles.heroFoot}>Montos registrados en el período, calculados por la app.</Text>
+              <Text style={styles.heroFoot}>
+                Solo ingresos y gastos de {formatDashboardPeriod(period)}. No incluye traspasos ni pagos de
+                créditos.
+              </Text>
             </Card>
           </MotionEntry>
           <Card style={styles.panel}>
@@ -179,14 +221,16 @@ export default function ReportsScreen() {
               {trend.map((item, index) => (
                 <View key={`${periods[index]!.year}-${periods[index]!.month}`} style={styles.barColumn}>
                   <Text style={[typography.caption, { color: palette.textMuted }]}>
-                    {item.value === undefined
-                      ? '—'
-                      : item.value === 0
-                        ? '0'
-                        : new Intl.NumberFormat('es-CO', {
-                            notation: 'compact',
-                            maximumFractionDigits: 1,
-                          }).format(item.value)}
+                    {hidden
+                      ? '•••'
+                      : item.value === undefined
+                        ? '—'
+                        : item.value === 0
+                          ? '0'
+                          : new Intl.NumberFormat('es-CO', {
+                              notation: 'compact',
+                              maximumFractionDigits: 1,
+                            }).format(item.value)}
                   </Text>
                   <View style={[styles.barTrack, { backgroundColor: palette.surfaceSecondary }]}>
                     <ChartBar
@@ -250,6 +294,16 @@ const styles = themedStyleSheet(() => ({
     borderWidth: 1,
     borderRadius: radius.large,
     padding: spacing.xs,
+  },
+  currencyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  currencyChip: {
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    minWidth: 62,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
   },
   arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   periodCopy: { flex: 1, alignItems: 'center' },

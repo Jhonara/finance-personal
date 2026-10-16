@@ -4,7 +4,7 @@ export const tourSteps = [
     route: '/(app)',
     path: '/',
     title: 'Tu punto de partida',
-    copy: 'Estos accesos te llevan a la ayuda, tus créditos y tu plan. Vamos a recorrer la app sin crear operaciones.',
+    copy: 'Estos accesos abren presupuestos, metas, créditos y reportes. Vamos a recorrer la app sin crear operaciones.',
     target: 'home-shortcuts',
     icon: 'compass-outline',
   },

@@ -83,6 +83,7 @@ public class DashboardService {
                 .map(goal -> new SavingProgressResponse(
                         goal.getId(),
                         goal.getName(),
+                        goal.getCurrency(),
                         goal.getTargetAmount(),
                         goal.getCurrentAmount(),
                         savingService.progressPercentage(goal),

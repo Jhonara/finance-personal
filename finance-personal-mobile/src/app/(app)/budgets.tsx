@@ -84,7 +84,7 @@ function BudgetCategoryCard({
             {label} · {Math.round(budget.percentageUsed ?? 0)}%
           </Text>
           <Text style={typography.caption}>
-            {exceeded ? 'Exceso' : 'Disponible'} {amount(Math.abs(budget.remainingAmount ?? 0), hidden)}
+            {exceeded ? 'Exceso' : 'Margen'} {amount(Math.abs(budget.remainingAmount ?? 0), hidden)}
           </Text>
         </View>
       </Card>
@@ -192,7 +192,7 @@ export default function BudgetsScreen() {
               <Text style={styles.heroPeriod}>{formatDashboardPeriod(period)}</Text>
             </View>
             <Text style={styles.heroCaption}>
-              {overview.remaining < 0 ? 'Exceso del plan' : 'Disponible para gastar'}
+              {overview.remaining < 0 ? 'Exceso del plan' : 'Margen de tu presupuesto'}
             </Text>
             <Text
               adjustsFontSizeToFit
@@ -203,6 +203,9 @@ export default function BudgetsScreen() {
               {amount(Math.abs(overview.remaining), hidden)}
             </Text>
             <Text style={styles.heroSubline}>de {amount(overview.limit, hidden)} planeados</Text>
+            <Text style={styles.heroHint}>
+              Es lo que queda de tus límites de gasto, no el saldo de tus cuentas.
+            </Text>
             <Progress
               value={overview.percentage}
               color={overview.exceeded ? colors.coral : overview.warning ? colors.amber : colors.mint}

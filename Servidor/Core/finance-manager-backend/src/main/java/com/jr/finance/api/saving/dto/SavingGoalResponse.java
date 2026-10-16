@@ -24,6 +24,9 @@ public class SavingGoalResponse {
     )
     private String name;
 
+    @Schema(description = "Moneda de la meta. Es null en metas creadas antes de guardar la moneda.", nullable = true)
+    private String currency;
+
     @Schema(
             description = "Monto objetivo.",
             example = "15000000.00"

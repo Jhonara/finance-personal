@@ -10,6 +10,7 @@ import { useCurrentUser } from '@/features/profile/use-current-user';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { useTour } from '@/features/onboarding/tour-context';
 import { Button, Input, MoneyInput, Screen } from '@/ui/primitives';
+import { CurrencySelector } from '@/ui/currency-selector';
 import { ScreenHeader } from '@/ui/headers';
 import { spacing, typography } from '@/theme';
 import { savingGoalSchema } from '@/features/savings/savings-schemas';
@@ -33,6 +34,7 @@ function SavingForm() {
   const [uncertain, setUncertain] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [currency, setCurrency] = useState('COP');
   const [celebration, setCelebration] = useState<SavingsCelebration>();
   const submit = () => {
     if (submitting.current || uncertain || saved) return;
@@ -47,7 +49,7 @@ function SavingForm() {
         const first = goals.data?.length === 0;
         setError('');
         try {
-          await mutation.mutateAsync({ name: data.name, targetAmount });
+          await mutation.mutateAsync({ name: data.name, targetAmount, currency });
           if (!active()) return;
           form.reset();
           setSaved(true);
@@ -115,7 +117,7 @@ function SavingForm() {
           <MoneyInput
             label="Objetivo"
             placeholder="0"
-            currency=""
+            currency={currency}
             value={field.value}
             onChangeText={field.onChange}
             error={form.formState.errors.targetAmount?.message}
@@ -123,7 +125,10 @@ function SavingForm() {
           />
         )}
       />
-      <Text style={typography.bodySecondary}>Registra el objetivo y sus aportes en la misma moneda.</Text>
+      <CurrencySelector value={currency} onChange={setCurrency} disabled={mutation.isPending || saved} />
+      <Text style={typography.bodySecondary}>
+        Los aportes de esta meta estarán en {currency}. La app no convierte monedas.
+      </Text>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={typography.bodySecondary}>
           {error}

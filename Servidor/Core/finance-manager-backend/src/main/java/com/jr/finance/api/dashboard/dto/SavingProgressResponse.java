@@ -26,6 +26,8 @@ public class SavingProgressResponse {
     )
     private String name;
 
+    private String currency;
+
     @Schema(
             description = "Monto objetivo de la meta.",
             example = "15000000.00"

@@ -95,7 +95,7 @@ export default function CreditsScreen() {
                 <Ionicons name="card-outline" size={25} color={colors.mint} />
               </View>
             </View>
-            <Text style={styles.heroHint}>Saldos pendientes reales, separados por moneda.</Text>
+            <Text style={styles.heroHint}>Capital pendiente según tus registros, separado por moneda.</Text>
             {creditSummary(query.data).map((summary) => (
               <View
                 key={summary.currency ?? 'unknown'}

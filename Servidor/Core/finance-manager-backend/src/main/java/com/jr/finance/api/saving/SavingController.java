@@ -3,6 +3,7 @@ package com.jr.finance.api.saving;
 import com.jr.finance.api.auth.UserPrincipal;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.saving.dto.AddSavingMovementRequest;
+import com.jr.finance.api.saving.dto.AssignSavingCurrencyRequest;
 import com.jr.finance.api.saving.dto.CreateSavingGoalRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -77,6 +78,15 @@ public class SavingController {
         return savingGoalMapper.toResponseList(
                 savingService.listGoals(userId)
         );
+    }
+
+    @PatchMapping(value = "/goals/{id}/currency", consumes = "application/json", produces = "application/json")
+    public SavingGoalResponse assignCurrency(@PathVariable Long id,
+                                             @Valid @RequestBody AssignSavingCurrencyRequest request,
+                                             Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        return savingGoalMapper.toResponse(
+                savingService.assignCurrency(principal.getUser().getId(), id, request.currency()));
     }
 
     @Operation(

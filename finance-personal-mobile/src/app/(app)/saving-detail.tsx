@@ -2,7 +2,9 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
-import { useSavings, useSavingProgress } from '@/features/secondary/use-secondary';
+import { useSavings, useSavingProgress, useAssignSavingCurrency } from '@/features/secondary/use-secondary';
+import { useFeedback } from '@/feedback/feedback-provider';
+import { CurrencySelector } from '@/ui/currency-selector';
 import { useCurrentUser } from '@/features/profile/use-current-user';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { ScreenHeader } from '@/ui/headers';
@@ -31,6 +33,9 @@ export default function SavingDetail() {
       : (raw?.progress ?? progress.data);
   const goal = raw ? presentSavingGoal(raw, latestProgress) : undefined;
   const { hidden } = usePrivacy();
+  const currencyMutation = useAssignSavingCurrency();
+  const feedback = useFeedback();
+  const [legacyCurrency, setLegacyCurrency] = useState('COP');
   const [open, setOpen] = useState(contribute === '1');
   const [celebration, setCelebration] = useState<SavingsCelebration>();
   const refresh = async () => {
@@ -64,9 +69,11 @@ export default function SavingDetail() {
             <Text style={[typography.display, { color: savingTones[goal.tone].color }]}>
               {goal.percentageLabel}
             </Text>
-            <Text style={typography.moneyMedium}>{savingsAmount(goal.currentAmount, hidden)}</Text>
+            <Text style={typography.moneyMedium}>
+              {savingsAmount(goal.currentAmount, hidden, goal.currency)}
+            </Text>
             <Text style={typography.bodySecondary}>
-              ahorrados de {savingsAmount(goal.targetAmount, hidden)}
+              ahorrados de {savingsAmount(goal.targetAmount, hidden, goal.currency)}
             </Text>
             {goal.percentage !== undefined ? (
               <Progress
@@ -80,15 +87,47 @@ export default function SavingDetail() {
               <Text style={typography.bodySecondary}>Completaste tu objetivo de ahorro.</Text>
             ) : null}
           </BrandSurface>
+          {!goal.currency ? (
+            <View style={styles.fields}>
+              <Text style={typography.cardTitle}>¿En qué moneda llevas esta meta?</Text>
+              <Text style={typography.bodySecondary}>
+                Esta meta se creó antes de que guardáramos la moneda. Elige la moneda de los montos ya
+                anotados; no convertiremos sus valores.
+              </Text>
+              <CurrencySelector
+                value={legacyCurrency}
+                onChange={setLegacyCurrency}
+                disabled={currencyMutation.isPending}
+              />
+              <Button
+                loading={currencyMutation.isPending}
+                disabled={currencyMutation.isPending}
+                onPress={() =>
+                  currencyMutation.mutate(
+                    { id: goalId, currency: legacyCurrency },
+                    {
+                      onSuccess: () => feedback.show('Moneda de la meta guardada.', 'success'),
+                      onError: () =>
+                        feedback.show('No pudimos guardar la moneda. Inténtalo de nuevo.', 'error'),
+                    },
+                  )
+                }
+              >
+                Guardar moneda de la meta
+              </Button>
+            </View>
+          ) : null}
           <View style={styles.fields}>
             <Text style={typography.label}>Te faltan</Text>
-            <Text style={typography.moneyMedium}>{savingsAmount(goal.remaining, hidden)}</Text>
+            <Text style={typography.moneyMedium}>{savingsAmount(goal.remaining, hidden, goal.currency)}</Text>
             <Text style={typography.label}>Estado</Text>
             <Text style={[typography.body, goal.completed && styles.success]}>{goal.status}</Text>
           </View>
-          {!goal.completed ? <Button onPress={() => setOpen(true)}>Aportar a esta meta</Button> : null}
+          {!goal.completed && goal.currency ? (
+            <Button onPress={() => setOpen(true)}>Aportar a esta meta</Button>
+          ) : null}
           <SavingContributionForm
-            visible={open && !celebration}
+            visible={open && !celebration && Boolean(goal.currency)}
             goal={{ ...raw, progress: goal.percentage }}
             completed={goal.completed}
             onClose={() => setOpen(false)}

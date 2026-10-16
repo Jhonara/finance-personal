@@ -8,7 +8,7 @@ export const guideTopics = [
     intro: 'Una cuenta representa dónde tienes tu dinero: banco, billetera o efectivo.',
     steps: [
       'Abre Cuentas y pulsa Añadir. Escribe un nombre que reconozcas y elige tipo y moneda.',
-      'Abre la cuenta creada y registra el saldo que tienes al comenzar, antes del primer movimiento.',
+      'Al crearla, elige registrar tu saldo de hoy o dejarlo para después. Ese será tu punto de partida.',
       'Crea una cuenta por cada lugar donde manejas dinero. COP, USD y EUR se muestran por separado.',
     ],
     tip: 'El saldo inicial no es un sueldo nuevo. Si ya registraste movimientos, revisa el saldo antes de añadir más dinero para no contarlo dos veces.',
@@ -27,7 +27,7 @@ export const guideTopics = [
       'Escribe el importe, elige la cuenta y una categoría. Revisa la fecha y añade una nota si te ayuda.',
       'Guarda una sola vez. En Movimientos puedes revisar, filtrar y abrir el detalle del registro.',
     ],
-    tip: 'La categoría es obligatoria: permite entender en qué gastas. Puedes gestionarlas desde Explorar o Perfil y ajustes.',
+    tip: 'La categoría es obligatoria: permite entender en qué gastas. Puedes gestionarlas desde Perfil y ajustes.',
     action: 'Registrar movimiento',
     route: 'quick-action',
   },
@@ -39,7 +39,7 @@ export const guideTopics = [
     tone: 'coral',
     intro: 'Las categorías agrupan tus ingresos y gastos. Las eliges al registrar y al crear presupuestos.',
     steps: [
-      'En Explorar, abre Categorías y elige Gastos o Ingresos.',
+      'Toca tu perfil en Inicio, abre Categorías y elige Gastos o Ingresos.',
       'Marca varias ideas y pulsa Agregar para guardarlas, o entra en Crear una a tu estilo.',
       'Si creas la tuya, elige nombre, ícono y color. Después puedes editarla, pausarla y reactivarla sin borrar su historial.',
     ],
@@ -71,7 +71,7 @@ export const guideTopics = [
     tone: 'coral',
     intro: 'Un presupuesto es un límite mensual para una categoría de gasto.',
     steps: [
-      'En Explorar, entra en Presupuestos y elige el mes que quieres organizar.',
+      'Abre Presupuestos desde Inicio o Explorar y elige el mes que quieres organizar.',
       'Crea un presupuesto: selecciona la categoría y escribe su límite.',
       'Registra tus gastos con esa categoría. El consumo del presupuesto se actualiza con tus movimientos.',
     ],
@@ -88,10 +88,10 @@ export const guideTopics = [
     intro: 'Una meta es un objetivo de ahorro, como un viaje o un fondo de reserva.',
     steps: [
       'En Explorar, abre Ahorros. Elige una idea o crea una meta con nombre e importe objetivo.',
-      'Entra en la meta para registrar un aporte. Revisa la cuenta de origen cuando corresponda.',
+      'Entra en la meta para anotar dinero que ya apartaste. Usa la moneda que elegiste para la meta.',
       'Consulta cuánto has reunido y lo que te falta antes de añadir otro aporte.',
     ],
-    tip: 'Una cuenta dice dónde está el dinero; una meta dice para qué lo separas. No registres el mismo aporte dos veces.',
+    tip: 'Una cuenta dice dónde está el dinero; una meta dice para qué lo separas. Anotar un aporte no transfiere dinero ni cambia el saldo de tus cuentas.',
     action: 'Abrir Ahorros',
     route: '/(app)/savings',
   },
@@ -167,7 +167,7 @@ export const guideTopics = [
     tone: 'amber',
     intro: 'Las alertas te ayudan a revisar lo que está pasando en tus datos.',
     steps: [
-      'Abre Alertas desde Explorar o desde Tu plan en Inicio.',
+      'Abre Alertas desde Explorar o toca el aviso destacado en Inicio cuando haya algo por revisar.',
       'Lee el motivo de cada aviso y abre el módulo relacionado para revisar sus datos.',
       'Comprueba tus cuentas y movimientos con tus extractos de vez en cuando. Corrige registros equivocados desde sus opciones disponibles.',
     ],
