@@ -19,6 +19,7 @@ import { ErrorState, SkeletonRow } from '@/ui/states';
 import { colors, radius, spacing, typography } from '@/theme';
 import { useAppTheme, type AppearanceMode } from '@/theme/theme-provider';
 import { MotionPressable } from '@/ui/motion';
+import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
 
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   const { palette } = useAppTheme();
@@ -146,6 +147,7 @@ export default function MoreScreen() {
         />
       </Section>
       <Section title="Preferencias">
+        <HomePrioritySettings userId={profile.data?.id} />
         <View style={styles.appearance}>
           <View style={styles.appearanceTitle}>
             <View style={[styles.appearanceIcon, { backgroundColor: palette.infoSoft }]}>

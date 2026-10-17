@@ -118,6 +118,9 @@ import { guideKey } from '@/features/onboarding/ecosystem-guide';
 import { currentUserKeys } from '@/features/profile/profile-keys';
 import AppLayout from '@/app/(app)/_layout';
 import { HomeModules } from '@/features/dashboard/home-modules';
+import { ModalSelector } from '@/ui/modal-selector';
+import { homePriorityKey } from '@/features/dashboard/home-priority';
+import { homePriorityQueryKey } from '@/features/dashboard/use-home-priority';
 import { PrivacyProvider, usePrivacy } from '@/privacy/privacy-provider';
 import { FirstRunGuide } from '@/ui/first-run-guide';
 import { presentAlert } from './alert-presentation';
@@ -335,6 +338,37 @@ describe('Alerts real screens and hooks', () => {
   });
 });
 describe('More, preferences and session UI', () => {
+  it('changes the shared Home preference from Profile and keeps it on a failed save', async () => {
+    const tree = await render(<MoreScreen />);
+    await press(tree, 'Personalizar Inicio');
+    let picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    await act(async () => {
+      picker.props.onSelect(3);
+      picker.props.onClose();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 35));
+    });
+    expect(mocks.write).toHaveBeenCalledWith(homePriorityKey(profile.id), 'savings');
+    expect(client.getQueryData(homePriorityQueryKey(profile.id))).toBe('savings');
+    expect(text(tree.toJSON())).toContain('Ahorrar para mis metas');
+    mocks.write.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await press(tree, 'Personalizar Inicio');
+    picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    await act(async () => {
+      picker.props.onSelect(2);
+      picker.props.onClose();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 35));
+    });
+    expect(client.getQueryData(homePriorityQueryKey(profile.id))).toBe('savings');
+    expect(mocks.feedback).toHaveBeenLastCalledWith(
+      expect.stringContaining('Se mantiene tu Inicio anterior'),
+      'error',
+    );
+  });
+
   it('loads current profile, initials, long identity and configured version with no alerts request', async () => {
     const tree = await render(<MoreScreen />);
     const output = text(tree.toJSON());

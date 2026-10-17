@@ -132,6 +132,10 @@ import { financialProgress } from '@/features/progress/financial-progress';
 import { secondaryKeys } from '@/features/secondary/use-secondary';
 import { TransactionRow } from '@/ui/financial';
 import { HomeModules } from '@/features/dashboard/home-modules';
+import { HomeShortcuts } from '@/features/dashboard/home-shortcuts';
+import { HomePriorityCard } from '@/features/dashboard/home-priority-card';
+import { homePriorities, homePriorityKey } from '@/features/dashboard/home-priority';
+import { homePriorityQueryKey } from '@/features/dashboard/use-home-priority';
 import { HomeAccountPreview } from '@/features/dashboard/home-account-preview';
 import { GuidedSetupCard } from '@/ui/guided-setup-card';
 import { useCreateBudget } from './secondary/use-secondary';
@@ -1045,6 +1049,53 @@ describe('Para ti on Home', () => {
 });
 
 describe('Home visual hub', () => {
+  it('personalizes shortcuts and highlights without hiding balances or alerts, then restores general view', async () => {
+    dashboard = {
+      ...dashboard,
+      assetsByCurrency: { COP: 110000 },
+      liabilitiesByCurrency: { COP: 400000 },
+      alerts: [{ code: 'CREDIT_BEHIND', data: { creditId: 3 } }],
+      credits: [{ id: 3, name: 'Casa', status: 'LATE' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(homePriorityQueryKey(10))?.status).toBe('success'));
+    await act(async () => press(tree, 'Personalizar Inicio'));
+    let picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    expect(picker.props.subtitle).toContain('este dispositivo');
+    await act(async () => picker.props.onClose());
+    expect(stored.has(homePriorityKey(10))).toBe(false);
+    await act(async () => press(tree, 'Personalizar Inicio'));
+    picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    const debtOption = picker
+      .findAll((node) => (node.type as unknown) === 'Pressable')
+      .find((node) => textContent(node) === homePriorities[2].label + homePriorities[2].subtitle)!;
+    await act(async () => debtOption.props.onPress({ stopPropagation: vi.fn() }));
+    await settled(() => expect(client.getQueryData(homePriorityQueryKey(10))).toBe('debt'));
+    expect(stored.get(homePriorityKey(10))).toBe('debt');
+    expect(tree.root.findByType(HomeShortcuts).props.priority).toBe('debt');
+    const shortcuts = tree.root
+      .findByType(HomeShortcuts)
+      .findAll((node) => (node.type as unknown) === 'Pressable');
+    expect(shortcuts[0]?.props.accessibilityLabel).toBe('Abrir créditos y préstamos');
+    expect(shortcuts).toHaveLength(4);
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Tienes un aviso por revisar');
+    expect(content).toContain(formatPrivateMoney(110000, 'COP', false));
+    expect(content).toContain(formatPrivateMoney(400000, 'COP', false));
+    expect(tree.root.findAllByType(ModalSelector).every((node) => !node.props.visible)).toBe(true);
+    await act(async () => press(tree, 'Revisar este crédito'));
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/credit-detail', params: { id: 3 } });
+    await act(async () => press(tree, 'Personalizar Inicio'));
+    picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    await act(async () => {
+      picker.props.onSelect(0);
+      picker.props.onClose();
+    });
+    await settled(() => expect(tree.root.findByType(HomePriorityCard).props.priority).toBe('general'));
+    expect(tree.root.findByType(HomeShortcuts).props.priority).toBe('general');
+    expect(textContent(tree.toJSON())).not.toContain('Revisar este crédito');
+  });
+
   it('includes credit alerts from the complete feed and updates when they are dismissed', async () => {
     dashboard = { ...dashboard, alerts: [{ code: 'ALL_GOOD' }] };
     const originalGet = mocks.get.getMockImplementation()!;

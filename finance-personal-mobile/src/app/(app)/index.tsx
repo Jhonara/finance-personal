@@ -10,6 +10,9 @@ import {
 } from '@/features/transactions/transaction-presentation';
 import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 import { useAlerts } from '@/features/secondary/use-secondary';
+import { useHomePriority } from '@/features/dashboard/use-home-priority';
+import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
+import { HomePriorityCard } from '@/features/dashboard/home-priority-card';
 import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
@@ -68,6 +71,7 @@ export default function HomeScreen() {
   const currentData = currentDashboard.data;
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
   const currentUser = useCurrentUser();
+  const homePriority = useHomePriority(currentUser.data?.id);
   const guidedSetup = useGuidedSetupVisibility(currentUser.data?.id);
   const feedback = useFeedback();
   const openingBalanceExists = useOpeningBalanceExists(
@@ -249,7 +253,9 @@ export default function HomeScreen() {
       <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
       <HomeAttention alerts={alerts.data} unavailable={alerts.isError && !alerts.data} />
-      <HomeShortcuts />
+      <HomePrioritySettings userId={currentUser.data?.id} compact />
+      <HomeShortcuts priority={homePriority.priority} />
+      <HomePriorityCard priority={homePriority.priority} data={data} period={todayPeriod} />
       {currentDashboard.isError ? (
         <ErrorState
           title="No pudimos actualizar tus saldos"

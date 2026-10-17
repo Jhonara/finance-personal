@@ -153,6 +153,7 @@ export const guideTopics = [
     steps: [
       'Usa el selector de mes para revisar ingresos y gastos de otro período.',
       'El panorama muestra por separado el dinero en tus cuentas, el capital pendiente de tus créditos y las cuotas vencidas estimadas, por moneda.',
+      'En Tu Inicio toca Cambiar para destacar gastos, deudas o metas. Puedes volver a Vista general cuando quieras.',
       'En Explorar abre presupuestos, ahorros, créditos, alertas y reportes. Para ti destaca una señal de tus datos.',
     ],
     tip: 'El panorama solo incluye las cuentas y los créditos que registraste. Las cuotas vencidas son una estimación aparte. Para ti aún no es un asistente de IA.',
@@ -184,7 +185,7 @@ export const guideTopics = [
     intro: 'Tu avatar en Inicio abre el perfil, las preferencias y las categorías.',
     steps: [
       'Pulsa el ojo de Inicio para ocultar importes cuando estés acompañado.',
-      'En Perfil y ajustes puedes cambiar el tema, gestionar tu privacidad y volver a abrir esta guía.',
+      'En Perfil y ajustes puedes personalizar Inicio, cambiar el tema, gestionar tu privacidad y volver a abrir esta guía.',
       'Si usaste un dispositivo compartido, cierra sesión. También puedes cerrar tus sesiones en todos los dispositivos.',
     ],
     tip: 'La guía no modifica tus finanzas. Su avance de lectura se guarda por usuario en este dispositivo; puedes repasar cualquier tema.',

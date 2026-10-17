@@ -6,8 +6,9 @@ import { MotionPressable } from '@/ui/motion';
 import { colors, radius, spacing, typography } from '@/theme';
 import { TourTarget } from '@/ui/tour-target';
 import { currentDashboardPeriod } from './dashboard-period';
+import { priorityShortcuts, type HomePriority } from './home-priority';
 
-export function HomeShortcuts() {
+export function HomeShortcuts({ priority = 'general' }: { priority?: HomePriority }) {
   const { width, fontScale } = useWindowDimensions();
   const wrap = width / fontScale < 350;
   return (
@@ -15,6 +16,7 @@ export function HomeShortcuts() {
       <View style={styles.row}>
         {[
           {
+            key: 'budgets' as const,
             title: 'Presupuestos',
             icon: 'pie-chart-outline',
             route: '/(app)/budgets',
@@ -22,6 +24,7 @@ export function HomeShortcuts() {
             soft: colors.expenseSoft,
           },
           {
+            key: 'savings' as const,
             title: 'Metas',
             icon: 'flag-outline',
             route: '/(app)/savings',
@@ -29,6 +32,7 @@ export function HomeShortcuts() {
             soft: colors.successSoft,
           },
           {
+            key: 'credits' as const,
             title: 'Créditos',
             icon: 'card-outline',
             route: '/(app)/credits',
@@ -36,36 +40,45 @@ export function HomeShortcuts() {
             soft: colors.lavenderSoft,
           },
           {
+            key: 'reports' as const,
             title: 'Reportes',
             icon: 'stats-chart-outline',
             route: '/(app)/reports',
             color: colors.info,
             soft: colors.infoSoft,
           },
-        ].map((item) => (
-          <MotionPressable
-            key={item.title}
-            accessibilityRole="button"
-            accessibilityLabel={
-              item.title === 'Créditos' ? 'Abrir créditos y préstamos' : `Abrir ${item.title.toLowerCase()}`
-            }
-            onPress={() =>
-              router.push(
-                item.route === '/(app)/budgets' || item.route === '/(app)/reports'
-                  ? { pathname: item.route, params: currentDashboardPeriod() }
-                  : (item.route as '/(app)/savings' | '/(app)/credits'),
-              )
-            }
-            style={[styles.item, wrap && styles.wrappedItem]}
-          >
-            <View style={[styles.icon, { backgroundColor: item.soft }]}>
-              <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={23} color={item.color} />
-            </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.9} style={styles.label}>
-              {item.title}
-            </Text>
-          </MotionPressable>
-        ))}
+        ]
+          .sort(
+            (a, b) => priorityShortcuts[priority].indexOf(a.key) - priorityShortcuts[priority].indexOf(b.key),
+          )
+          .map((item, index) => (
+            <MotionPressable
+              key={item.title}
+              accessibilityRole="button"
+              accessibilityLabel={
+                item.title === 'Créditos' ? 'Abrir créditos y préstamos' : `Abrir ${item.title.toLowerCase()}`
+              }
+              onPress={() =>
+                router.push(
+                  item.route === '/(app)/budgets' || item.route === '/(app)/reports'
+                    ? { pathname: item.route, params: currentDashboardPeriod() }
+                    : (item.route as '/(app)/savings' | '/(app)/credits'),
+                )
+              }
+              style={[
+                styles.item,
+                wrap && styles.wrappedItem,
+                priority !== 'general' && index === 0 && styles.featured,
+              ]}
+            >
+              <View style={[styles.icon, { backgroundColor: item.soft }]}>
+                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={23} color={item.color} />
+              </View>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.9} style={styles.label}>
+                {item.title}
+              </Text>
+            </MotionPressable>
+          ))}
       </View>
     </TourTarget>
   );
@@ -85,6 +98,7 @@ const styles = themedStyleSheet(() => ({
     borderWidth: 1,
   },
   wrappedItem: { flexBasis: '45%' },
+  featured: { borderColor: colors.success, backgroundColor: colors.primarySoft },
   icon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   label: {
     ...typography.caption,
