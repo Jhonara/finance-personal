@@ -2,6 +2,7 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
+import { router, type Href } from 'expo-router';
 import { Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
@@ -58,6 +59,7 @@ export function ScreenHeader({
   subtitle,
   back,
   onBack,
+  backFallback,
   rightAction,
   titleNumberOfLines,
   brand = false,
@@ -66,14 +68,21 @@ export function ScreenHeader({
   subtitle?: string;
   back?: boolean;
   onBack?: () => void;
+  backFallback?: Href;
   rightAction?: ReactNode;
   titleNumberOfLines?: number;
   brand?: boolean;
 }) {
   const { palette } = useAppTheme();
+  const goBack =
+    onBack ??
+    (() => {
+      if (backFallback && !router.canGoBack()) router.replace(backFallback);
+      else router.back();
+    });
   return (
     <View style={styles.header}>
-      {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={onBack} /> : null}
+      {back ? <IconButton name="arrow-back" accessibilityLabel="Volver" onPress={goBack} /> : null}
       {brand ? <BrandMark size={32} /> : null}
       <View style={styles.grow}>
         <Text
@@ -160,7 +169,7 @@ const styles = themedStyleSheet(() => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileInitial: { ...typography.label, color: colors.primaryStrong },
+  profileInitial: { ...typography.label, color: colors.textPrimary },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   grow: { flex: 1 },
   title: { flexShrink: 1 },

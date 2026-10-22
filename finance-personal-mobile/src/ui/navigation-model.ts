@@ -23,15 +23,16 @@ export const dockItems = [
   },
   {
     name: 'plan',
-    label: 'Explorar',
-    accessibilityLabel: 'Explorar plan, reportes y ajustes',
-    icon: 'compass-outline',
-    activeIcon: 'compass',
+    label: 'Menú',
+    accessibilityLabel: 'Menú: reportes y herramientas',
+    icon: 'grid-outline',
+    activeIcon: 'grid',
   },
 ] as const;
 export function dockIndex(route: string) {
+  if (route === 'more') return -1;
   if (route === 'index' || route === 'guide') return 0;
   if (route === 'transactions' || route.startsWith('new-')) return 1;
-  if (route.startsWith('account')) return 3;
+  if (route.startsWith('account') || route === 'recurrences' || route === 'recurring-form') return 3;
   return 4;
 }

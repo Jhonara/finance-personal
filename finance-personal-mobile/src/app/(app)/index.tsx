@@ -49,6 +49,7 @@ import { ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
 import { MotionPressable } from '@/ui/motion';
 import { FirstRunFabHint, FirstRunGuide } from '@/ui/first-run-guide';
 import { GuidedSetupCard } from '@/ui/guided-setup-card';
+import { Disclosure } from '@/ui/disclosure';
 
 export default function HomeScreen() {
   const reducedMotion = useReducedMotion();
@@ -253,7 +254,6 @@ export default function HomeScreen() {
       <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
       <HomeAttention alerts={alerts.data} unavailable={alerts.isError && !alerts.data} />
-      <HomePrioritySettings userId={currentUser.data?.id} compact />
       <HomeShortcuts priority={homePriority.priority} />
       <HomePriorityCard priority={homePriority.priority} data={data} period={todayPeriod} />
       {currentDashboard.isError ? (
@@ -270,9 +270,7 @@ export default function HomeScreen() {
       ) : null}
       {view.hasPanorama ? periodControl : null}
       {view.hasPanorama ? (
-        <Text style={styles.periodHint}>
-          {`Viendo ${formatDashboardPeriod(period)}: aquí cambian ingresos, gastos y movimientos. Los saldos de arriba siempre son de hoy.`}
-        </Text>
+        <Text style={styles.periodHint}>Ingresos, gastos y movimientos del mes elegido.</Text>
       ) : null}
       {!hasAccounts && !view.hasPanorama ? (
         <Animated.View style={fadeSlide(summaryEntrance, 8)}>
@@ -344,18 +342,18 @@ export default function HomeScreen() {
             </MotionPressable>
           ) : null}
           {viewingCurrentMonth ? (
-            <>
+            <Disclosure title="Tu plan y avances" icon="flag-outline">
               <Animated.View style={fadeSlide(planEntrance, 6)}>
                 <HomeModules data={data} period={period} />
               </Animated.View>
               <Animated.View style={fadeSlide(insightEntrance, 6)}>
                 <FinancialProgressSection dashboard={data} period={period} />
               </Animated.View>
-            </>
+            </Disclosure>
           ) : null}
           <Animated.View style={fadeSlide(restEntrance, 6)}>
             {viewingCurrentMonth ? (
-              <>
+              <Disclosure title="Saldos por cuenta" icon="wallet-outline">
                 <View style={styles.sectionRow}>
                   <Text accessibilityRole="header" style={styles.sectionTitle}>
                     Mis cuentas
@@ -385,12 +383,12 @@ export default function HomeScreen() {
                     />
                   ))}
                 </View>
-              </>
+              </Disclosure>
             ) : null}
             {recent.length ? (
               <>
                 <Text accessibilityRole="header" style={[styles.sectionTitle, styles.movementsHeading]}>
-                  Movimientos de {formatDashboardPeriod(period)}
+                  Últimos movimientos
                 </Text>
                 <Card style={styles.recentList}>
                   {recent.slice(0, 3).map((transaction) => (
@@ -408,7 +406,7 @@ export default function HomeScreen() {
                     onPress={() => router.push({ pathname: '/(app)/transactions', params: period })}
                     style={styles.transactionsLink}
                   >
-                    <Text style={styles.transactionsLinkText}>Ver todos los movimientos →</Text>
+                    <Text style={styles.transactionsLinkText}>Ver movimientos →</Text>
                   </MotionPressable>
                 </Card>
               </>
@@ -421,6 +419,7 @@ export default function HomeScreen() {
         visible={hasAccounts && showFabHint}
         onDismiss={() => setShowFabHint(false)}
       />
+      <HomePrioritySettings userId={currentUser.data?.id} compact />
       <TransactionDetailSheet
         transaction={selectedTransaction}
         privacyHidden={hidden}
@@ -507,7 +506,7 @@ const styles = themedStyleSheet(() => ({
   transactionsLinkText: {
     ...typography.caption,
     fontSize: 12,
-    color: colors.primaryStrong,
+    color: colors.primary,
     fontWeight: '700',
   },
 }));

@@ -20,6 +20,7 @@ describe('interactive tour preferences', () => {
     expect(dockIndex('saving-detail')).toBe(4);
     expect(dockIndex('account-detail')).toBe(3);
     expect(dockIndex('guide')).toBe(0);
+    expect(dockIndex('more')).toBe(-1);
   });
   it('uses icons for known names without turning a custom name into another category', () => {
     expect(categoryAppearance('Alimentación').icon).toBe('restaurant-outline');

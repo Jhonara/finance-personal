@@ -23,3 +23,7 @@ jwt:
 
 cors:
   allowed-origins: http://localhost
+
+finance:
+  recurrences:
+    enabled: false

@@ -9,6 +9,7 @@ export async function alertDestination(
   client: QueryClient,
 ) {
   if (!target) return undefined;
+  if (target.kind === 'recurrence') return { pathname: '/(app)/recurrences' as const };
   if (target.kind === 'credit')
     return { pathname: '/(app)/credit-detail' as const, params: { id: String(target.id) } };
   const budgets = await client.fetchQuery({

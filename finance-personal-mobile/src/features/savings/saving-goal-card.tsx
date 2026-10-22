@@ -9,10 +9,18 @@ import { savingsAccessibility, type PresentedSavingGoal } from './savings-presen
 import { savingsAmount } from './savings-money';
 
 export const savingTones = {
-  primary: { color: colors.primary, soft: colors.primarySoft, icon: 'flag-outline' },
-  accent: { color: colors.accent, soft: colors.lavenderSoft, icon: 'sparkles-outline' },
-  info: { color: colors.info, soft: colors.infoSoft, icon: 'compass-outline' },
-  success: { color: colors.success, soft: colors.successSoft, icon: 'checkmark-circle-outline' },
+  get primary() {
+    return { color: colors.primary, soft: colors.primarySoft, icon: 'flag-outline' as const };
+  },
+  get accent() {
+    return { color: colors.accent, soft: colors.lavenderSoft, icon: 'sparkles-outline' as const };
+  },
+  get info() {
+    return { color: colors.info, soft: colors.infoSoft, icon: 'compass-outline' as const };
+  },
+  get success() {
+    return { color: colors.success, soft: colors.successSoft, icon: 'checkmark-circle-outline' as const };
+  },
 } as const;
 
 export function SavingGoalCard({
@@ -48,9 +56,11 @@ export function SavingGoalCard({
             <Text style={[typography.caption, { color: tone.color }]}>{goal.status}</Text>
             <Text style={typography.caption}>{goal.currency ?? 'Moneda por definir'}</Text>
           </View>
-          <View style={[styles.percent, { backgroundColor: tone.soft }]}>
-            <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
-          </View>
+          {!hidden ? (
+            <View style={[styles.percent, { backgroundColor: tone.soft }]}>
+              <Text style={[typography.cardTitle, { color: tone.color }]}>{goal.percentageLabel}</Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.amounts}>
           <View>
@@ -65,21 +75,14 @@ export function SavingGoalCard({
           </View>
         </View>
       </MotionPressable>
-      {goal.percentage !== undefined ? (
+      {goal.percentage !== undefined && !hidden ? (
         <Progress value={goal.percentage} color={tone.color} label={`Progreso de ${goal.name}`} />
       ) : null}
-      <View style={[styles.note, { backgroundColor: tone.soft }]}>
-        <Ionicons
-          name={goal.completed ? 'checkmark-circle-outline' : 'sparkles-outline'}
-          size={20}
-          color={tone.color}
-        />
-        <Text style={[typography.bodySecondary, styles.noteText]}>
-          {goal.completed
-            ? '¡Lo lograste! Completaste tu objetivo de ahorro.'
-            : `${goal.copy} Te faltan ${savingsAmount(goal.remaining, hidden, goal.currency)}.`}
-        </Text>
-      </View>
+      <Text style={typography.caption}>
+        {goal.completed
+          ? '¡Lo lograste! Completaste tu objetivo de ahorro.'
+          : `Te faltan ${savingsAmount(goal.remaining, hidden, goal.currency)}.`}
+      </Text>
       <View style={styles.actionRow}>
         <Button
           size="compact"
@@ -88,7 +91,7 @@ export function SavingGoalCard({
           onPress={goal.completed || !goal.currency ? onOpen : onContribute}
           accessibilityLabel={`${!goal.currency ? 'Definir moneda de' : goal.completed ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
         >
-          {!goal.currency ? 'Definir moneda' : goal.completed ? 'Ver meta' : 'Aportar a esta meta'}
+          {!goal.currency ? 'Definir moneda' : goal.completed ? 'Ver meta' : 'Añadir aporte'}
         </Button>
       </View>
     </MotionEntry>
@@ -97,7 +100,7 @@ export function SavingGoalCard({
 
 const styles = themedStyleSheet(() => ({
   card: {
-    gap: spacing.lg,
+    gap: spacing.md,
     padding: spacing.lg,
     borderRadius: 26,
     borderWidth: 1.5,
@@ -125,9 +128,9 @@ const styles = themedStyleSheet(() => ({
   noteText: { flex: 1 },
   actionRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: spacing.xs },
   badge: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -94,7 +94,7 @@ const styles = themedStyleSheet(() => ({
   emptyTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   eyebrow: { ...typography.label, color: colors.secondary, letterSpacing: 0.7 },
   emptyTitle: { ...typography.display, color: '#FFFFFF', maxWidth: 250 },
-  emptyCopy: { ...typography.bodySecondary, color: colors.infoSoft },
+  emptyCopy: { ...typography.bodySecondary, color: '#C3E5E4' },
   emptyAction: {
     minHeight: 52,
     flexDirection: 'row',

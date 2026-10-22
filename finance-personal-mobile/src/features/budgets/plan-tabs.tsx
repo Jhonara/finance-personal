@@ -27,11 +27,7 @@ export function PlanTabs({ selected }: { selected: 'budgets' | 'credits' }) {
           style={[styles.tab, selected === tab.key && styles.active]}
         >
           {!compact && (
-            <Ionicons
-              name={tab.icon}
-              size={18}
-              color={selected === tab.key ? colors.surface : colors.primaryStrong}
-            />
+            <Ionicons name={tab.icon} size={18} color={selected === tab.key ? '#FFFFFF' : colors.primary} />
           )}
           <Text
             style={[styles.label, compact && styles.compactLabel, selected === tab.key && styles.activeLabel]}
@@ -66,7 +62,7 @@ const styles = themedStyleSheet(() => ({
     borderRadius: radius.pill,
   },
   active: { backgroundColor: colors.primaryStrong },
-  label: { ...typography.label, fontSize: 13, color: colors.primaryStrong, flexShrink: 1 },
+  label: { ...typography.label, fontSize: 13, color: colors.textPrimary, flexShrink: 1 },
   compactLabel: { fontSize: 11, lineHeight: 16 },
   activeLabel: { color: '#FFFFFF' },
 }));

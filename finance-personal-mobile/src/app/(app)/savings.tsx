@@ -3,12 +3,10 @@ import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSavings } from '@/features/secondary/use-secondary';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
 import { IconButton, Screen } from '@/ui/primitives';
-import { BrandSurface } from '@/ui/brand-surface';
 import { ErrorState, SkeletonRow } from '@/ui/states';
 import { colors, radius, spacing, typography } from '@/theme';
 import { SavingGoalCard } from '@/features/savings/saving-goal-card';
@@ -70,27 +68,9 @@ export default function SavingsScreen() {
           ) : null}
           {query.data.length ? (
             <>
-              <BrandSurface tone="insight" style={styles.hero}>
-                <View style={styles.heroHeading}>
-                  <View style={styles.heroIcon}>
-                    <Ionicons name="flag-outline" size={24} color={colors.accent} />
-                  </View>
-                  <View style={styles.heroCopy}>
-                    <Text style={styles.eyebrow}>TUS METAS</Text>
-                    <Text style={typography.sectionTitle}>Cada aporte te acerca</Text>
-                  </View>
-                </View>
-                <View style={styles.counts}>
-                  <View style={styles.count}>
-                    <Text style={styles.number}>{summary.active.length}</Text>
-                    <Text style={typography.bodySecondary}>En progreso</Text>
-                  </View>
-                  <View style={styles.count}>
-                    <Text style={[styles.number, { color: colors.success }]}>{summary.completed.length}</Text>
-                    <Text style={typography.bodySecondary}>Cumplidas</Text>
-                  </View>
-                </View>
-              </BrandSurface>
+              <Text style={typography.caption}>
+                {summary.active.length} en progreso · {summary.completed.length} cumplidas
+              </Text>
               {(
                 [
                   ['En progreso', summary.active],

@@ -25,6 +25,7 @@ function money(value: number | undefined, currency: string | undefined, hidden: 
 export function FinancialPanorama({ data }: { data: DashboardMonth }) {
   const { hidden } = usePrivacy();
   const [explained, setExplained] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>();
   const currencies = [
     ...new Set([
       ...Object.keys(data.assetsByCurrency ?? {}),
@@ -35,17 +36,37 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
         .filter(Boolean),
     ]),
   ] as string[];
-  const visibleCurrencies: Array<string | undefined> = currencies.length ? currencies : [undefined];
+  const selected =
+    selectedCurrency && currencies.includes(selectedCurrency) ? selectedCurrency : currencies[0];
+  const visibleCurrencies: Array<string | undefined> = [selected];
   return (
     <View style={styles.section}>
       <View style={styles.sectionIntro}>
         <Text accessibilityRole="header" style={styles.sectionHeading}>
-          Panorama financiero
+          Tus saldos de hoy
         </Text>
-        <Text style={styles.sectionSubtitle}>
-          Saldos actuales de cuentas y créditos. El resumen del mes aparece más abajo.
-        </Text>
+        <Text style={styles.sectionSubtitle}>Cuentas y créditos, por moneda.</Text>
       </View>
+      {currencies.length > 1 ? (
+        <View style={[styles.panoramaHeader, { justifyContent: 'flex-start' }]}>
+          {currencies.map((currency) => (
+            <MotionPressable
+              key={currency}
+              accessibilityRole="button"
+              accessibilityLabel={`Saldos en ${currency}`}
+              accessibilityState={{ selected: selected === currency }}
+              onPress={() => setSelectedCurrency(currency)}
+              style={[
+                styles.currencyBadge,
+                { minHeight: 44 },
+                selected === currency && { borderColor: colors.success, backgroundColor: colors.primarySoft },
+              ]}
+            >
+              <Text style={styles.currencyLabel}>{currency}</Text>
+            </MotionPressable>
+          ))}
+        </View>
+      ) : null}
       {visibleCurrencies.map((currency) => {
         const accountCount = (data.accounts ?? []).filter(
           (account) => account.active && account.currency === currency,
@@ -63,10 +84,12 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
         return (
           <View key={currency ?? 'unavailable'} style={styles.panoramaGroup}>
             <View style={styles.panoramaHeader}>
-              <View style={styles.currencyBadge}>
-                <Ionicons name="globe-outline" size={15} color={colors.primary} />
-                <Text style={styles.currencyLabel}>{currency ?? 'Sin moneda'}</Text>
-              </View>
+              {currencies.length <= 1 ? (
+                <View style={styles.currencyBadge}>
+                  <Ionicons name="globe-outline" size={15} color={colors.primary} />
+                  <Text style={styles.currencyLabel}>{currency ?? 'Sin moneda'}</Text>
+                </View>
+              ) : null}
               {accountCount ? (
                 <View style={styles.accountPill}>
                   <Ionicons name="wallet-outline" size={14} color={colors.textSecondary} />
@@ -112,7 +135,7 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                           <Text style={styles.heroTitle}>Dinero en tus cuentas</Text>
                         </View>
                       </View>
-                      <HomeCompanion size={64} />
+                      <HomeCompanion size={44} />
                     </View>
                     <MoneyText
                       adjustsFontSizeToFit
@@ -123,7 +146,7 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                       {money(accountBalance, currency, hidden)}
                     </MoneyText>
                     <View style={styles.heroFooter}>
-                      <Text style={styles.heroCaption}>Suma de los saldos registrados</Text>
+                      <Text style={styles.heroCaption}>Saldo actual</Text>
                       <View style={styles.heroLink}>
                         <Text style={styles.heroLinkText}>Ver cuentas</Text>
                         <Ionicons name="arrow-forward" size={15} color={colors.secondary} />
@@ -145,7 +168,7 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                         <Ionicons name="document-text-outline" size={23} color={colors.credit} />
                       </View>
                       <View style={styles.debtCopy}>
-                        <Text style={styles.debtTitle}>Capital pendiente de tus créditos</Text>
+                        <Text style={styles.debtTitle}>Créditos por pagar</Text>
                         <Text style={styles.debtCaption}>
                           {!hidden && typeof debtBalance === 'number' && debtBalance === 0
                             ? 'No tienes capital pendiente registrado'
@@ -162,10 +185,6 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                     >
                       {money(debtBalance, currency, hidden)}
                     </MoneyText>
-                    <View style={styles.debtFooter}>
-                      <Ionicons name="calendar-outline" size={15} color={colors.credit} />
-                      <Text style={styles.debtFooterText}>Consulta las cuotas de cada crédito</Text>
-                    </View>
                   </LinearGradient>
                 </MotionPressable>
                 {typeof overdue === 'number' && Number.isFinite(overdue) && overdue > 0 ? (
@@ -233,7 +252,7 @@ export function HomeMetrics({
       value: data.totalIncome,
       prefix: '',
       icon: 'arrow-down-outline' as const,
-      surface: '#DCFAF0',
+      surface: colors.successSoft,
       ink: colors.success,
     },
     {
@@ -241,7 +260,7 @@ export function HomeMetrics({
       value: data.totalExpense,
       prefix: '',
       icon: 'arrow-up-outline' as const,
-      surface: '#FFEAE9',
+      surface: colors.dangerSoft,
       ink: colors.danger,
     },
     {
@@ -249,7 +268,7 @@ export function HomeMetrics({
       value: flow,
       prefix: !hidden && typeof flow === 'number' && flow > 0 ? '+' : '',
       icon: 'swap-horizontal-outline' as const,
-      surface: '#DEF4FB',
+      surface: colors.infoSoft,
       ink: typeof flow === 'number' && flow < 0 ? colors.danger : colors.success,
     },
   ];
@@ -286,7 +305,7 @@ export function HomeMetrics({
         <Text style={styles.sectionSubtitle}>
           Ingresos menos gastos de este mes. No es el saldo de tus cuentas.
         </Text>
-        {budgetPercent !== undefined ? (
+        {budgetPercent !== undefined && !hidden ? (
           <View style={styles.budgetFoot}>
             <View style={styles.budgetCaption}>
               <Text style={styles.budgetLabel}>Presupuesto del mes</Text>
@@ -307,7 +326,7 @@ export function HomeMetrics({
 }
 
 const styles = themedStyleSheet(() => ({
-  section: { gap: spacing.md, marginTop: spacing.xl },
+  section: { gap: spacing.sm, marginTop: spacing.md },
   sectionIntro: { gap: spacing.xxs },
   sectionHeading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
   sectionSubtitle: { ...typography.caption, fontSize: 13, lineHeight: 18, color: colors.textSecondary },
@@ -366,7 +385,7 @@ const styles = themedStyleSheet(() => ({
     backgroundColor: 'rgba(0,229,153,0.1)',
   },
   emptyTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  emptyTitle: { ...typography.cardTitle, flex: 1, color: colors.primaryStrong },
+  emptyTitle: { ...typography.cardTitle, flex: 1, color: colors.textPrimary },
   emptyValues: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   emptyValue: {
     ...typography.caption,
@@ -386,7 +405,7 @@ const styles = themedStyleSheet(() => ({
     justifyContent: 'center',
   },
   heroPressable: { borderRadius: 24, ...shadows.card },
-  accountHero: { minHeight: 190, borderRadius: 24, padding: spacing.xl, gap: spacing.sm },
+  accountHero: { borderRadius: 24, padding: spacing.lg, gap: spacing.sm },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   heroIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   heroIcon: {
@@ -416,7 +435,7 @@ const styles = themedStyleSheet(() => ({
     gap: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.18)',
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
   heroCaption: { ...typography.caption, color: '#C7E5E3', flexShrink: 1 },
   heroLink: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
@@ -425,10 +444,10 @@ const styles = themedStyleSheet(() => ({
   debtSection: {
     borderRadius: 22,
     padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.sm,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#D3E8F4',
+    borderColor: colors.border,
   },
   debtOrb: {
     position: 'absolute',
@@ -451,7 +470,7 @@ const styles = themedStyleSheet(() => ({
   debtCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
   debtTitle: { ...typography.label, color: colors.credit, fontWeight: '700' },
   debtCaption: { ...typography.caption, color: colors.textSecondary },
-  debtAmount: { ...typography.moneyMedium, fontSize: 25, lineHeight: 32, color: colors.primaryStrong },
+  debtAmount: { ...typography.moneyMedium, fontSize: 25, lineHeight: 32, color: colors.textPrimary },
   debtFooter: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -470,7 +489,7 @@ const styles = themedStyleSheet(() => ({
     borderRadius: radius.large,
     padding: spacing.md,
     paddingLeft: spacing.lg,
-    backgroundColor: '#FFF3D8',
+    backgroundColor: colors.warningSoft,
     borderLeftWidth: 4,
     borderLeftColor: colors.amber,
   },
@@ -478,13 +497,13 @@ const styles = themedStyleSheet(() => ({
     width: 38,
     height: 38,
     borderRadius: radius.medium,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   overdueCopy: { flex: 1, gap: spacing.xxs },
   overdueTitle: { ...typography.label, color: colors.warning, fontWeight: '700' },
-  overdueAmount: { ...typography.moneySmall, color: colors.primaryStrong },
+  overdueAmount: { ...typography.moneySmall, color: colors.textPrimary },
   overdueCaption: { ...typography.caption, color: colors.textSecondary },
   explainerButton: {
     minHeight: 48,

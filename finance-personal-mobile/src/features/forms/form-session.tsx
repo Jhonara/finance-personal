@@ -9,6 +9,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 type FormRoute =
+  | '/(app)/recurring-form'
   | '/(app)/account-form'
   | '/(app)/account-detail'
   | '/(app)/budget-form'

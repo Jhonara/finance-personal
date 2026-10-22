@@ -115,16 +115,6 @@ export function CreditCard({
         </LinearGradient>
         {credit.status !== 'PAID' && (
           <View style={styles.creditMeta}>
-            {credit.annualRate !== undefined && (
-              <View style={styles.metaPill}>
-                <Text
-                  accessibilityLabel={`Tasa efectiva anual ${credit.annualRate} por ciento`}
-                  style={typography.caption}
-                >
-                  EA · {credit.annualRate}%
-                </Text>
-              </View>
-            )}
             {credit.nextPaymentDate && (
               <View style={styles.metaPill}>
                 <Text style={typography.caption}>
@@ -142,12 +132,11 @@ export function CreditCard({
             )}
           </View>
         )}
-        <View style={styles.progressPanel}>
-          <CreditProgress credit={credit} />
-        </View>
-        {credit.status === 'LATE' && (
-          <Text style={typography.caption}>Revisa las cuotas pendientes y tus pagos registrados.</Text>
-        )}
+        {!hidden ? (
+          <View style={styles.progressPanel}>
+            <CreditProgress credit={credit} />
+          </View>
+        ) : null}
         {credit.status === 'PAID' && <Text style={typography.caption}>Esta deuda ya está completada.</Text>}
       </MotionEntry>
     </MotionPressable>
@@ -230,7 +219,7 @@ export function CreditHero({ credit, hidden }: { credit: Credit; hidden: boolean
         {creditMoney(credit.remainingBalance, credit.currency, hidden)}
       </Text>
       <Text style={styles.heroStatus}>{creditStatus(credit.status)}</Text>
-      <CreditProgress credit={credit} dark />
+      {!hidden ? <CreditProgress credit={credit} dark /> : null}
       {credit.status === 'PAID' && <Text style={styles.heroStatus}>Esta deuda ya está completada.</Text>}
     </BrandSurface>
   );

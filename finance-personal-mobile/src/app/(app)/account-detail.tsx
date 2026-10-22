@@ -353,10 +353,10 @@ const styles = themedStyleSheet(() => ({
   detail: { gap: spacing.md, padding: spacing.lg },
   editCard: { gap: spacing.md, padding: spacing.lg },
   editCopy: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sectionTitle: { ...typography.cardTitle, color: colors.primaryStrong, flexShrink: 1 },
+  sectionTitle: { ...typography.cardTitle, color: colors.textPrimary, flexShrink: 1 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   infoLabel: { ...typography.bodySecondary },
-  infoValue: { ...typography.label, color: colors.primaryStrong, textAlign: 'right', flexShrink: 1 },
+  infoValue: { ...typography.label, color: colors.textPrimary, textAlign: 'right', flexShrink: 1 },
   balance: { ...typography.moneyLarge, color: '#FFFFFF' },
   modal: {
     marginTop: 96,

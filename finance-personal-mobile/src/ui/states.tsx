@@ -20,7 +20,7 @@ export function EmptyState({
   onAction?: () => void;
   tone?: 'primary' | 'warning' | 'info' | 'success' | 'neutral';
 }) {
-  const presentation = emptyTone[tone];
+  const presentation = getEmptyTones()[tone];
   return (
     <View style={[styles.center, { backgroundColor: presentation.backgroundColor }]}>
       <View
@@ -55,38 +55,39 @@ export function EmptyState({
   );
 }
 
-const emptyTone = {
-  primary: {
-    backgroundColor: colors.primarySoft,
-    color: colors.primary,
-    icon: 'wallet-outline',
-    buttonTone: 'primary',
-  },
-  warning: {
-    backgroundColor: colors.warningSoft,
-    color: colors.warning,
-    icon: 'pie-chart-outline',
-    buttonTone: 'warning',
-  },
-  info: {
-    backgroundColor: colors.infoSoft,
-    color: colors.info,
-    icon: 'swap-horizontal-outline',
-    buttonTone: 'info',
-  },
-  success: {
-    backgroundColor: colors.successSoft,
-    color: colors.success,
-    icon: 'checkmark-circle-outline',
-    buttonTone: 'success',
-  },
-  neutral: {
-    backgroundColor: colors.surfaceSecondary,
-    color: colors.primary,
-    icon: 'sparkles-outline',
-    buttonTone: 'primary',
-  },
-} as const;
+const getEmptyTones = () =>
+  ({
+    primary: {
+      backgroundColor: colors.primarySoft,
+      color: colors.primary,
+      icon: 'wallet-outline',
+      buttonTone: 'primary',
+    },
+    warning: {
+      backgroundColor: colors.warningSoft,
+      color: colors.warning,
+      icon: 'pie-chart-outline',
+      buttonTone: 'warning',
+    },
+    info: {
+      backgroundColor: colors.infoSoft,
+      color: colors.info,
+      icon: 'swap-horizontal-outline',
+      buttonTone: 'info',
+    },
+    success: {
+      backgroundColor: colors.successSoft,
+      color: colors.success,
+      icon: 'checkmark-circle-outline',
+      buttonTone: 'success',
+    },
+    neutral: {
+      backgroundColor: colors.surfaceSecondary,
+      color: colors.primary,
+      icon: 'sparkles-outline',
+      buttonTone: 'primary',
+    },
+  }) as const;
 
 export function ErrorState({
   title = 'No fue posible cargar esta información',

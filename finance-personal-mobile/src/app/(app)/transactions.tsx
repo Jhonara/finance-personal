@@ -1,12 +1,11 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
-import { useCallback, useMemo, useState } from 'react';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 
 import { useTransactions } from '@/features/transactions/use-transactions';
@@ -29,20 +28,17 @@ import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 
 export default function TransactionsScreen() {
-  const { width, fontScale } = useWindowDimensions();
-  const compact = width / fontScale < 280;
+  const { width } = useWindowDimensions();
   const { open: openQuickActions } = useQuickActions();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
   const [filters, setFilters] = useState<TransactionFilters>(
     () => dashboardPeriodFromParams(year, month) ?? {},
   );
-  useFocusEffect(
-    useCallback(() => {
-      const requested = dashboardPeriodFromParams(year, month);
-      if (requested) setFilters(requested);
-    }, [year, month]),
-  );
+  useEffect(() => {
+    const requested = dashboardPeriodFromParams(year, month);
+    if (requested) setFilters(requested);
+  }, [year, month]);
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
   const { hidden, toggle } = usePrivacy();
   const accounts = useAccounts();
@@ -67,11 +63,7 @@ export default function TransactionsScreen() {
           onPress={() => void toggle()}
           style={styles.privacy}
         >
-          <Ionicons
-            name={hidden ? 'eye-off-outline' : 'eye-outline'}
-            size={20}
-            color={colors.primaryStrong}
-          />
+          <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.primary} />
         </MotionPressable>
         <HomeBrandMark size={36} />
       </View>
@@ -86,7 +78,7 @@ export default function TransactionsScreen() {
         <SkeletonRow />
       </Screen>
     );
-  if (transactions.isError)
+  if (transactions.isError && !transactions.data)
     return (
       <Screen entry>
         {pageHeader}
@@ -96,35 +88,13 @@ export default function TransactionsScreen() {
   return (
     <Screen entry scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
       {pageHeader}
-      {items.length ? (
-        <LinearGradient
-          colors={['#0D282E', '#105158']}
-          style={[styles.overview, compact && styles.overviewCompact]}
-        >
-          <View style={styles.overviewCopy}>
-            <Text style={styles.overviewEyebrow}>TU HISTORIAL</Text>
-            <Text style={styles.overviewCount}>
-              {items.length} {items.length === 1 ? 'movimiento cargado' : 'movimientos cargados'}
-            </Text>
-            {!compact ? (
-              <Text style={styles.overviewHint}>Revisa cada detalle o registra uno nuevo.</Text>
-            ) : null}
-            <MotionPressable
-              accessibilityRole="button"
-              accessibilityLabel="Registrar movimiento"
-              onPress={openQuickActions}
-              style={styles.register}
-            >
-              <Ionicons name="add" size={17} color={colors.primaryStrong} />
-              <Text style={styles.registerText}>Registrar</Text>
-            </MotionPressable>
-          </View>
-          <HomeCompanion size={compact ? 60 : 76} />
-        </LinearGradient>
+      {transactions.isError ? (
+        <Text style={typography.caption}>No pudimos actualizar. Sigues viendo el historial guardado.</Text>
       ) : null}
       <View style={styles.toolbar}>
         <Text accessibilityRole="header" style={styles.historyTitle}>
-          Historial
+          Historial · {items.length}
+          {transactions.hasNextPage ? '+' : ''}
         </Text>
         <TourTarget id="movement-filters">
           <MotionPressable
@@ -172,21 +142,6 @@ export default function TransactionsScreen() {
           ) : null}
         </View>
       )}
-      <MotionPressable
-        accessibilityRole="button"
-        accessibilityLabel="Organizar categorías"
-        onPress={() => router.push('/(app)/categories')}
-        style={styles.categoriesLink}
-      >
-        <View style={styles.categoriesIcon}>
-          <Ionicons name="pricetags-outline" size={20} color={colors.success} />
-        </View>
-        <View style={styles.categoriesCopy}>
-          <Text style={styles.categoriesTitle}>Organizar categorías</Text>
-          <Text style={typography.caption}>Edita las opciones de ingresos y gastos.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-      </MotionPressable>
       {items.length ? (
         <View style={styles.list}>
           {groups.map((group) => (
@@ -377,7 +332,7 @@ const styles = themedStyleSheet(() => ({
     backgroundColor: colors.surface,
   },
   categoriesCopy: { flex: 1, gap: spacing.xxs },
-  categoriesTitle: { ...typography.label, color: colors.primaryStrong },
+  categoriesTitle: { ...typography.label, color: colors.textPrimary },
   clear: {
     ...typography.caption,
     color: colors.info,
@@ -401,7 +356,7 @@ const styles = themedStyleSheet(() => ({
   group: { gap: spacing.sm },
   groupHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   groupDot: { width: 7, height: 7, borderRadius: radius.pill, backgroundColor: colors.secondary },
-  groupHeader: { ...typography.label, color: colors.primaryStrong },
+  groupHeader: { ...typography.label, color: colors.textPrimary },
   groupCard: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,

@@ -116,7 +116,7 @@ export function QuickActionModal({
                   onPress={sheetMotion.close}
                   style={styles.close}
                 >
-                  <Ionicons name="close" size={20} color={colors.primaryStrong} />
+                  <Ionicons name="close" size={20} color={colors.primary} />
                 </MotionPressable>
               </View>
               <ScrollView contentContainerStyle={styles.actions} showsVerticalScrollIndicator={false}>

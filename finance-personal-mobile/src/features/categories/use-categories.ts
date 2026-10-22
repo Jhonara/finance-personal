@@ -27,6 +27,9 @@ export const useUpdateCategory = () => {
       await Promise.all([
         c.invalidateQueries({ queryKey: categoryKeys.all }),
         c.invalidateQueries({ queryKey: ['category', category.id] }),
+        c.invalidateQueries({ queryKey: ['reports'] }),
+        c.invalidateQueries({ queryKey: ['dashboard'] }),
+        c.invalidateQueries({ queryKey: ['budgets'] }),
       ]);
     },
   });

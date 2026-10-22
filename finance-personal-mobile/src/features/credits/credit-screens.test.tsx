@@ -1,4 +1,20 @@
 vi.mock('@/ui/navigation-dock', () => ({ NavigationDock: () => null }));
+vi.mock('react-native-reanimated', () => import('@/test/chart-reanimated'));
+vi.mock('react-native-svg', () => {
+  const host =
+    (name: string) =>
+    ({ children, ...props }: React.PropsWithChildren) =>
+      React.createElement(name, props, children);
+  return {
+    default: host('Svg'),
+    Circle: host('Circle'),
+    Rect: host('Rect'),
+    Path: host('Path'),
+    G: host('G'),
+    Line: host('Line'),
+    Text: host('SvgText'),
+  };
+});
 vi.mock('@/features/onboarding/interactive-tour', () => ({
   InteractiveTourProvider: ({ children }: React.PropsWithChildren) => children,
 }));
@@ -42,6 +58,7 @@ vi.mock('react-native', () => {
   });
   return {
     Alert: { alert: mocks.alert },
+    Keyboard: { dismiss: vi.fn() },
     AccessibilityInfo: {
       isReduceMotionEnabled: async () => false,
       addEventListener: () => ({ remove: vi.fn() }),
@@ -467,7 +484,7 @@ describe('Credit screens with real hooks and forms', () => {
     mocks.hidden = true;
     const tree = await render(<CreditsScreen />);
     expect(text(tree.toJSON())).not.toContain('750');
-    expect(text(tree.toJSON())).toContain('18.4');
+    expect(tree.root.findAll((n) => n.props.accessibilityRole === 'progressbar')).toHaveLength(0);
     expect(
       tree.root
         .findAll((n) => (n.type as unknown) === 'Pressable')
@@ -476,6 +493,7 @@ describe('Credit screens with real hooks and forms', () => {
   });
   it('shows real detail and accessible capital progress', async () => {
     const tree = await render(<CreditDetail />);
+    await press(tree, 'Condiciones del crédito');
     const ui = text(tree.toJSON());
     expect(ui).toContain('750 COP');
     expect(ui).toContain('18.4%');
@@ -719,7 +737,21 @@ describe('Credit screens with real hooks and forms', () => {
     expect(text(tree.toJSON())).toContain('Abono extra registrado');
     expect(text(tree.toJSON())).toContain('Tus abonos extra ya cuentan');
     expect(text(tree.toJSON())).toContain('SALDO REGISTRADO');
+    await press(tree, 'Simular un abono extra');
     await fill(tree, 'Abono extra a capital', '100');
+    await press(tree, 'Simular un abono extra');
+    expect(
+      tree.root.findAll(
+        (node) =>
+          (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'Abono extra a capital',
+      ),
+    ).toHaveLength(0);
+    await press(tree, 'Simular un abono extra');
+    expect(
+      tree.root
+        .findAll((node) => (node.type as unknown) === 'TextInput')
+        .find((node) => node.props.accessibilityLabel === 'Abono extra a capital')?.props.value,
+    ).toContain('100');
     await press(tree, 'Calcular impacto');
     expect(mocks.post).toHaveBeenCalledWith('/credits/1/amortization/scenarios', {
       contributions: [{ installment: 4, amount: 100 }],
@@ -740,6 +772,29 @@ describe('Credit screens with real hooks and forms', () => {
     expect(text(history.toJSON())).toContain('Pago registrado');
     expect(text(history.toJSON())).toContain('incluso si no elegiste una cuenta');
   });
+  it('opens a closed simulator when selecting an installment from the schedule', async () => {
+    const tree = await render(<CreditAmortizationScreen />);
+    expect(
+      tree.root.findAll(
+        (node) =>
+          String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'Abono extra a capital',
+      ),
+    ).toHaveLength(0);
+    await press(tree, 'Elegir cuota 4 para el abono');
+    expect(
+      tree.root.findAll(
+        (node) =>
+          String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'Abono extra a capital',
+      ),
+    ).toHaveLength(1);
+    await fill(tree, 'Abono extra a capital', '100');
+    await press(tree, 'Calcular impacto');
+    expect(mocks.post).toHaveBeenLastCalledWith('/credits/1/amortization/scenarios', {
+      contributions: [{ installment: 4, amount: 100 }],
+      strategy: 'REDUCE_TERM',
+    });
+    expect(mocks.put).not.toHaveBeenCalled();
+  });
   it('sends a confirmed opening position while preserving earlier payment history', async () => {
     const today = localDateFromNative(new Date());
     const next = new Date();
@@ -754,6 +809,7 @@ describe('Credit screens with real hooks and forms', () => {
       },
     ];
     const detail = await render(<CreditDetail />);
+    await press(detail, 'Ajustes del crédito');
     await press(detail, 'Actualizar saldo desde extracto');
     expect(mocks.push).toHaveBeenCalledWith({ pathname: '/(app)/credit-opening', params: { id: 1 } });
     const opening = await render(<CreditOpeningScreen />);
@@ -800,6 +856,7 @@ describe('Credit screens with real hooks and forms', () => {
       return result;
     });
     const tree = await render(<CreditAmortizationScreen />);
+    await press(tree, 'Simular un abono extra');
     await fill(tree, 'Abono extra a capital', '100');
     await press(tree, 'Añadir abono al escenario');
     await press(tree, 'Elegir cuota 5 para el abono');
@@ -939,6 +996,7 @@ describe('Credit screens with real hooks and forms', () => {
   it('requires confirmation before deleting an unlinked credit', async () => {
     credits = [{ ...base, editable: true, deletable: true }];
     const tree = await render(<CreditDetail />);
+    await press(tree, 'Ajustes del crédito');
     await press(tree, 'Eliminar crédito');
     expect(mocks.delete).not.toHaveBeenCalled();
     const buttons = mocks.alert.mock.calls.at(-1)?.[2];
@@ -958,6 +1016,7 @@ describe('Credit screens with real hooks and forms', () => {
   });
   it('offers payment reduction, clears stale results on strategy changes and filters extra installments', async () => {
     const tree = await render(<CreditAmortizationScreen />);
+    await press(tree, 'Simular un abono extra');
     await press(tree, 'Reducir cuota mensual');
     await fill(tree, 'Abono extra a capital', '100');
     await press(tree, 'Calcular impacto');
@@ -975,6 +1034,7 @@ describe('Credit screens with real hooks and forms', () => {
   });
   it('preserves the contribution on a server failure without retrying or registering a payment', async () => {
     const tree = await render(<CreditAmortizationScreen />);
+    await press(tree, 'Simular un abono extra');
     mocks.post.mockRejectedValueOnce(new Error('Network unavailable'));
     await fill(tree, 'Abono extra a capital', '100');
     await press(tree, 'Calcular impacto');

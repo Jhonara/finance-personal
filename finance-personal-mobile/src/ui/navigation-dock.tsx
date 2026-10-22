@@ -23,8 +23,9 @@ export function NavigationDock({ state, descriptors, navigation }: DockProps) {
   const focused = state.routes[state.index]!;
   const selected = dockIndex(focused.name);
   const slot = (barWidth - 12) / 5;
-  const position = useSharedValue(selected * slot);
+  const position = useSharedValue(Math.max(0, selected) * slot);
   useEffect(() => {
+    if (selected < 0) return;
     const next = selected * slot;
     position.value = reduced ? next : withSpring(next, { damping: 22, stiffness: 210, mass: 0.8 });
   }, [position, reduced, selected, slot]);
@@ -50,7 +51,9 @@ export function NavigationDock({ state, descriptors, navigation }: DockProps) {
       }}
     >
       <View onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)} style={styles.bar}>
-        <Animated.View pointerEvents="none" style={[styles.indicator, { width: slot - 4 }, indicator]} />
+        {selected >= 0 ? (
+          <Animated.View pointerEvents="none" style={[styles.indicator, { width: slot - 4 }, indicator]} />
+        ) : null}
         {dockItems.map((item, index) => {
           if (item.name === 'action') return <CenterActionButton key={item.name} dark />;
           const route = state.routes.find((candidate) => candidate.name === item.name);

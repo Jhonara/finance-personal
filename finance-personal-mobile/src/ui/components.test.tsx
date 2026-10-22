@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, create } from 'react-test-renderer';
 
 const motionMocks = vi.hoisted(() => ({ reduced: false, timing: vi.fn() }));
+const navigationMocks = vi.hoisted(() => ({ back: vi.fn(), canGoBack: vi.fn(() => true), replace: vi.fn() }));
 
 function textContent(value: unknown): string {
   if (typeof value === 'string' || typeof value === 'number') return String(value);
@@ -12,6 +13,7 @@ function textContent(value: unknown): string {
 }
 
 vi.mock('expo-router', () => ({
+  router: navigationMocks,
   useFocusEffect: (effect: () => void | (() => void)) => React.useEffect(effect, [effect]),
 }));
 vi.mock('react-native', () => {
@@ -78,7 +80,8 @@ import { CenterActionButton } from './center-action';
 import { BrandMark } from './brand-identity';
 import { ModalSelector } from './modal-selector';
 import { Button, Card, MoneyInput, Screen } from './primitives';
-import { colors, spacing } from '@/theme';
+import { ScreenHeader } from './headers';
+import { colors, spacing, lightPalette, setThemeColors } from '@/theme';
 
 const actionMocks = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('@/features/quick-actions/quick-action-provider', () => ({
@@ -90,6 +93,104 @@ vi.mock('expo-linear-gradient', () => ({
 }));
 
 describe('Finance Calm components', () => {
+  it.each([undefined, '/(app)/accounts'] as const)(
+    'returns through history when a back handler is omitted (fallback %s)',
+    async (backFallback) => {
+      navigationMocks.back.mockClear();
+      navigationMocks.replace.mockClear();
+      navigationMocks.canGoBack.mockReturnValue(true);
+      let tree!: ReturnType<typeof create>;
+      await act(async () => {
+        tree = create(<ScreenHeader title="Programación" back backFallback={backFallback} />);
+      });
+      await act(async () => {
+        tree.root
+          .find((n) => String(n.type) === 'Pressable' && n.props.accessibilityLabel === 'Volver')
+          .props.onPress();
+      });
+      expect(navigationMocks.back).toHaveBeenCalledTimes(1);
+      expect(navigationMocks.replace).not.toHaveBeenCalled();
+      await act(async () => tree.unmount());
+    },
+  );
+  it('uses the parent only for a direct entry without history', async () => {
+    navigationMocks.back.mockClear();
+    navigationMocks.replace.mockClear();
+    navigationMocks.canGoBack.mockReturnValue(false);
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<ScreenHeader title="Nuevo ingreso fijo" back backFallback="/(app)/recurrences" />);
+    });
+    await act(async () => {
+      tree.root
+        .find((n) => String(n.type) === 'Pressable' && n.props.accessibilityLabel === 'Volver')
+        .props.onPress();
+    });
+    expect(navigationMocks.replace).toHaveBeenCalledWith('/(app)/recurrences');
+    expect(navigationMocks.back).not.toHaveBeenCalled();
+    navigationMocks.canGoBack.mockReturnValue(true);
+    await act(async () => tree.unmount());
+  });
+  it('preserves a modal close or guarded back action', async () => {
+    navigationMocks.back.mockClear();
+    navigationMocks.replace.mockClear();
+    const onBack = vi.fn();
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<ScreenHeader title="Confirmar pago" back onBack={onBack} />);
+    });
+    await act(async () => {
+      tree.root
+        .find((n) => String(n.type) === 'Pressable' && n.props.accessibilityLabel === 'Volver')
+        .props.onPress();
+    });
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(navigationMocks.back).not.toHaveBeenCalled();
+    expect(navigationMocks.replace).not.toHaveBeenCalled();
+    await act(async () => tree.unmount());
+  });
+  it('updates secondary and ghost button contrast after switching theme', async () => {
+    let tree!: ReturnType<typeof create>;
+    const palette = { ...lightPalette, primary: '#79E6C6', primarySoft: '#173D3B', danger: '#F19AA4' };
+    const content = () => (
+      <>
+        <Button variant="secondary">Añadir</Button>
+        <Button variant="ghost" tone="danger">
+          Quitar
+        </Button>
+      </>
+    );
+    const flatten = (value: unknown): Record<string, unknown> =>
+      Array.isArray(value)
+        ? Object.assign({}, ...value.map(flatten))
+        : value && typeof value === 'object'
+          ? (value as Record<string, unknown>)
+          : {};
+    try {
+      await act(async () => {
+        tree = create(content());
+      });
+      setThemeColors(palette);
+      await act(async () => {
+        tree.update(content());
+      });
+      const labels = tree.root.findAll((node) => String(node.type) === 'Text');
+      expect(flatten(labels[0]!.props.style).color).toBe(palette.primary);
+      expect(flatten(labels[1]!.props.style).color).toBe(palette.danger);
+      const button = tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!;
+      expect(flatten(button.props.style({ pressed: false })).backgroundColor).toBe(palette.primarySoft);
+      setThemeColors(lightPalette);
+      await act(async () => {
+        tree.update(content());
+      });
+      expect(flatten(tree.root.findAll((node) => String(node.type) === 'Text')[0]!.props.style).color).toBe(
+        lightPalette.primary,
+      );
+    } finally {
+      setThemeColors(lightPalette);
+      if (tree) await act(async () => tree.unmount());
+    }
+  });
   it('keeps Home content scrollable without an independent bottom action', async () => {
     let tree!: ReturnType<typeof create>;
     await act(async () => {
@@ -138,7 +239,7 @@ describe('Finance Calm components', () => {
     ['primary', colors.primaryStrong],
     ['secondary', colors.primarySoft],
     ['outline', colors.surface],
-    ['danger', colors.danger],
+    ['danger', colors.dangerSolid],
   ] as const)('renders the %s Button variant with a semantic surface', async (variant, backgroundColor) => {
     let tree: ReturnType<typeof create>;
     await act(async () => {

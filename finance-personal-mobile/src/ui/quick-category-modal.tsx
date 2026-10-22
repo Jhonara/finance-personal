@@ -61,7 +61,7 @@ export function QuickCategoryModal({
               onPress={close}
               style={styles.close}
             >
-              <Ionicons name="close" size={20} color={colors.primaryStrong} />
+              <Ionicons name="close" size={20} color={colors.primary} />
             </MotionPressable>
           </View>
           <Input

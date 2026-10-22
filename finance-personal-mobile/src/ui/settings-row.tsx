@@ -38,9 +38,7 @@ export function SettingsRow({
         <Text style={[typography.cardTitle, { color: danger ? palette.danger : palette.textPrimary }]}>
           {title}
         </Text>
-        {subtitle && (
-          <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>{subtitle}</Text>
-        )}
+        {subtitle && <Text style={[typography.caption, { color: palette.textSecondary }]}>{subtitle}</Text>}
       </View>
       {badge !== undefined && badge > 0 && <Text style={styles.badge}>{badge}</Text>}
       {control ?? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />}
@@ -70,8 +68,8 @@ const styles = themedStyleSheet(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    minHeight: 72,
-    paddingVertical: spacing.lg,
+    minHeight: 68,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },

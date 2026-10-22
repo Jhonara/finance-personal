@@ -207,8 +207,8 @@ const styles = themedStyleSheet(() => ({
   logo: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minWidth: 0 },
   logoEyebrow: { ...typography.caption, color: colors.success, fontSize: 10, fontWeight: '700' },
   logoCaption: { ...typography.caption, color: colors.success, fontSize: 9, fontWeight: '700' },
-  logoName: { ...typography.cardTitle, fontSize: 14, lineHeight: 18, color: colors.primaryStrong },
-  logoCompact: { ...typography.label, fontSize: 12, lineHeight: 15, color: colors.primaryStrong },
+  logoName: { ...typography.cardTitle, fontSize: 14, lineHeight: 18, color: colors.textPrimary },
+  logoCompact: { ...typography.label, fontSize: 12, lineHeight: 15, color: colors.textPrimary },
   face: { flexDirection: 'row' },
   eye: { borderRadius: radius.pill, backgroundColor: colors.primaryStrong },
   brow: {

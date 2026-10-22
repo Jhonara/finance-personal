@@ -508,10 +508,7 @@ describe('Ecosystem guide and plan navigation', () => {
     await act(async () => {
       client.setQueryData(currentUserKeys.current(), { ...profile, id: 99 });
     });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 40));
-    });
-    expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos');
+    await vi.waitFor(() => expect(text(tree.toJSON())).toContain('0 de 12 temas recorridos'));
     expect(text(tree.toJSON())).toContain('TEMA 1 DE 12');
   });
 
@@ -545,7 +542,7 @@ describe('Ecosystem guide and plan navigation', () => {
     expect(text(tree.toJSON())).toContain('1 de 12 temas recorridos');
   });
 
-  it('places credits first in Plan and routes to the other modules using real summary data', async () => {
+  it('groups tools in a compact menu and opens each module directly', async () => {
     const originalGet = mocks.get.getMockImplementation()!;
     mocks.get.mockImplementation(async (path: string) =>
       path === '/dashboard/month'
@@ -553,13 +550,15 @@ describe('Ecosystem guide and plan navigation', () => {
         : originalGet(path),
     );
     const tree = await render(<PlanScreen />);
-    expect(text(tree.toJSON())).toContain('2 activos');
+    expect(text(tree.toJSON())).toContain('Menú');
     expect(text(tree.toJSON())).toContain('Sin avisos');
-    await press(tree, 'Ver créditos');
+    await press(tree, 'Créditos');
     expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
-    await press(tree, 'Abrir ahorros y metas');
+    await press(tree, 'Metas de ahorro');
     expect(mocks.push).toHaveBeenLastCalledWith('/(app)/savings');
-    await press(tree, 'Abrir guía de inicio');
+    await press(tree, 'Categorías');
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/categories');
+    await press(tree, 'Ayuda');
     expect(mocks.push).toHaveBeenLastCalledWith('/(app)/guide');
     expect(mocks.post).not.toHaveBeenCalled();
   });

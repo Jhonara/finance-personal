@@ -4,6 +4,7 @@ import { TourTarget } from '@/ui/tour-target';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 
 import type { Account } from '@/features/accounts/accounts-api';
@@ -19,6 +20,8 @@ import { BrandMark } from '@/ui/brand-media';
 import { MotionPressable } from '@/ui/motion';
 import { Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
+import { Disclosure } from '@/ui/disclosure';
+import { SettingsRow } from '@/ui/settings-row';
 
 const filters = [
   { key: 'ALL', label: 'Todas' },
@@ -86,7 +89,7 @@ function AccountTile({
       style={[styles.accountCard, { backgroundColor: look.background }]}
     >
       <View style={styles.accountTop}>
-        <View style={[styles.accountIcon, { backgroundColor: dark ? '#FFFFFF20' : '#FFFFFFB8' }]}>
+        <View style={[styles.accountIcon, { backgroundColor: dark ? '#FFFFFF20' : colors.surface }]}>
           <Ionicons name={look.icon} size={23} color={look.accent} />
         </View>
         <View style={styles.accountCopy}>
@@ -168,11 +171,7 @@ export default function AccountsScreen() {
           onPress={() => void toggle()}
           style={styles.privacy}
         >
-          <Ionicons
-            name={hidden ? 'eye-off-outline' : 'eye-outline'}
-            size={20}
-            color={colors.primaryStrong}
-          />
+          <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.primary} />
         </MotionPressable>
         <TourTarget id="add-account">
           <MotionPressable
@@ -186,18 +185,15 @@ export default function AccountsScreen() {
           </MotionPressable>
         </TourTarget>
       </View>
-      <Text style={typography.caption}>
-        Registra dónde tienes tu dinero. Agregar una cuenta no conecta tu banco.
-      </Text>
+      <SettingsRow
+        icon="repeat-outline"
+        title="Ingresos y gastos fijos"
+        subtitle="Programa tu salario, servicios y revisa cuotas."
+        onPress={() => router.push('/(app)/recurrences')}
+      />
       {active.length ? (
         <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.overview}>
           <Text style={styles.overviewEyebrow}>TU DINERO POR MONEDA</Text>
-          <Text style={styles.overviewTitle}>
-            {active.length} {active.length === 1 ? 'cuenta activa' : 'cuentas activas'}
-          </Text>
-          <Text style={styles.overviewHint}>
-            Saldos calculados con tus movimientos. Cada moneda se muestra por separado.
-          </Text>
           <View style={styles.currencyList}>
             {currencies.map((currency) => (
               <View key={currency} style={styles.currencyRow}>
@@ -272,7 +268,7 @@ export default function AccountsScreen() {
           tone="primary"
         />
       )}
-      {active.length ? (
+      {transferReady ? (
         <View style={styles.management}>
           <Text accessibilityRole="header" style={typography.sectionTitle}>
             Gestiona tu dinero
@@ -293,27 +289,10 @@ export default function AccountsScreen() {
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </MotionPressable>
           ) : null}
-          <MotionPressable
-            accessibilityRole="button"
-            onPress={() => openForm('/(app)/account-form')}
-            style={styles.managementRow}
-          >
-            <View style={[styles.managementIcon, { backgroundColor: colors.primarySoft }]}>
-              <Ionicons name="add" size={21} color={colors.success} />
-            </View>
-            <View style={styles.managementCopy}>
-              <Text style={typography.cardTitle}>Agregar otra cuenta</Text>
-              <Text style={typography.caption}>Banco, billetera, efectivo, ahorro o inversión.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-          </MotionPressable>
         </View>
       ) : null}
       {inactive.length ? (
-        <View style={styles.inactiveSection}>
-          <Text accessibilityRole="header" style={typography.sectionTitle}>
-            Cuentas inactivas
-          </Text>
+        <Disclosure title={`Cuentas inactivas (${inactive.length})`} icon="archive-outline">
           <Text style={typography.caption}>Puedes reactivarlas desde su detalle.</Text>
           {inactive.map((account) => (
             <AccountTile
@@ -323,8 +302,14 @@ export default function AccountsScreen() {
               hidden={hidden}
             />
           ))}
-        </View>
+        </Disclosure>
       ) : null}
+      <Disclosure title="Cómo funcionan las cuentas">
+        <Text style={typography.caption}>
+          Son registros de dónde tienes tu dinero; no conectan tu banco. El saldo cambia con los movimientos
+          que anotas.
+        </Text>
+      </Disclosure>
     </Screen>
   );
 }
@@ -339,7 +324,7 @@ const styles = themedStyleSheet(() => ({
     fontWeight: '700',
     letterSpacing: 0.6,
   },
-  title: { ...typography.sectionTitle, color: colors.primaryStrong },
+  title: { ...typography.sectionTitle, color: colors.textPrimary },
   privacy: {
     width: 40,
     height: 40,
@@ -360,7 +345,7 @@ const styles = themedStyleSheet(() => ({
   },
   addCompact: { width: 40, justifyContent: 'center', paddingHorizontal: 0 },
   addText: { ...typography.label, color: '#FFFFFF' },
-  overview: { gap: spacing.sm, padding: spacing.xl, borderRadius: 28, ...shadows.card },
+  overview: { gap: spacing.sm, padding: spacing.lg, borderRadius: 24, ...shadows.card },
   overviewEyebrow: { ...typography.caption, color: '#A7E7D9', fontWeight: '700', letterSpacing: 0.5 },
   overviewTitle: { ...typography.sectionTitle, color: '#FFFFFF' },
   overviewHint: { ...typography.caption, color: '#C3E5E4' },
@@ -375,7 +360,7 @@ const styles = themedStyleSheet(() => ({
     padding: spacing.md,
   },
   currencyCode: { ...typography.label, color: colors.success },
-  currencyValue: { ...typography.moneySmall, color: colors.primaryStrong, flexShrink: 1 },
+  currencyValue: { ...typography.moneySmall, color: colors.textPrimary, flexShrink: 1 },
   filters: { gap: spacing.sm, paddingVertical: spacing.xs },
   filter: {
     minHeight: 39,
@@ -387,7 +372,7 @@ const styles = themedStyleSheet(() => ({
     borderColor: colors.border,
   },
   filterActive: { backgroundColor: colors.primaryStrong, borderColor: colors.primaryStrong },
-  filterText: { ...typography.caption, color: colors.primaryStrong, fontWeight: '700' },
+  filterText: { ...typography.caption, color: colors.primary, fontWeight: '700' },
   filterTextActive: { color: '#FFFFFF' },
   sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   list: { gap: spacing.md },

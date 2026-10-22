@@ -39,7 +39,7 @@ export function HomeHeader({
             <Ionicons
               name={privacyHidden ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={colors.primaryStrong}
+              color={colors.primary}
             />
           </MotionPressable>
           <MotionPressable
@@ -56,14 +56,13 @@ export function HomeHeader({
         <Text accessibilityRole="header" style={styles.greetingTitle}>
           ¡{greeting}! 👋
         </Text>
-        <Text style={styles.greetingCopy}>Tu dinero, claro y en movimiento.</Text>
       </View>
     </View>
   );
 }
 
 const styles = themedStyleSheet(() => ({
-  container: { gap: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  container: { gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xs },
   topline: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   brandEyebrow: {

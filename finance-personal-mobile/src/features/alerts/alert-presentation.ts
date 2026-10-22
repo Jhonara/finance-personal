@@ -4,6 +4,12 @@ import { formatPrivateMoney } from '@/privacy/privacy-format';
 export const alertLevels = ['Importante', 'Atención', 'Información'] as const;
 export type AlertLevel = (typeof alertLevels)[number];
 const definitions: Record<string, { title: string; description: string; level: AlertLevel }> = {
+  RECURRING_PENDING: {
+    title: 'Pagos programados por confirmar',
+    description:
+      'Revisa los ingresos y gastos que llegaron a su fecha. Hasta confirmarlos no cambian tu saldo.',
+    level: 'Atención',
+  },
   BUDGET_WARNING: {
     title: 'Presupuesto cerca del límite',
     description: 'Alcanzaste el límite de alerta de este presupuesto.',
@@ -63,6 +69,8 @@ export function presentAlert(
   const month = positiveId(data.month);
   const period = year && year <= 9999 && month && month <= 12 ? { year, month } : undefined;
   const context: string[] = [];
+  if (code === 'RECURRING_PENDING' && typeof data.count === 'number' && data.count > 0)
+    context.push(`${data.count} por confirmar`);
   if (budget && typeof data.categoryName === 'string' && data.categoryName.trim())
     context.push(`Categoría ${data.categoryName}`);
   if (budget && period) context.push(`Período ${period.year}-${String(period.month).padStart(2, '0')}`);
@@ -102,11 +110,13 @@ export function presentAlert(
         ? { code, data: { relatedId } }
         : undefined;
   const target =
-    credit && relatedId
-      ? { kind: 'credit' as const, id: relatedId }
-      : budget && relatedId && period
-        ? { kind: 'budget' as const, id: relatedId, ...period }
-        : undefined;
+    code === 'RECURRING_PENDING'
+      ? { kind: 'recurrence' as const }
+      : credit && relatedId
+        ? { kind: 'credit' as const, id: relatedId }
+        : budget && relatedId && period
+          ? { kind: 'budget' as const, id: relatedId, ...period }
+          : undefined;
   // Only allowlisted non-monetary context is rendered. Backend messages can contain amounts.
   return { ...definition, context, seen, target, key: `${code}:${relatedId ?? 'global'}` };
 }

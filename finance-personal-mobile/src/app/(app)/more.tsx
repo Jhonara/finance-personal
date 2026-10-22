@@ -1,6 +1,7 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState, type PropsWithChildren } from 'react';
 import { Alert, Switch, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useTour } from '@/features/onboarding/tour-context';
 import { TourTarget } from '@/ui/tour-target';
@@ -151,7 +152,7 @@ export default function MoreScreen() {
         <View style={styles.appearance}>
           <View style={styles.appearanceTitle}>
             <View style={[styles.appearanceIcon, { backgroundColor: palette.infoSoft }]}>
-              <Text style={{ fontSize: 21 }}>◐</Text>
+              <Ionicons name="contrast-outline" size={21} color={palette.info} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[typography.cardTitle, { color: palette.textPrimary }]}>Apariencia</Text>
@@ -281,7 +282,7 @@ const styles = themedStyleSheet(() => ({
     width: 60,
     height: 60,
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,6 +1,6 @@
-import type { operations } from '@/api/generated/schema';
+import type { paths } from '@/api/generated/schema';
 
-type TransactionQuery = NonNullable<operations['list_4']['parameters']['query']>;
+type TransactionQuery = NonNullable<paths['/api/v1/transactions']['get']['parameters']['query']>;
 
 export type TransactionFilters = Omit<TransactionQuery, 'page' | 'size'>;
 export type TransactionType = NonNullable<TransactionFilters['type']>;

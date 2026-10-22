@@ -26,6 +26,7 @@ const lightColors = {
   warning: '#925911',
   warningSoft: '#FFF0CF',
   danger: '#B6404B',
+  dangerSolid: '#B6404B',
   dangerSoft: '#FFE6E5',
   expense: '#B6404B',
   expenseSoft: '#FFE9E6',

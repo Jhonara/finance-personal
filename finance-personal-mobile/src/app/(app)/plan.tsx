@@ -1,194 +1,98 @@
-import { themedStyleSheet } from '@/theme/themed-styles';
 import { Text, View } from 'react-native';
 import { router } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { actionableAlerts } from '@/features/alerts/alert-presentation';
 import { currentDashboardPeriod } from '@/features/dashboard/dashboard-period';
-import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { useAlerts } from '@/features/secondary/use-secondary';
-import { homePlan } from '@/features/dashboard/home-plan';
-import { CreditEntryCard } from '@/features/credits/credit-entry-card';
-import { MotionEntry, MotionPressable } from '@/ui/motion';
-import { Screen, Button } from '@/ui/primitives';
+import { Screen, Card } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { SettingsRow } from '@/ui/settings-row';
-import { colors, radius, spacing, typography } from '@/theme';
-import { useAppTheme } from '@/theme/theme-provider';
+import { TourTarget } from '@/ui/tour-target';
+import { spacing, typography, colors } from '@/theme';
 
 export default function PlanScreen() {
-  const { palette } = useAppTheme();
-  const period = currentDashboardPeriod();
-  const dashboard = useDashboardMonth(period);
   const alerts = useAlerts();
-  const summary = dashboard.data ? homePlan({ ...dashboard.data, alerts: alerts.data }, period) : undefined;
-  const destinations = [
-    {
-      title: 'Presupuestos',
-      subtitle: 'Pon un límite a tus gastos del mes.',
-      summary: summary?.budget,
-      icon: 'pie-chart-outline',
-      tone: colors.coralSoft,
-      color: colors.expense,
-      route: '/(app)/budgets',
-    },
-    {
-      title: 'Ahorros y metas',
-      subtitle: 'Registra cuánto llevas para cada objetivo.',
-      summary: summary?.saving,
-      icon: 'flag-outline',
-      tone: colors.successSoft,
-      color: colors.success,
-      route: '/(app)/savings',
-    },
-  ] as const;
+  const count = actionableAlerts(alerts.data ?? []).length;
+  const period = currentDashboardPeriod();
   return (
-    <Screen
-      scroll
-      refreshing={dashboard.isRefetching || alerts.isRefetching}
-      onRefresh={() => {
-        void dashboard.refetch();
-        void alerts.refetch();
-      }}
-    >
-      <View style={styles.content}>
-        <ScreenHeader
-          title="Explorar"
-          subtitle="Tu plan, tus reportes y tus herramientas, en un solo lugar."
+    <Screen scroll entry style={{ gap: spacing.lg }}>
+      <ScreenHeader title="Menú" subtitle="Tus herramientas, en un solo lugar." />
+      <Card style={{ paddingHorizontal: spacing.md }}>
+        <SettingsRow
+          icon="repeat-outline"
+          title="Ingresos y gastos fijos"
+          subtitle="Salario, servicios y próximas cuotas."
+          onPress={() => router.push('/(app)/recurrences')}
         />
-        <MotionPressable
-          accessibilityRole="button"
-          accessibilityLabel="Abrir reportes"
+        <SettingsRow
+          icon="stats-chart-outline"
+          title="Reportes"
+          subtitle="Entiende tus ingresos y gastos."
+          tone="info"
           onPress={() => router.push({ pathname: '/(app)/reports', params: period })}
-          style={styles.reports}
-        >
-          <View style={styles.reportsIcon}>
-            <Ionicons name="stats-chart" size={25} color={colors.secondary} />
-          </View>
-          <View style={styles.grow}>
-            <Text style={styles.reportsEyebrow}>ENTIENDE TUS NÚMEROS</Text>
-            <Text style={styles.reportsTitle}>Reportes y gráficas</Text>
-            <Text style={styles.reportsCopy}>Compara meses y descubre en qué gastas.</Text>
-          </View>
-          <Ionicons name="arrow-forward" size={20} color={colors.secondary} />
-        </MotionPressable>
+        />
+        <SettingsRow
+          icon="pie-chart-outline"
+          title="Presupuestos"
+          subtitle="Límites de gasto por categoría."
+          onPress={() => router.push({ pathname: '/(app)/budgets', params: period })}
+        />
+        <SettingsRow
+          icon="flag-outline"
+          title="Metas de ahorro"
+          subtitle="Objetivos y aportes."
+          onPress={() => router.push('/(app)/savings')}
+        />
+        <TourTarget id="plan-credits">
+          <SettingsRow
+            icon="card-outline"
+            title="Créditos"
+            subtitle="Saldos, cuotas y pagos."
+            tone="accent"
+            onPress={() => router.push('/(app)/credits')}
+          />
+        </TourTarget>
         <SettingsRow
           icon="notifications-outline"
           title="Alertas"
+          badge={count}
           subtitle={
-            summary?.alerts
-              ? `${summary.alerts}. Revisa qué necesita atención.`
-              : 'Avisos sobre cuotas y límites de gasto.'
+            alerts.isError
+              ? 'Abre para reintentar la consulta.'
+              : alerts.isPending
+                ? 'Consultando avisos…'
+                : count
+                  ? 'Hay asuntos por revisar.'
+                  : 'Sin avisos pendientes.'
           }
+          tone="warning"
           onPress={() => router.push('/(app)/alerts')}
         />
-        <Text accessibilityRole="header" style={[typography.sectionTitle, { color: palette.textPrimary }]}>
-          Planifica tus gastos y objetivos
+      </Card>
+      <View style={{ gap: spacing.sm }}>
+        <Text accessibilityRole="header" style={{ ...typography.label, color: colors.textSecondary }}>
+          Tu espacio
         </Text>
-        {destinations.map((item) => (
-          <MotionPressable
-            key={item.title}
-            accessibilityRole="button"
-            accessibilityLabel={`Abrir ${item.title.toLowerCase()}`}
-            onPress={() =>
-              router.push(
-                item.route === '/(app)/budgets' ? { pathname: item.route, params: period } : item.route,
-              )
-            }
-            style={[styles.module, { backgroundColor: palette.surface, borderColor: palette.border }]}
-          >
-            <View style={[styles.icon, { backgroundColor: item.tone }]}>
-              <Ionicons name={item.icon} size={27} color={item.color} />
-            </View>
-            <View style={styles.grow}>
-              <Text style={[typography.cardTitle, { color: palette.textPrimary }]}>{item.title}</Text>
-              <Text style={[typography.caption, { color: palette.textMuted }]}>{item.subtitle}</Text>
-              {item.summary && <Text style={styles.summary}>{item.summary}</Text>}
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={palette.primary} />
-          </MotionPressable>
-        ))}
-        <MotionEntry>
-          <CreditEntryCard summary={summary?.credit} tourId="plan-credits" />
-        </MotionEntry>
-        {dashboard.isError && (
-          <>
-            <Text style={typography.caption}>
-              No pudimos actualizar los resúmenes. Puedes abrir cada módulo para consultarlo.
-            </Text>
-            <Button variant="ghost" onPress={() => void dashboard.refetch()}>
-              Actualizar resumen
-            </Button>
-          </>
-        )}
-        <Text accessibilityRole="header" style={[typography.sectionTitle, { color: palette.textPrimary }]}>
-          Ayuda y preferencias
-        </Text>
-        <View style={[styles.guide, { backgroundColor: palette.primarySoft }]}>
-          <Ionicons name="compass-outline" size={28} color={colors.success} />
-          <Text style={[typography.sectionTitle, { color: palette.textPrimary }]}>¿Por dónde empiezo?</Text>
-          <Text style={[typography.bodySecondary, { color: palette.textSecondary }]}>
-            Conoce cada módulo con instrucciones cortas y ejemplos, a tu ritmo.
-          </Text>
-          <Button variant="secondary" onPress={() => router.push('/(app)/guide')}>
-            Abrir guía de inicio
-          </Button>
-        </View>
-        <SettingsRow
-          icon="person-circle-outline"
-          title="Perfil y ajustes"
-          subtitle="Categorías, apariencia, privacidad y sesiones."
-          onPress={() => router.push('/(app)/more')}
-        />
+        <Card style={{ paddingHorizontal: spacing.md }}>
+          <SettingsRow
+            icon="pricetags-outline"
+            title="Categorías"
+            subtitle="Organiza tus ingresos y gastos."
+            onPress={() => router.push('/(app)/categories')}
+          />
+          <SettingsRow
+            icon="settings-outline"
+            title="Perfil y ajustes"
+            subtitle="Apariencia y preferencias."
+            onPress={() => router.push('/(app)/more')}
+          />
+          <SettingsRow
+            icon="help-circle-outline"
+            title="Ayuda"
+            subtitle="Guías y ejemplos sencillos."
+            onPress={() => router.push('/(app)/guide')}
+          />
+        </Card>
       </View>
     </Screen>
   );
 }
-const styles = themedStyleSheet(() => ({
-  content: { gap: spacing.lg },
-  reports: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: '#0C343B',
-    borderRadius: radius.large,
-    borderWidth: 1,
-    borderColor: '#245E60',
-    padding: spacing.lg,
-    minHeight: 112,
-  },
-  reportsIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: '#20555A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reportsEyebrow: {
-    ...typography.caption,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: '#77E7C9',
-  },
-  reportsTitle: { ...typography.sectionTitle, color: '#FFFFFF' },
-  reportsCopy: { ...typography.caption, color: '#B5D4D6' },
-  module: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  grow: { flex: 1, minWidth: 0, gap: spacing.xs },
-  icon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  summary: { ...typography.caption, fontWeight: '600', color: colors.primary, marginTop: spacing.xs },
-  guide: {
-    borderRadius: radius.large,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-  },
-}));

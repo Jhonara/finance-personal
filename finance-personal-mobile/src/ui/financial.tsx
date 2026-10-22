@@ -17,12 +17,13 @@ import {
   type TransactionKind,
 } from './presentation';
 
-const toneColors = {
-  success: colors.success,
-  danger: colors.danger,
-  info: colors.info,
-  warning: colors.warning,
-} as const;
+const getToneColors = () =>
+  ({
+    success: colors.success,
+    danger: colors.danger,
+    info: colors.info,
+    warning: colors.warning,
+  }) as const;
 
 export function StatCard({
   label,
@@ -43,7 +44,7 @@ export function StatCard({
   currency?: string;
   compact?: boolean;
 }) {
-  const presentation = statTone[tone];
+  const presentation = getStatTones()[tone];
   return (
     <Card
       style={[
@@ -142,6 +143,7 @@ export function TransactionRow({
   onPress?: () => void;
 }) {
   const presentation = transactionPresentation[type];
+  const toneColors = getToneColors();
   const detail =
     subtitle === presentation.label || subtitle.startsWith(`${presentation.label} · `)
       ? subtitle
@@ -354,38 +356,39 @@ const styles = themedStyleSheet(() => ({
   },
 }));
 
-const statTone = {
-  primary: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primarySoft,
-    badgeColor: colors.surface,
-    color: colors.primary,
-  },
-  income: {
-    backgroundColor: colors.successSoft,
-    borderColor: colors.successSoft,
-    badgeColor: colors.surface,
-    color: colors.success,
-  },
-  expense: {
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.dangerSoft,
-    badgeColor: colors.surface,
-    color: colors.danger,
-  },
-  info: {
-    backgroundColor: colors.infoSoft,
-    borderColor: colors.infoSoft,
-    badgeColor: colors.surface,
-    color: colors.info,
-  },
-  neutral: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    badgeColor: colors.primarySoft,
-    color: colors.primary,
-  },
-} as const;
+const getStatTones = () =>
+  ({
+    primary: {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primarySoft,
+      badgeColor: colors.surface,
+      color: colors.primary,
+    },
+    income: {
+      backgroundColor: colors.successSoft,
+      borderColor: colors.successSoft,
+      badgeColor: colors.surface,
+      color: colors.success,
+    },
+    expense: {
+      backgroundColor: colors.dangerSoft,
+      borderColor: colors.dangerSoft,
+      badgeColor: colors.surface,
+      color: colors.danger,
+    },
+    info: {
+      backgroundColor: colors.infoSoft,
+      borderColor: colors.infoSoft,
+      badgeColor: colors.surface,
+      color: colors.info,
+    },
+    neutral: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      badgeColor: colors.primarySoft,
+      color: colors.primary,
+    },
+  }) as const;
 
 function accountTypeIcon(type: string): keyof typeof Ionicons.glyphMap {
   switch (type) {

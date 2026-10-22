@@ -41,7 +41,9 @@ const dark = {
   lavenderSoft: '#302C51',
   creditSoft: '#183E54',
   coralSoft: '#4A2B31',
+  coralStrong: '#F19AA4',
   brandMist: '#123D38',
+  brandGlow: 'rgba(121,230,198,0.07)',
 } satisfies Record<keyof typeof colors, string>;
 
 type ThemeValue = {

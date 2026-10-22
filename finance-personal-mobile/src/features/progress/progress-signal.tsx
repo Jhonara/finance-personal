@@ -121,7 +121,7 @@ const styles = themedStyleSheet(() => ({
   content: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md },
   copy: { flex: 1, gap: spacing.xs },
   eyebrow: { ...typography.caption, fontSize: 10, lineHeight: 14, color: colors.success, fontWeight: '700' },
-  title: { ...typography.label, color: colors.primaryStrong, fontSize: 13, lineHeight: 18 },
+  title: { ...typography.label, color: colors.textPrimary, fontSize: 13, lineHeight: 18 },
   amount: { ...typography.moneySmall, color: colors.success, fontSize: 16, lineHeight: 21 },
   supporting: { ...typography.caption, color: colors.textPrimary, lineHeight: 17 },
   link: { ...typography.caption, color: colors.success, fontWeight: '700', paddingTop: spacing.xs },

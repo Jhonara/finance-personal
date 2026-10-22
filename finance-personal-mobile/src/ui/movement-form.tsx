@@ -41,7 +41,7 @@ export function MovementFormHeader({ title, onBack }: { title: string; onBack():
         onPress={onBack}
         style={styles.back}
       >
-        <Ionicons name="arrow-back" size={22} color={colors.primaryStrong} />
+        <Ionicons name="arrow-back" size={22} color={colors.primary} />
       </MotionPressable>
       <BrandMark size={31} />
       <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={styles.headerTitle}>
@@ -154,7 +154,7 @@ const styles = themedStyleSheet(() => ({
     justifyContent: 'center',
     backgroundColor: colors.surface,
   },
-  headerTitle: { ...typography.cardTitle, flex: 1, color: colors.primaryStrong },
+  headerTitle: { ...typography.cardTitle, flex: 1, color: colors.textPrimary },
   intro: {
     flexDirection: 'row',
     alignItems: 'center',

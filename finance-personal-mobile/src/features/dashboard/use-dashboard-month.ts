@@ -13,5 +13,6 @@ export function useDashboardMonth(period: DashboardPeriod) {
     queryFn: ({ queryKey, signal }) => getDashboardMonth(Number(queryKey[1]), Number(queryKey[2]), signal),
     placeholderData: undefined,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 }

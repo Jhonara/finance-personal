@@ -35,7 +35,7 @@ export function presentSavingGoal(goal: SavingGoal, progress = goal.progress) {
 export type PresentedSavingGoal = ReturnType<typeof presentSavingGoal>;
 
 export function savingsAccessibility(goal: PresentedSavingGoal, hidden: boolean) {
-  return `${goal.name}. ${goal.percentageLabel.replace('%', ' por ciento completado')}. ${goal.status}. ${goal.currency ?? 'Moneda por definir'}. ${hidden ? 'Importes ocultos.' : `${savingsAmount(goal.currentAmount, false, goal.currency)} ahorrados de ${savingsAmount(goal.targetAmount, false, goal.currency)}. Te faltan ${savingsAmount(goal.remaining, false, goal.currency)}.`}`;
+  return `${goal.name}. ${goal.status}. ${goal.currency ?? 'Moneda por definir'}. ${hidden ? 'Importes ocultos.' : `${goal.percentageLabel.replace('%', ' por ciento completado')}. ${savingsAmount(goal.currentAmount, false, goal.currency)} ahorrados de ${savingsAmount(goal.targetAmount, false, goal.currency)}. Te faltan ${savingsAmount(goal.remaining, false, goal.currency)}.`}`;
 }
 
 export function savingsSummary(goals: SavingGoal[]) {

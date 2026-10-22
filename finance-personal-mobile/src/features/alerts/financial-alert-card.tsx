@@ -111,7 +111,11 @@ export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: C
         <Text style={typography.bodySecondary}>{item.description}</Text>
         {item.target && (
           <Button variant="secondary" disabled={busy} onPress={() => void run('open')}>
-            {item.target.kind === 'credit' ? 'Ver crédito' : 'Ver presupuesto'}
+            {item.target.kind === 'credit'
+              ? 'Ver crédito'
+              : item.target.kind === 'recurrence'
+                ? 'Revisar programados'
+                : 'Ver presupuesto'}
           </Button>
         )}
         {item.seen && (

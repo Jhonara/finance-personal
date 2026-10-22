@@ -18,14 +18,20 @@ export function Progress({
   const reduced = useReducedMotion();
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   const progress = useRef(new Animated.Value(clamped)).current;
+  const entered = useRef(false);
   useEffect(() => {
     if (reduced || !animated) {
       progress.setValue(clamped);
       return;
     }
+    const entering = !entered.current;
+    if (entering) {
+      progress.setValue(0);
+      entered.current = true;
+    }
     const animation = Animated.timing(progress, {
       toValue: clamped,
-      duration: motion.slow,
+      duration: entering ? 600 : motion.slow,
       easing: motion.ease,
       useNativeDriver: false,
     });

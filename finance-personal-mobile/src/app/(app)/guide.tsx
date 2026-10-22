@@ -144,7 +144,7 @@ function GuideJourney({
           </Text>
         </LinearGradient>
         <Text style={typography.caption}>
-          Puedes salir cuando quieras y retomar desde Inicio, Explorar o Perfil y ajustes.
+          Puedes salir cuando quieras y retomar desde Inicio, Menú o Perfil y ajustes.
         </Text>
         <JourneyScene revision={selected}>
           <Card style={styles.chapter}>

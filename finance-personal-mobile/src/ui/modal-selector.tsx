@@ -68,7 +68,7 @@ export function ModalSelector({
                   onPress={sheetMotion.close}
                   style={styles.close}
                 >
-                  <Ionicons name="close" size={20} color={colors.primaryStrong} />
+                  <Ionicons name="close" size={20} color={colors.primary} />
                 </MotionPressable>
               </View>
               {loading ? (
@@ -166,7 +166,7 @@ const styles = themedStyleSheet(() => ({
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   heading: { flex: 1, gap: spacing.xxs },
-  title: { ...typography.sectionTitle, color: colors.primaryStrong },
+  title: { ...typography.sectionTitle, color: colors.textPrimary },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   close: {
     width: 38,
@@ -198,7 +198,7 @@ const styles = themedStyleSheet(() => ({
     justifyContent: 'center',
   },
   optionCopy: { flex: 1, gap: spacing.xxs },
-  optionTitle: { ...typography.label, color: colors.primaryStrong },
+  optionTitle: { ...typography.label, color: colors.textPrimary },
   optionSubtitle: { ...typography.caption, color: colors.textSecondary },
   optionSelected: { backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.success },
   optionTextSelected: { color: colors.primary, fontWeight: '700' },

@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/v1/recurrences/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateRecurringRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/credits/{id}": {
         parameters: {
             query?: never;
@@ -98,6 +114,54 @@ export interface paths {
          * @description Registra un nuevo aporte a una meta de ahorro existente.
          */
         post: operations["addMovement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listRecurringRules"];
+        put?: never;
+        post: operations["createRecurringRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurrences/{id}/occurrences/{date}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["skip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurrences/{id}/occurrences/{date}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -510,6 +574,22 @@ export interface paths {
         patch: operations["assignCurrency"];
         trace?: never;
     };
+    "/api/v1/recurrences/{id}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["active"];
+        trace?: never;
+    };
     "/api/v1/categories/{id}": {
         parameters: {
             query?: never;
@@ -642,6 +722,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["month"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurrences/agenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["agenda"];
         put?: never;
         post?: never;
         delete?: never;
@@ -894,6 +990,65 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SaveRecurringRuleRequest: {
+            name: string;
+            /** @enum {string} */
+            kind: "INCOME" | "EXPENSE";
+            /** @enum {string} */
+            frequency: "WEEKLY" | "BIWEEKLY" | "SEMIMONTHLY" | "MONTHLY";
+            /** @enum {string} */
+            mode: "AUTOMATIC" | "CONFIRM";
+            amount: number;
+            /** Format: int64 */
+            accountId: number;
+            /** Format: int64 */
+            categoryId?: number;
+            timeZone: string;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string;
+            /** Format: int32 */
+            firstDay?: number;
+            /** Format: int32 */
+            secondDay?: number;
+            requestKey: string;
+            /** Format: int64 */
+            version?: number;
+        };
+        RecurringRuleResponse: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            /** @enum {string} */
+            kind?: "INCOME" | "EXPENSE";
+            /** @enum {string} */
+            frequency?: "WEEKLY" | "BIWEEKLY" | "SEMIMONTHLY" | "MONTHLY";
+            /** @enum {string} */
+            mode?: "AUTOMATIC" | "CONFIRM";
+            amount?: number;
+            /** Format: int64 */
+            accountId?: number;
+            accountName?: string;
+            /** Format: int64 */
+            categoryId?: number;
+            currency?: string;
+            timeZone?: string;
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string;
+            /** Format: int32 */
+            firstDay?: number;
+            /** Format: int32 */
+            secondDay?: number;
+            /** Format: date */
+            nextDate?: string;
+            active?: boolean;
+            /** Format: int64 */
+            version?: number;
+            requestKey?: string;
+        };
         UpdateCreditRequest: {
             /**
              * @description Nombre o descripción del crédito.
@@ -1121,6 +1276,36 @@ export interface components {
              * @example 2026-07-22
              */
             movementDate: string;
+        };
+        /** @description PLANNED and PENDING never affect balances or reports. */
+        RecurringEntryResponse: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            ruleId?: number;
+            name?: string;
+            /** @enum {string} */
+            kind?: "INCOME" | "EXPENSE";
+            /** @enum {string} */
+            mode?: "AUTOMATIC" | "CONFIRM";
+            /** Format: date */
+            dueDate?: string;
+            amount?: number;
+            currency?: string;
+            /** Format: int64 */
+            accountId?: number;
+            accountName?: string;
+            status?: string;
+            issue?: string;
+            /** Format: int64 */
+            transactionId?: number;
+            /** Format: date */
+            recordedDate?: string;
+        };
+        ConfirmRecurringEntryRequest: {
+            amount: number;
+            /** Format: date */
+            date: string;
         };
         /** @description Información necesaria para registrar un nuevo ingreso. */
         CreateIncomeRequest: {
@@ -1788,6 +1973,11 @@ export interface components {
         AssignSavingCurrencyRequest: {
             currency: string;
         };
+        SetRecurringActiveRequest: {
+            active: boolean;
+            /** Format: int64 */
+            version: number;
+        };
         /** @description Metadatos editables de una categoría. El tipo es inmutable. */
         UpdateCategoryRequest: {
             name?: string;
@@ -1868,6 +2058,9 @@ export interface components {
             expensesByCategory?: {
                 [key: string]: number;
             };
+        };
+        RecurringAgendaResponse: {
+            entries?: components["schemas"]["RecurringEntryResponse"][];
         };
         /** @description Perfil seguro del usuario autenticado actual. */
         CurrentUserResponse: {
@@ -2514,6 +2707,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    updateRecurringRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveRecurringRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringRuleResponse"];
+                };
+            };
+        };
+    };
     findById: {
         parameters: {
             query?: never;
@@ -2792,6 +3011,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
+    listRecurringRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringRuleResponse"][];
+                };
+            };
+        };
+    };
+    createRecurringRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveRecurringRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringRuleResponse"];
+                };
+            };
+        };
+    };
+    skip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringEntryResponse"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRecurringEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringEntryResponse"];
                 };
             };
         };
@@ -3692,6 +4005,32 @@ export interface operations {
             };
         };
     };
+    active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetRecurringActiveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringRuleResponse"];
+                };
+            };
+        };
+    };
     get: {
         parameters: {
             query?: never;
@@ -4073,6 +4412,29 @@ export interface operations {
                     "*/*": {
                         [key: string]: components["schemas"]["MonthlyCurrencyReport"];
                     };
+                };
+            };
+        };
+    };
+    agenda: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringAgendaResponse"];
                 };
             };
         };

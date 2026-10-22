@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   write: vi.fn(),
   hidden: false,
+  focusVersion: 0,
   params: { id: '1' } as Record<string, string>,
 }));
 
@@ -100,7 +101,8 @@ vi.mock('expo-linear-gradient', () => ({
     React.createElement('Gradient', undefined, children),
 }));
 vi.mock('expo-router', () => ({
-  useFocusEffect: (effect: () => void | (() => void)) => React.useEffect(effect, [effect]),
+  useFocusEffect: (effect: () => void | (() => void)) =>
+    React.useEffect(effect, [effect, mocks.focusVersion]),
   router: { push: mocks.push, replace: mocks.replace, back: vi.fn() },
   useLocalSearchParams: () => mocks.params,
 }));
@@ -127,6 +129,7 @@ import NewExpenseScreen from '@/app/(app)/new-expense';
 import NewIncomeScreen from '@/app/(app)/new-income';
 import HomeScreen from '@/app/(app)/index';
 import TransactionsScreen from '@/app/(app)/transactions';
+import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
 import { FinancialProgressSection, ProgressSignal } from '@/features/progress/progress-signal';
 import { financialProgress } from '@/features/progress/financial-progress';
 import { secondaryKeys } from '@/features/secondary/use-secondary';
@@ -208,6 +211,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   mocks.hidden = false;
+  mocks.focusVersion = 0;
   mocks.params = { id: '1' };
   trees = [];
   stored = new Map();
@@ -734,7 +738,7 @@ it('keeps November authoritative when September and October resolve out of order
       expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 9 }))?.status).toBe('success'),
     );
     expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 11');
-    expect(textContent(tree.toJSON())).toContain('Panorama financiero');
+    expect(textContent(tree.toJSON())).toContain('Tus saldos de hoy');
     expect(textContent(tree.toJSON())).toContain('Noviembre de 2026');
     expect(textContent(tree.toJSON())).toContain('11% utilizado');
     expect(textContent(tree.toJSON())).toContain('Movimiento mes 11');
@@ -761,6 +765,8 @@ it('keeps November authoritative when September and October resolve out of order
       expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 9 }))?.status).toBe('success'),
     );
     expect(textContent(tree.toJSON()).toLowerCase()).toContain('septiembre de 2026');
+    await act(async () => press(tree, 'Saldos por cuenta'));
+    await act(async () => press(tree, 'Tu plan y avances'));
     expect(textContent(tree.toJSON())).toContain('Cuenta mes 9');
     expect(textContent(tree.toJSON())).toContain('9% utilizado');
     expect(textContent(tree.toJSON())).toContain('Movimiento mes 9');
@@ -1022,6 +1028,78 @@ describe('Para ti on Home', () => {
       ),
     );
   });
+  it('keeps the budget month chosen by the user when returning to the screen', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    mocks.get.mockResolvedValue({ data: [] });
+    const tree = await render(<BudgetsScreen />);
+    await act(async () => press(tree, 'Mes siguiente'));
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith(
+        '/budgets',
+        expect.objectContaining({ params: { year: 2026, month: 3 } }),
+      ),
+    );
+    mocks.focusVersion += 1;
+    await act(async () =>
+      tree.update(
+        <QueryClientProvider client={client}>
+          <BudgetsScreen />
+        </QueryClientProvider>,
+      ),
+    );
+    expect(textContent(tree.toJSON())).toContain('Mar de 2026');
+  });
+  it('keeps applied movement filters on return and preserves cached history after a failed refresh', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation(async (url, options) =>
+      url === '/transactions'
+        ? {
+            data: {
+              content: [
+                {
+                  id: 8,
+                  type: 'EXPENSE',
+                  amount: 25,
+                  currency: 'COP',
+                  description: 'Compra de prueba',
+                  date: '2026-02-18',
+                },
+              ],
+              last: true,
+            },
+          }
+        : originalGet(url, options),
+    );
+    const tree = await render(<TransactionsScreen />);
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Compra de prueba'));
+    await act(async () =>
+      tree.root
+        .findByType(TransactionFiltersModal)
+        .props.onApply({ year: 2026, month: 2, type: 'EXPENSE', accountId: 1 }),
+    );
+    await settled(() => expect(tree.root.findAllByType(TransactionFiltersModal)).toHaveLength(1));
+    mocks.focusVersion += 1;
+    await act(async () =>
+      tree.update(
+        <QueryClientProvider client={client}>
+          <TransactionsScreen />
+        </QueryClientProvider>,
+      ),
+    );
+    expect(tree.root.findByType(TransactionFiltersModal).props.filters).toEqual({
+      year: 2026,
+      month: 2,
+      type: 'EXPENSE',
+      accountId: 1,
+    });
+    mocks.get.mockRejectedValue(new Error('Offline'));
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['transactions'] });
+    });
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Sigues viendo el historial guardado'));
+    expect(textContent(tree.toJSON())).toContain('Compra de prueba');
+  });
   it('opens movements in the selected month and accepts a new period on the retained screen', async () => {
     mocks.params = { year: '2026', month: '2' };
     const tree = await render(<TransactionsScreen />);
@@ -1129,7 +1207,7 @@ describe('Home visual hub', () => {
     const tree = await render(<HomeScreen />);
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
     const content = textContent(tree.toJSON());
-    expect(content).toContain('Capital pendiente de tus créditos');
+    expect(content).toContain('Créditos por pagar');
     expect(content).toContain(formatPrivateMoney(45000000, 'COP', false));
     expect(content).not.toContain('Tu dinero empieza aquí.');
     await act(async () => press(tree, 'Ver créditos desde el panorama'));
@@ -1209,14 +1287,17 @@ describe('Home visual hub', () => {
     const content = textContent(tree.toJSON());
     expect(content).toContain('Dinero en tus cuentas');
     expect(content).toContain(formatPrivateMoney(3013778, 'COP', false));
-    expect(content).toContain('Capital pendiente de tus créditos');
+    expect(content).toContain('Créditos por pagar');
     expect(content).toContain(formatPrivateMoney(91303485.93, 'COP', false));
     expect(content).toContain('Cuotas vencidas estimadas');
     expect(content).toContain(formatPrivateMoney(3580111.6, 'COP', false));
     expect(content).not.toContain(formatPrivateMoney(-88289707.93, 'COP', false));
     expect(content).not.toContain('Balance registrado');
     expect(content.match(/Cuotas vencidas estimadas/g)).toHaveLength(1);
-    expect(content).toContain('Sin saldo ni capital pendiente en USD');
+    expect(content).not.toContain('Sin saldo ni capital pendiente en USD');
+    await act(async () => press(tree, 'Saldos en USD'));
+    expect(textContent(tree.toJSON())).toContain('Sin saldo ni capital pendiente en USD');
+    await act(async () => press(tree, 'Saldos en COP'));
     await act(async () => press(tree, 'Ver cuentas desde el panorama'));
     expect(mocks.push).toHaveBeenLastCalledWith('/(app)/accounts');
     await act(async () => press(tree, 'Ver créditos desde el panorama'));
@@ -1259,6 +1340,10 @@ describe('Home visual hub', () => {
     };
     const tree = await render(<HomeScreen />);
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    expect(tree.root.findAllByType(HomeModules)).toHaveLength(0);
+    expect(tree.root.findAllByType(HomeAccountPreview)).toHaveLength(0);
+    await act(async () => press(tree, 'Tu plan y avances'));
+    await act(async () => press(tree, 'Saldos por cuenta'));
     expect(
       tree.root.findByType(HomeModules).findAll((node) => (node.type as unknown) === 'Pressable'),
     ).toHaveLength(2);
@@ -1270,12 +1355,12 @@ describe('Home visual hub', () => {
     ).toHaveLength(0);
     const content = textContent(tree.toJSON());
     const titles = [
-      'Panorama financiero',
+      'Tus saldos de hoy',
       'Balance del mes',
       'Tu plan',
       'Para ti',
       'Mis cuentas',
-      'Movimientos de',
+      'Últimos movimientos',
     ];
     const positions = titles.map((title) => content.indexOf(title));
     expect(positions.every((value) => value >= 0)).toBe(true);
@@ -1300,10 +1385,11 @@ describe('Home visual hub', () => {
     const tree = await render(<HomeScreen />);
     await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
     expect(textContent(tree.toJSON())).toContain('Tu plan');
+    await act(async () => press(tree, 'Tu plan y avances'));
     expect(textContent(tree.toJSON())).toContain('38% utilizado');
     expect(textContent(tree.toJSON())).toContain('Tienes un aviso por revisar');
     expect(textContent(tree.toJSON()).indexOf('Tienes un aviso por revisar')).toBeLessThan(
-      textContent(tree.toJSON()).indexOf('Panorama financiero'),
+      textContent(tree.toJSON()).indexOf('Tus saldos de hoy'),
     );
     for (const [label, target] of [
       ['Ver ahorros', '/(app)/savings'],
@@ -1335,7 +1421,7 @@ describe('Home visual hub', () => {
     expect(content).toContain('Tu dinero empieza aquí.');
     expect(content).toContain('Crear mi primera cuenta');
     expect(content).toContain('Configura tus finanzas');
-    expect(content).not.toContain('Panorama financiero');
+    expect(content).not.toContain('Tus saldos de hoy');
     expect(content).not.toContain('Este mes');
     expect(content).not.toContain('Tu plan');
     expect(content).not.toContain('Para ti');
@@ -1355,11 +1441,15 @@ describe('Home visual hub', () => {
       expect(client.getQueryData(['onboarding', 'ordinary-movement-exists', 'INCOME'])).toBeDefined(),
     );
     const content = textContent(tree.toJSON());
-    expect(content).toContain('Panorama financiero');
+    expect(content).toContain('Tus saldos de hoy');
     expect(content).toContain('Registrar mi primer movimiento');
     expect(content).toContain('Tu plan');
-    expect(content).not.toContain('Ingresos');
-    expect(content).not.toContain('Gastos');
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'Text' && textContent(node) === 'Ingresos'),
+    ).toHaveLength(0);
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'Text' && textContent(node) === 'Gastos'),
+    ).toHaveLength(0);
     expect(content).not.toContain('Flujo neto');
     await act(async () => press(tree, 'Registrar mi primer movimiento'));
     expect(mocks.quickOpen).toHaveBeenCalledOnce();

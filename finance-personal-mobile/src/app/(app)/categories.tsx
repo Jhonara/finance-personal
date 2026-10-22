@@ -345,7 +345,7 @@ const styles = themedStyleSheet(() => ({
     borderRadius: radius.pill,
   },
   tabActive: { backgroundColor: colors.primaryStrong },
-  tabText: { ...typography.label, color: colors.primaryStrong },
+  tabText: { ...typography.label, color: colors.textPrimary },
   tabTextActive: { color: '#FFFFFF' },
   section: { gap: spacing.md },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },

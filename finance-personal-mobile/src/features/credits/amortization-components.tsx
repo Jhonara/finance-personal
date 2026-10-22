@@ -81,7 +81,7 @@ export function AmortizationSchedule({
             setVisible(5);
           }}
         >
-          <Text style={[typography.label, !extrasOnly && styles.selectedNumber]}>Todas</Text>
+          <Text style={[typography.label, !extrasOnly && styles.selectedFilterText]}>Todas</Text>
         </MotionPressable>
         {extraCount > 0 ? (
           <MotionPressable
@@ -94,7 +94,7 @@ export function AmortizationSchedule({
               setVisible(5);
             }}
           >
-            <Text style={[typography.label, extrasOnly && styles.selectedNumber]}>
+            <Text style={[typography.label, extrasOnly && styles.selectedFilterText]}>
               Con abono · {extraCount}
             </Text>
           </MotionPressable>
@@ -315,6 +315,7 @@ const styles = themedStyleSheet(() => ({
   selectedBadge: { backgroundColor: colors.success },
   number: { ...typography.label, color: colors.credit },
   selectedNumber: { color: colors.background },
+  selectedFilterText: { color: '#FFFFFF' },
   balanceStrip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -325,7 +326,7 @@ const styles = themedStyleSheet(() => ({
   },
   amountStrip: { flexDirection: 'row', gap: spacing.md },
   metric: { flex: 1, minWidth: 0, gap: spacing.xxs },
-  amount: { ...typography.label, color: colors.primaryStrong, flexShrink: 1 },
+  amount: { ...typography.label, color: colors.textPrimary, flexShrink: 1 },
   extraStrip: {
     flexDirection: 'row',
     alignItems: 'center',

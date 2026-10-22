@@ -248,7 +248,7 @@ describe('Savings list', () => {
       params: { id: '1', contribute: '1' },
     });
   });
-  it('keeps long names and percentage accessible while hiding amounts', async () => {
+  it('keeps long names accessible while hiding amounts and financial progress', async () => {
     mocks.hidden = true;
     goals = [
       {
@@ -268,11 +268,11 @@ describe('Savings list', () => {
         .map((node) => node.props.accessibilityLabel)
         .join(' '),
     ).not.toContain('500.000.000.000');
-    expect(text(tree.toJSON())).toContain('40,5%');
+    expect(text(tree.toJSON())).not.toContain('40,5%');
     const progress = tree.root.findAll(
       (node) => (node.type as unknown) === 'View' && node.props.accessibilityRole === 'progressbar',
-    )[0]!;
-    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 40.5 });
+    );
+    expect(progress).toHaveLength(0);
   });
   it('shows the introductory context only once per user', async () => {
     const tree = await render(<SavingsScreen />);
@@ -404,7 +404,7 @@ it('keeps exactly five visible tabs and all Savings routes internal', async () =
   const routes = tree.root.findAll((node) => (node.type as unknown) === 'TabRoute');
   expect(
     routes.filter((route) => route.props.options.href !== null).map((route) => route.props.options.title),
-  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Explorar']);
+  ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Menú']);
   const shell = tree.root.find((node) => (node.type as unknown) === 'Tabs');
   expect(shell.props.screenOptions.tabBarStyle).toMatchObject({ height: 88, paddingBottom: 24 });
   const movements = routes.find((route) => route.props.name === 'transactions');

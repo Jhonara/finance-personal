@@ -1,7 +1,7 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, View, useWindowDimensions } from 'react-native';
+import { Text, View } from 'react-native';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
@@ -12,7 +12,7 @@ import { MotionPressable } from '@/ui/motion';
 type Account = NonNullable<DashboardMonth['accounts']>[number];
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const appearances: Record<
+const getAppearances = (): Record<
   NonNullable<Account['type']>,
   {
     icon: IconName;
@@ -21,50 +21,50 @@ const appearances: Record<
     ink: string;
     badge: string;
   }
-> = {
+> => ({
   BANK: {
     icon: 'business-outline',
-    start: colors.primaryStrong,
-    end: colors.primary,
-    ink: colors.surface,
+    start: colors.heroStart,
+    end: colors.heroEnd,
+    ink: '#FFFFFF',
     badge: colors.heroSoft,
   },
   CASH: {
     icon: 'cash-outline',
     start: colors.warningSoft,
     end: colors.surface,
-    ink: colors.primaryStrong,
+    ink: colors.textPrimary,
     badge: colors.warningSoft,
   },
   DIGITAL_WALLET: {
     icon: 'phone-portrait-outline',
     start: colors.infoSoft,
     end: colors.surface,
-    ink: colors.primaryStrong,
+    ink: colors.textPrimary,
     badge: colors.infoSoft,
   },
   SAVINGS: {
     icon: 'leaf-outline',
     start: colors.secondarySoft,
     end: colors.surface,
-    ink: colors.primaryStrong,
+    ink: colors.textPrimary,
     badge: colors.secondarySoft,
   },
   INVESTMENT: {
     icon: 'trending-up-outline',
     start: colors.lavenderSoft,
     end: colors.surface,
-    ink: colors.primaryStrong,
+    ink: colors.textPrimary,
     badge: colors.lavenderSoft,
   },
   OTHER: {
     icon: 'wallet-outline',
     start: colors.surfaceSecondary,
     end: colors.surface,
-    ink: colors.primaryStrong,
+    ink: colors.textPrimary,
     badge: colors.primarySoft,
   },
-};
+});
 
 export function HomeAccountPreview({
   account,
@@ -77,9 +77,8 @@ export function HomeAccountPreview({
   compact: boolean;
   onPress?: () => void;
 }) {
-  const { width } = useWindowDimensions();
-  const cardWidth = compact ? width - spacing.lg * 2 : (width - spacing.lg * 2 - spacing.sm) / 2;
-  const appearance = appearances[account.type ?? 'OTHER'];
+  const cardWidth = compact ? ('100%' as const) : ('48%' as const);
+  const appearance = getAppearances()[account.type ?? 'OTHER'];
   const label = accountTypeLabel(account.type);
   const shortLabel = account.type === 'DIGITAL_WALLET' ? 'BILLETERA' : label.toUpperCase();
   const amount =

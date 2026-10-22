@@ -65,7 +65,7 @@ export function TransactionDetailSheet({
                   onPress={sheetMotion.close}
                   style={styles.close}
                 >
-                  <Ionicons name="close" size={19} color={colors.primaryStrong} />
+                  <Ionicons name="close" size={19} color={colors.primary} />
                 </MotionPressable>
               </View>
               <ScrollView contentContainerStyle={styles.fields}>
@@ -167,7 +167,7 @@ const styles = themedStyleSheet(() => ({
   amount: { ...typography.moneyLarge, fontSize: 26, lineHeight: 34 },
   amountContext: { ...typography.caption, color: colors.textSecondary },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  dateText: { ...typography.bodySecondary, color: colors.primaryStrong },
+  dateText: { ...typography.bodySecondary, color: colors.textPrimary },
   field: {
     gap: spacing.xxs,
     paddingVertical: spacing.sm,
@@ -182,5 +182,5 @@ const styles = themedStyleSheet(() => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  doneText: { ...typography.label, color: colors.primaryStrong, fontWeight: '700' },
+  doneText: { ...typography.label, color: colors.textPrimary, fontWeight: '700' },
 }));

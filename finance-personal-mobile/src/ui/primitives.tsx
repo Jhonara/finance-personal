@@ -1,7 +1,14 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionPressable, ScreenEntry } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMemo, useRef, useState, type ComponentProps, type PropsWithChildren } from 'react';
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type PropsWithChildren,
+  type RefObject,
+} from 'react';
 import { TourScrollContext, useTour } from '@/features/onboarding/tour-context';
 import {
   ActivityIndicator,
@@ -33,6 +40,7 @@ export function Screen({
   refreshing,
   onRefresh,
   entry = false,
+  scrollRef: externalScrollRef,
 }: PropsWithChildren<{
   scroll?: boolean;
   padded?: boolean;
@@ -41,6 +49,7 @@ export function Screen({
   refreshing?: boolean;
   onRefresh?: () => void;
   entry?: boolean;
+  scrollRef?: RefObject<ScrollView | null>;
 }>) {
   const tour = useTour();
   const { palette } = useAppTheme();
@@ -52,6 +61,7 @@ export function Screen({
     <ScrollContainer
       ref={(instance) => {
         scrollRef.current = instance;
+        if (externalScrollRef) externalScrollRef.current = instance;
       }}
       {...(keyboard ? { bottomOffset: 24 } : {})}
       onScroll={(event) => {
@@ -104,6 +114,7 @@ export function Button({
   disabled = false,
   onPress,
   accessibilityLabel,
+  style,
 }: PropsWithChildren<{
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'regular' | 'compact';
@@ -112,6 +123,7 @@ export function Button({
   disabled?: boolean;
   onPress?: () => void;
   accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 }>) {
   const blocked = isButtonDisabled(disabled, loading);
   const { palette } = useAppTheme();
@@ -130,6 +142,7 @@ export function Button({
         variant === 'secondary' && secondaryToneStyles[tone],
         variant === 'outline' && tone === 'danger' && { borderColor: colors.danger },
         size === 'compact' && styles.buttonCompact,
+        style,
         (pressed || blocked) && styles.buttonPressed,
         blocked && styles.buttonDisabled,
       ]}
@@ -428,7 +441,7 @@ const styles = themedStyleSheet(() => ({
     borderRadius: radius.pill,
   },
   button_ghost: { backgroundColor: 'transparent' },
-  button_danger: { backgroundColor: colors.danger, borderRadius: radius.pill },
+  button_danger: { backgroundColor: colors.dangerSolid, borderRadius: radius.pill },
   buttonCompact: { minHeight: 44, paddingHorizontal: spacing.lg },
   buttonPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   buttonDisabled: { opacity: 0.48 },
@@ -487,25 +500,25 @@ const styles = themedStyleSheet(() => ({
   },
 }));
 
-const secondaryToneStyles = {
+const secondaryToneStyles = themedStyleSheet(() => ({
   primary: { backgroundColor: colors.primarySoft },
   warning: { backgroundColor: colors.warningSoft },
   info: { backgroundColor: colors.infoSoft },
   success: { backgroundColor: colors.successSoft },
   danger: { backgroundColor: colors.dangerSoft },
   accent: { backgroundColor: colors.accentSoft },
-} as const;
+}));
 
-const secondaryToneTextStyles = {
+const secondaryToneTextStyles = themedStyleSheet(() => ({
   primary: { color: colors.primary },
   warning: { color: colors.warning },
   info: { color: colors.info },
   success: { color: colors.success },
   danger: { color: colors.danger },
   accent: { color: colors.accent },
-} as const;
+}));
 
-const cardToneStyles = {
+const cardToneStyles = themedStyleSheet(() => ({
   default: {},
   tonal: { backgroundColor: colors.surfaceSecondary },
   success: { backgroundColor: colors.successSoft, borderColor: colors.successSoft },
@@ -513,4 +526,4 @@ const cardToneStyles = {
   warning: { backgroundColor: colors.warningSoft, borderColor: colors.warningSoft },
   info: { backgroundColor: colors.infoSoft, borderColor: colors.infoSoft },
   accent: { backgroundColor: colors.accentSoft, borderColor: colors.accentSoft },
-} as const;
+}));

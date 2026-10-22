@@ -27,7 +27,7 @@ const styles = themedStyleSheet(() => ({
   text: { ...typography.caption, fontWeight: '600' },
 }));
 
-const toneStyles = {
+const toneStyles = themedStyleSheet(() => ({
   neutral: { backgroundColor: colors.surfaceSecondary },
   primary: { backgroundColor: colors.primarySoft },
   success: { backgroundColor: colors.successSoft },
@@ -36,9 +36,9 @@ const toneStyles = {
   info: { backgroundColor: colors.infoSoft },
   accent: { backgroundColor: colors.accentSoft },
   coral: { backgroundColor: colors.coralSoft },
-} as const;
+}));
 
-const toneTextStyles = {
+const toneTextStyles = themedStyleSheet(() => ({
   neutral: { color: colors.textSecondary },
   primary: { color: colors.primary },
   success: { color: colors.success },
@@ -47,4 +47,4 @@ const toneTextStyles = {
   info: { color: colors.info },
   accent: { color: colors.accent },
   coral: { color: colors.coralStrong },
-} as const;
+}));

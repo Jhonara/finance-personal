@@ -1,8 +1,8 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
-import { useCallback, useState } from 'react';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,7 +13,6 @@ import {
   shiftDashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
 import { budgetMessage, budgetOverview } from '@/features/budgets/budget-presentation';
-import { PlanTabs } from '@/features/budgets/plan-tabs';
 import { useBudgets } from '@/features/secondary/use-secondary';
 import type { Budget } from '@/features/secondary/secondary-api';
 import { usePrivacy } from '@/privacy/privacy-provider';
@@ -74,14 +73,17 @@ function BudgetCategoryCard({
           <Text style={typography.bodySecondary}>Gastado</Text>
           <Text style={typography.moneySmall}>{amount(budget.spentAmount, hidden)}</Text>
         </View>
-        <Progress
-          value={budget.percentageUsed ?? 0}
-          color={tone}
-          label={`${budget.categoryName ?? 'Presupuesto'} utilizado`}
-        />
+        {!hidden ? (
+          <Progress
+            value={budget.percentageUsed ?? 0}
+            color={tone}
+            label={`${budget.categoryName ?? 'Presupuesto'} utilizado`}
+          />
+        ) : null}
         <View style={styles.amountRow}>
           <Text style={[typography.caption, { color: tone }]}>
-            {label} · {Math.round(budget.percentageUsed ?? 0)}%
+            {label}
+            {!hidden ? ` · ${Math.round(budget.percentageUsed ?? 0)}%` : ''}
           </Text>
           <Text style={typography.caption}>
             {exceeded ? 'Exceso' : 'Margen'} {amount(Math.abs(budget.remainingAmount ?? 0), hidden)}
@@ -97,12 +99,10 @@ export default function BudgetsScreen() {
   const [period, setPeriod] = useState(
     () => dashboardPeriodFromParams(year, month) ?? currentDashboardPeriod(),
   );
-  useFocusEffect(
-    useCallback(() => {
-      const requested = dashboardPeriodFromParams(year, month);
-      if (requested) setPeriod(requested);
-    }, [year, month]),
-  );
+  useEffect(() => {
+    const requested = dashboardPeriodFromParams(year, month);
+    if (requested) setPeriod(requested);
+  }, [year, month]);
   const query = useBudgets(period.year, period.month);
   const { width, fontScale } = useWindowDimensions();
   const compact = width <= 360 || fontScale >= 1.2;
@@ -148,7 +148,6 @@ export default function BudgetsScreen() {
           ) : undefined
         }
       />
-      <PlanTabs selected="budgets" />
       <View style={styles.period}>
         <IconButton
           name="chevron-back"
@@ -189,7 +188,6 @@ export default function BudgetsScreen() {
                 <Ionicons name="sparkles-outline" size={15} color={colors.mint} />
                 <Text style={styles.heroEyebrow}>TU PLAN DEL MES · COP</Text>
               </View>
-              <Text style={styles.heroPeriod}>{formatDashboardPeriod(period)}</Text>
             </View>
             <Text style={styles.heroCaption}>
               {overview.remaining < 0 ? 'Exceso del plan' : 'Margen de tu presupuesto'}
@@ -202,33 +200,27 @@ export default function BudgetsScreen() {
             >
               {amount(Math.abs(overview.remaining), hidden)}
             </Text>
-            <Text style={styles.heroSubline}>de {amount(overview.limit, hidden)} planeados</Text>
+            <Text style={styles.heroSubline}>
+              Gastado {amount(overview.spent, hidden)} de {amount(overview.limit, hidden)}
+            </Text>
             <Text style={styles.heroHint}>
               Es lo que queda de tus límites de gasto, no el saldo de tus cuentas.
             </Text>
-            <Progress
-              value={overview.percentage}
-              color={overview.exceeded ? colors.coral : overview.warning ? colors.amber : colors.mint}
-              label="Presupuesto mensual utilizado"
-            />
+            {!hidden ? (
+              <Progress
+                value={overview.percentage}
+                color={overview.exceeded ? colors.coral : overview.warning ? colors.amber : colors.mint}
+                label="Presupuesto mensual utilizado"
+              />
+            ) : null}
             <View style={styles.heroBottom}>
               <Text style={styles.heroHint}>
                 {budgetMessage(overview.percentage, overview.exceeded, overview.warning)}
               </Text>
-              <Text style={styles.heroPercent}>{Math.round(overview.percentage)}%</Text>
-            </View>
-            <View style={styles.heroStats}>
-              <View style={styles.heroStat}>
-                <Text style={styles.heroStatLabel}>Gastado</Text>
-                <Text style={styles.heroStatValue}>{amount(overview.spent, hidden)}</Text>
-              </View>
-              <View style={styles.heroStat}>
-                <Text style={styles.heroStatLabel}>Categorías</Text>
-                <Text style={styles.heroStatValue}>{data.length}</Text>
-              </View>
+              {!hidden ? <Text style={styles.heroPercent}>{Math.round(overview.percentage)}%</Text> : null}
             </View>
           </LinearGradient>
-          <SectionHeader title="Por categoría" actionLabel="Añadir" onAction={create} />
+          <SectionHeader title="Por categoría" />
           <View style={styles.list}>
             {data.map((budget) => (
               <BudgetCategoryCard
@@ -273,7 +265,7 @@ const styles = themedStyleSheet(() => ({
     justifyContent: 'center',
     gap: spacing.xs,
   },
-  hero: { gap: spacing.md, padding: spacing.lg, borderRadius: 25, ...shadows.card },
+  hero: { gap: spacing.sm, padding: spacing.lg, borderRadius: 25, ...shadows.card },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',

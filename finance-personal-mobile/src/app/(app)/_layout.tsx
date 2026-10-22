@@ -105,7 +105,7 @@ export default function AppLayout() {
             }}
           />
           <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline', 'wallet')} />
-          <Tabs.Screen name="plan" options={options('Explorar', 'compass-outline', 'compass')} />
+          <Tabs.Screen name="plan" options={options('Menú', 'grid-outline', 'grid')} />
           <Tabs.Screen name="more" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="reports" options={{ href: null }} />
           <Tabs.Screen name="guide" options={{ href: null }} />
@@ -114,6 +114,8 @@ export default function AppLayout() {
           <Tabs.Screen name="new-transfer" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="account-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="account-detail" options={{ href: null }} />
+          <Tabs.Screen name="recurrences" options={{ href: null }} />
+          <Tabs.Screen name="recurring-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="categories" options={{ href: null }} />
           <Tabs.Screen name="category-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="budgets" options={{ href: null }} />

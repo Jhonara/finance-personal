@@ -25,7 +25,8 @@ import { useCurrentUser } from '@/features/profile/use-current-user';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { Button, Card, Screen } from '@/ui/primitives';
-import { ScreenHeader, SectionHeader } from '@/ui/headers';
+import { ScreenHeader } from '@/ui/headers';
+import { Disclosure } from '@/ui/disclosure';
 import { ErrorState, Skeleton } from '@/ui/states';
 import { BrandSurface } from '@/ui/brand-surface';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -155,17 +156,21 @@ function CreditDetailContent({ id }: { id: number }) {
           {credit.status !== 'PAID' && (
             <>
               <Button onPress={() => setPayOpen(true)}>Registrar pago</Button>
-              <Text style={typography.caption}>
-                Si ya pagaste a la entidad, anótalo aquí para actualizar el saldo y el historial.
-              </Text>
+              <Text style={typography.caption}>Anota un pago que ya hiciste a tu entidad.</Text>
             </>
           )}
+          <Button
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/(app)/credit-payments', params: { id } })}
+          >
+            Ver pagos de este crédito
+          </Button>
           {credit.status === 'LATE' && !credit.openingDate ? (
             <Card tone="info" style={creditPanel}>
               <Text style={typography.cardTitle}>¿Ya habías pagado antes de usar la app?</Text>
               <Text style={typography.bodySecondary}>
-                El atraso se estima con los pagos que conocemos. Si faltan pagos antiguos, copia el capital
-                pendiente de un extracto reciente para empezar desde ahí, sin borrar tus pagos anotados.
+                Si faltan pagos antiguos, empieza desde el saldo de un extracto. Conservaremos tus pagos
+                anotados.
               </Text>
               <Button
                 variant="secondary"
@@ -209,8 +214,7 @@ function CreditDetailContent({ id }: { id: number }) {
                 )}
                 {credit.status === 'LATE' && (
                   <Text style={typography.caption}>
-                    Según los pagos anotados, hay una cuota del calendario sin cubrir. Si ya la pagaste,
-                    regístrala para actualizar este estado. Consulta con tu entidad el valor exacto con mora.
+                    Revisa si faltan pagos por anotar. Este valor no incluye mora ni seguros.
                   </Text>
                 )}
               </View>
@@ -223,11 +227,9 @@ function CreditDetailContent({ id }: { id: number }) {
               </View>
               <View style={styles.nextCopy}>
                 <Text accessibilityRole="header" style={typography.sectionTitle}>
-                  Amortización y aportes
+                  Plan de cuotas
                 </Text>
-                <Text style={typography.bodySecondary}>
-                  Entiende qué parte de cada cuota paga intereses y qué parte reduce la deuda.
-                </Text>
+                <Text style={typography.bodySecondary}>Cuánto paga intereses y cuánto reduce tu deuda.</Text>
               </View>
             </View>
             <Button
@@ -238,20 +240,18 @@ function CreditDetailContent({ id }: { id: number }) {
             >
               Ver amortización
             </Button>
-            <Text style={typography.caption}>
-              Compara el plan original, tus pagos registrados y una simulación de abonos. Simular no cambia tu
-              crédito.
-            </Text>
-            {plan.isPending ? (
-              <Skeleton height={100} />
-            ) : plan.data ? (
-              <CreditPlanView plan={plan.data} currency={credit.currency} hidden={hidden} compact />
-            ) : (
-              <ErrorState onRetry={() => void plan.refetch()} />
-            )}
-            {plan.isError && plan.data && (
-              <Text style={typography.caption}>Comparación pendiente de actualizar.</Text>
-            )}
+            <Disclosure title="Comparar con el plan" icon="git-compare-outline">
+              {plan.isPending ? (
+                <Skeleton height={100} />
+              ) : plan.data ? (
+                <CreditPlanView plan={plan.data} currency={credit.currency} hidden={hidden} compact />
+              ) : (
+                <ErrorState onRetry={() => void plan.refetch()} />
+              )}
+              {plan.isError && plan.data && (
+                <Text style={typography.caption}>Comparación pendiente de actualizar.</Text>
+              )}
+            </Disclosure>
           </Card>
           {!plan.data && (credit.paidPrincipal !== undefined || credit.paidInterest !== undefined) && (
             <Card style={creditPanel}>
@@ -272,8 +272,7 @@ function CreditDetailContent({ id }: { id: number }) {
               )}
             </Card>
           )}
-          <SectionHeader title="Condiciones del crédito" />
-          <Card style={creditPanel}>
+          <Disclosure title="Condiciones del crédito" icon="document-text-outline">
             {credit.principal !== undefined && (
               <CreditValue
                 label="Principal original"
@@ -292,7 +291,7 @@ function CreditDetailContent({ id }: { id: number }) {
             {credit.paymentDay !== undefined && (
               <CreditValue label="Día de pago" value={String(credit.paymentDay)} />
             )}
-          </Card>
+          </Disclosure>
           {linkedCreditAlerts(alerts.data ?? [], id).map((alert, index) => (
             <Card
               key={`${alert.code}-${index}`}
@@ -335,68 +334,59 @@ function CreditDetailContent({ id }: { id: number }) {
               Actualizar crédito
             </Button>
           )}
-          <Text style={typography.caption}>
-            Historial propio de este crédito, también con pagos sin cuenta vinculada.
-          </Text>
-          <Button
-            variant="ghost"
-            onPress={() => router.push({ pathname: '/(app)/credit-payments', params: { id } })}
-          >
-            Ver pagos de este crédito
-          </Button>
-          <SectionHeader title="Gestionar crédito" />
-          {credit ? (
-            <Card style={{ padding: spacing.lg, gap: spacing.md }}>
-              {credit.openingDate ? (
-                <Text style={typography.bodySecondary}>
-                  Seguimiento desde el extracto del {formatLocalDate(credit.openingDate)}. Los pagos previos
-                  están reflejados en el saldo inicial, no en el historial de esta app.
+          <Disclosure title="Ajustes del crédito" icon="options-outline">
+            {credit ? (
+              <Card style={{ padding: spacing.lg, gap: spacing.md }}>
+                {credit.openingDate ? (
+                  <Text style={typography.bodySecondary}>
+                    Seguimiento desde el extracto del {formatLocalDate(credit.openingDate)}. Los pagos previos
+                    están reflejados en el saldo inicial, no en el historial de esta app.
+                  </Text>
+                ) : null}
+                {typeof credit.overdueAmount === 'number' ? (
+                  <CreditValue
+                    label="Cuotas vencidas estimadas"
+                    value={creditMoney(credit.overdueAmount, credit.currency, hidden)}
+                  />
+                ) : null}
+                <Text style={typography.caption}>
+                  La deuda total es el capital pendiente. Las cuotas vencidas son pagos del calendario que aún
+                  no están cubiertos; no se suman otra vez a la deuda ni incluyen mora o seguros.
                 </Text>
-              ) : null}
-              {typeof credit.overdueAmount === 'number' ? (
-                <CreditValue
-                  label="Cuotas vencidas estimadas"
-                  value={creditMoney(credit.overdueAmount, credit.currency, hidden)}
-                />
-              ) : null}
-              <Text style={typography.caption}>
-                La deuda total es el capital pendiente. Las cuotas vencidas son pagos del calendario que aún
-                no están cubiertos; no se suman otra vez a la deuda ni incluyen mora o seguros.
-              </Text>
-              {credit.editable ? (
+                {credit.editable ? (
+                  <Button
+                    variant="secondary"
+                    disabled={safety.busy}
+                    onPress={() => openForm('/(app)/credit-form', { id: String(id), mode: 'edit' })}
+                  >
+                    Editar crédito o saldo inicial
+                  </Button>
+                ) : null}
+                <Text style={typography.bodySecondary}>
+                  Usa tu extracto si faltan pagos anteriores en la app.
+                </Text>
                 <Button
                   variant="secondary"
                   disabled={safety.busy}
-                  onPress={() => openForm('/(app)/credit-form', { id: String(id), mode: 'edit' })}
+                  onPress={() => router.push({ pathname: '/(app)/credit-opening', params: { id } })}
                 >
-                  Editar crédito o saldo inicial
+                  Actualizar saldo desde extracto
                 </Button>
-              ) : null}
-              <Text style={typography.bodySecondary}>
-                ¿Ya venías pagando este préstamo antes de anotarlo aquí? Usa tu extracto para que el saldo y
-                las cuotas pendientes partan de la cifra real de tu entidad.
-              </Text>
-              <Button
-                variant="secondary"
-                disabled={safety.busy}
-                onPress={() => router.push({ pathname: '/(app)/credit-opening', params: { id } })}
-              >
-                Actualizar saldo desde extracto
-              </Button>
-              {credit.deletable ? (
-                <Button variant="ghost" disabled={safety.busy} onPress={deleteCurrent}>
-                  Eliminar crédito
-                </Button>
-              ) : (
-                <Text style={typography.caption}>
-                  El historial de pagos y desembolsos protege este crédito de edición y eliminación.
-                </Text>
-              )}
-              {safety.error ? (
-                <Text style={{ ...typography.caption, color: colors.danger }}>{safety.error}</Text>
-              ) : null}
-            </Card>
-          ) : null}
+                {credit.deletable ? (
+                  <Button variant="ghost" disabled={safety.busy} onPress={deleteCurrent}>
+                    Eliminar crédito
+                  </Button>
+                ) : (
+                  <Text style={typography.caption}>
+                    El historial de pagos y desembolsos protege este crédito de edición y eliminación.
+                  </Text>
+                )}
+                {safety.error ? (
+                  <Text style={{ ...typography.caption, color: colors.danger }}>{safety.error}</Text>
+                ) : null}
+              </Card>
+            ) : null}
+          </Disclosure>
           <CreditPaymentForm
             key={credit.id}
             credit={credit}

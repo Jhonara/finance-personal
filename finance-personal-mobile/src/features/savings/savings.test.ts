@@ -77,7 +77,7 @@ describe('Savings contract and decimal presentation', () => {
     });
     expect(goal.name).toBe(name);
     expect(savingsAccessibility(goal, false)).toContain('1.200.000 ahorrados de 3.000.000');
-    expect(savingsAccessibility(goal, true)).toContain('40 por ciento completado');
+    expect(savingsAccessibility(goal, true)).not.toContain('40 por ciento completado');
     expect(savingsAccessibility(goal, true)).not.toContain('1.200.000');
     expect(goal.tone).toBe(presentSavingGoal({ ...goal, name: 'Otro' }).tone);
   });

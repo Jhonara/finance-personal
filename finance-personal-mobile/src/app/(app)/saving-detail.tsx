@@ -67,7 +67,7 @@ export default function SavingDetail() {
           ) : null}
           <BrandSurface style={styles.hero}>
             <Text style={[typography.display, { color: savingTones[goal.tone].color }]}>
-              {goal.percentageLabel}
+              {hidden ? '•••' : goal.percentageLabel}
             </Text>
             <Text style={typography.moneyMedium}>
               {savingsAmount(goal.currentAmount, hidden, goal.currency)}
@@ -75,14 +75,16 @@ export default function SavingDetail() {
             <Text style={typography.bodySecondary}>
               ahorrados de {savingsAmount(goal.targetAmount, hidden, goal.currency)}
             </Text>
-            {goal.percentage !== undefined ? (
+            {goal.percentage !== undefined && !hidden ? (
               <Progress
                 value={goal.percentage}
                 color={savingTones[goal.tone].color}
                 label="Progreso de la meta"
               />
             ) : null}
-            <Text style={typography.cardTitle}>{goal.completed ? '¡Lo lograste!' : goal.copy}</Text>
+            <Text style={typography.cardTitle}>
+              {goal.completed ? '¡Lo lograste!' : 'Tu objetivo, paso a paso'}
+            </Text>
             {goal.completed ? (
               <Text style={typography.bodySecondary}>Completaste tu objetivo de ahorro.</Text>
             ) : null}

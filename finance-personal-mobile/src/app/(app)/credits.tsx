@@ -9,7 +9,6 @@ import { Text, View, useWindowDimensions } from 'react-native';
 import { useCredits } from '@/features/secondary/use-secondary';
 import { creditGroups, creditMoney, creditSummary } from '@/features/credits/credit-presentation';
 import { CreditCard } from '@/features/credits/credit-components';
-import { PlanTabs } from '@/features/budgets/plan-tabs';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { Button, Screen } from '@/ui/primitives';
 import { BrandMascot, BrandMark } from '@/ui/brand-media';
@@ -38,7 +37,7 @@ export default function CreditsScreen() {
           onPress={() => router.back()}
           style={styles.back}
         >
-          <Ionicons name="arrow-back" size={21} color={colors.primaryStrong} />
+          <Ionicons name="arrow-back" size={21} color={colors.primary} />
         </MotionPressable>
         {!compactHeader ? <BrandMark size={32} /> : null}
         <View style={styles.headerCopy}>
@@ -60,7 +59,6 @@ export default function CreditsScreen() {
           </TourTarget>
         ) : null}
       </View>
-      <PlanTabs selected="credits" />
       {query.isPending ? (
         <Skeleton height={160} />
       ) : !query.data ? (
@@ -89,13 +87,12 @@ export default function CreditsScreen() {
             <View style={styles.heroTop}>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroEyebrow}>PANORAMA DE CRÉDITOS</Text>
-                <Text style={styles.heroTitle}>Cada pago cuenta</Text>
+                <Text style={styles.heroTitle}>Capital pendiente</Text>
               </View>
               <View style={styles.heroIcon}>
                 <Ionicons name="card-outline" size={25} color={colors.mint} />
               </View>
             </View>
-            <Text style={styles.heroHint}>Capital pendiente según tus registros, separado por moneda.</Text>
             {creditSummary(query.data).map((summary) => (
               <View
                 key={summary.currency ?? 'unknown'}
@@ -129,11 +126,10 @@ export default function CreditsScreen() {
                     </Text>
                     <Text style={typography.caption}>{group.credits.length}</Text>
                   </View>
-                  {group.title === 'Atrasados' ? (
+                  {group.title === 'Pagos por revisar' ? (
                     <Text style={typography.bodySecondary}>
-                      Según los pagos registrados, hay cuotas del calendario pendientes. Esto no incluye
-                      posibles intereses de mora. Abre cada crédito para revisar la fecha y registrar un pago
-                      que ya hayas hecho.
+                      Faltan cuotas por cubrir según tus registros. Abre el crédito para revisar pagos o
+                      actualizar su saldo.
                     </Text>
                   ) : null}
                   {group.credits.map((credit, index) => (
@@ -175,7 +171,7 @@ const styles = themedStyleSheet(() => ({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  title: { ...typography.sectionTitle, color: colors.primaryStrong },
+  title: { ...typography.sectionTitle, color: colors.textPrimary },
   add: {
     minHeight: 41,
     paddingHorizontal: spacing.md,

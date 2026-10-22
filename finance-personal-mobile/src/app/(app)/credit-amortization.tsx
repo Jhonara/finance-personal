@@ -1,6 +1,6 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Keyboard, Text, View, type ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,6 +8,7 @@ import { useCredit } from '@/features/secondary/use-secondary';
 import { useAmortizationScenario, useCreditAmortization } from '@/features/credits/use-amortization';
 import type { CreditAmortizationScenario } from '@/features/credits/amortization-api';
 import { AmortizationSchedule, RecordedPayments } from '@/features/credits/amortization-components';
+import { AmortizationChart } from '@/features/credits/amortization-chart';
 import { creditFailure } from '@/features/credits/use-credit-submit';
 import { creditMoney } from '@/features/credits/credit-presentation';
 import { usePrivacy } from '@/privacy/privacy-provider';
@@ -16,10 +17,11 @@ import { formatLocalDate } from '@/utils/local-date';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { Button, Card, SelectField, MoneyInput, Screen } from '@/ui/primitives';
 import { ModalSelector } from '@/ui/modal-selector';
-import { BrandMascot } from '@/ui/brand-media';
 import { Progress } from '@/ui/progress';
 import { ScreenHeader, SectionHeader } from '@/ui/headers';
 import { ErrorState, Skeleton } from '@/ui/states';
+import { Disclosure } from '@/ui/disclosure';
+import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 
 type ScheduleMode = 'current' | 'original' | 'scenario';
@@ -35,6 +37,11 @@ function CreditAmortizationContent({ id }: { id: number }) {
   const simulate = useAmortizationScenario();
   const { hidden } = usePrivacy();
   const busy = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const simulatorTop = useRef(0);
+  const revealResult = useRef(false);
+  const reduced = useReducedMotion();
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [installment, setInstallment] = useState('');
   const [extraAmount, setExtraAmount] = useState('');
   const [contributions, setContributions] = useState<Array<{ installment: number; amount: number }>>([]);
@@ -96,12 +103,14 @@ function CreditAmortizationContent({ id }: { id: number }) {
       return;
     }
     busy.current = true;
+    Keyboard.dismiss();
     const requestedRevision = revision.current;
     setError('');
     setScenario(undefined);
     try {
       const result = await simulate.mutateAsync({ id, contributions: plan, strategy });
       if (revision.current !== requestedRevision) return;
+      revealResult.current = true;
       setScenario(result);
       setContributions(plan.sort((a, b) => a.installment - b.installment));
       setExtraAmount(String(plan.find((item) => item.installment === target)?.amount ?? ''));
@@ -148,9 +157,25 @@ function CreditAmortizationContent({ id }: { id: number }) {
       : mode === 'original'
         ? (data?.originalSchedule ?? [])
         : (data?.projectedSchedule ?? []);
+  const showSimulator = (value: string) => {
+    changeInstallment(value);
+    setSimulatorOpen(true);
+    scrollRef.current?.scrollTo({ y: simulatorTop.current, animated: !reduced });
+  };
+  const nextAvailable = data?.projectedSchedule.find(
+    (row) =>
+      (row.endingBalance ?? 0) > 0 && !contributions.some((item) => item.installment === row.installment),
+  );
 
   return (
-    <Screen scroll keyboard style={styles.screen} refreshing={overview.isRefetching} onRefresh={refresh}>
+    <Screen
+      scroll
+      keyboard
+      scrollRef={scrollRef}
+      style={styles.screen}
+      refreshing={overview.isRefetching}
+      onRefresh={refresh}
+    >
       <ScreenHeader
         title="Amortización"
         subtitle={credit.data?.name ?? 'Detalle de tu crédito'}
@@ -180,14 +205,13 @@ function CreditAmortizationContent({ id }: { id: number }) {
             <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
               {creditMoney(data.currentBalance, currency, hidden)}
             </Text>
-            <Text style={styles.heroHint}>
-              Monto original: {creditMoney(data.principal, currency, hidden)}. El saldo parte de tu extracto,
-              si lo agregaste, y descuenta los pagos posteriores anotados.
-            </Text>
+            <Text style={styles.heroHint}>Lo que queda del dinero prestado según tus registros.</Text>
             <View style={styles.heroFacts}>
               <View style={styles.heroFact}>
-                <Text style={styles.factLabel}>Desembolsado</Text>
-                <Text style={styles.factValue}>{formatLocalDate(data.disbursementDate, 'compact')}</Text>
+                <Text style={styles.factLabel}>Cuotas por delante</Text>
+                <Text style={styles.factValue}>
+                  {data.projectionWarning ? 'Por revisar' : data.projectedSchedule.length}
+                </Text>
               </View>
               <View style={styles.heroFact}>
                 <Text style={styles.factLabel}>Cuota base estimada</Text>
@@ -197,17 +221,15 @@ function CreditAmortizationContent({ id }: { id: number }) {
               </View>
             </View>
           </LinearGradient>
-          <Card tone="info" style={styles.terms}>
-            <Text style={typography.cardTitle}>Cómo leer este plan</Text>
+          <Disclosure title="Cómo leer este plan">
             <Text style={typography.bodySecondary}>
               Cada cuota paga intereses y reduce una parte del capital. El saldo registrado refleja lo que
               registraste; las cuotas futuras son una estimación. Un abono extra puede cambiar ese plan, pero
               debes registrarlo después de pagarlo a tu entidad.
             </Text>
-          </Card>
+          </Disclosure>
           {credit.data?.openingDate ? (
-            <Card style={styles.terms}>
-              <Text style={typography.cardTitle}>Tu punto de partida</Text>
+            <Disclosure title="Tu punto de partida" icon="document-text-outline">
               <Text style={typography.bodySecondary}>
                 Saldo de {creditMoney(credit.data.openingBalance, currency, hidden)} al{' '}
                 {formatLocalDate(credit.data.openingDate, 'compact')}, con{' '}
@@ -217,7 +239,7 @@ function CreditAmortizationContent({ id }: { id: number }) {
                 Los pagos anteriores al corte están incluidos en ese saldo. Aquí solo se muestra el historial
                 registrado desde entonces.
               </Text>
-            </Card>
+            </Disclosure>
           ) : null}
 
           <SectionHeader title="Desde tu saldo actual" />
@@ -248,148 +270,177 @@ function CreditAmortizationContent({ id }: { id: number }) {
                 </Card>
               ) : null}
               {data.projectedSchedule.some((row) => (row.endingBalance ?? 0) > 0) ? (
-                <Card style={styles.scenarioForm}>
-                  <View style={styles.formHeading}>
-                    <BrandMascot size={48} />
-                    <View style={styles.grow}>
-                      <Text accessibilityRole="header" style={typography.sectionTitle}>
-                        Simula tus abonos extra
-                      </Text>
-                      <Text style={typography.bodySecondary}>
-                        Prueba uno o varios pagos extra y compara cuánto podrías ahorrar. Tu deuda real no
-                        cambia.
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.tabs}>
-                    {(['REDUCE_TERM', 'REDUCE_PAYMENT'] as const).map((option) => (
-                      <MotionPressable
-                        key={option}
-                        accessibilityRole="radio"
-                        accessibilityLabel={
-                          option === 'REDUCE_TERM' ? 'Reducir plazo' : 'Reducir cuota mensual'
-                        }
-                        accessibilityState={{ checked: strategy === option, disabled: simulate.isPending }}
-                        disabled={simulate.isPending}
-                        onPress={() => {
-                          setStrategy(option);
-                          changeAmount(extraAmount);
-                        }}
-                        style={[styles.tab, strategy === option && styles.tabSelected]}
-                      >
-                        <Ionicons
-                          name={option === 'REDUCE_TERM' ? 'hourglass-outline' : 'wallet-outline'}
-                          size={20}
-                          color={strategy === option ? colors.mint : colors.primary}
-                        />
-                        <Text style={[styles.tabText, strategy === option && styles.tabTextSelected]}>
-                          {option === 'REDUCE_TERM' ? 'Terminar antes' : 'Bajar la cuota'}
-                        </Text>
-                      </MotionPressable>
-                    ))}
-                  </View>
-                  <Text style={typography.caption}>
-                    {strategy === 'REDUCE_TERM'
-                      ? 'Terminar antes: sigues pagando la misma cuota mensual y acabas en menos tiempo.'
-                      : 'Bajar la cuota: pagas menos cada mes después de cada abono y mantienes el plazo, salvo que saldes toda la deuda.'}
-                  </Text>
-                  <MoneyInput
-                    label="Abono extra a capital"
-                    helperText="Dinero adicional a tu cuota normal. Se usa para reducir lo que debes."
-                    currency={currency}
-                    value={extraAmount}
-                    onChangeText={changeAmount}
-                    placeholder="0"
-                    secureTextEntry={hidden}
-                    disabled={simulate.isPending}
-                  />
-                  <SelectField
-                    label="¿En qué cuota harías el abono?"
-                    disabled={simulate.isPending}
-                    value={
-                      chosenRow
-                        ? `Cuota ${chosenRow.installment} · ${formatLocalDate(chosenRow.date, 'compact')}`
-                        : 'Elige una cuota'
-                    }
-                    onPress={() => {
-                      if (!simulate.isPending) setSelecting(true);
-                    }}
-                  />
-                  <Text style={typography.caption}>
-                    Saldo que quedaría después de esa cuota, sin estos abonos extra:{' '}
-                    {creditMoney(chosenRow?.endingBalance, currency, hidden)}
-                  </Text>
-                  <Button variant="secondary" disabled={simulate.isPending} onPress={addContribution}>
-                    {contributions.some((item) => item.installment === Number(installment))
-                      ? 'Actualizar abono de esta cuota'
-                      : 'Añadir abono al escenario'}
-                  </Button>
-                  {contributions.length ? (
+                <View
+                  onLayout={(event) => {
+                    simulatorTop.current = event.nativeEvent.layout.y;
+                  }}
+                >
+                  <Disclosure
+                    title="Simular un abono extra"
+                    icon="calculator-outline"
+                    open={simulatorOpen}
+                    onOpenChange={setSimulatorOpen}
+                  >
                     <View style={{ gap: spacing.md }}>
-                      <Text style={typography.cardTitle}>
-                        Abonos de esta simulación · {contributions.length}
+                      <Text style={typography.bodySecondary}>
+                        Prueba cuánto ahorrarías con dinero extra. Tu deuda real no cambia.
                       </Text>
-                      {contributions.map((item) => (
-                        <View key={item.installment} style={styles.plannedContribution}>
-                          <Text style={typography.label}>
-                            Cuota {item.installment} · {creditMoney(item.amount, currency, hidden)}
-                          </Text>
-                          <View style={styles.contributionActions}>
-                            <Button
-                              variant="ghost"
-                              disabled={simulate.isPending}
-                              accessibilityLabel={`Editar abono cuota ${item.installment}`}
-                              onPress={() => {
-                                changeInstallment(String(item.installment));
-                                changeAmount(String(item.amount));
-                              }}
-                            >
-                              Editar
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              disabled={simulate.isPending}
-                              accessibilityLabel={`Quitar abono cuota ${item.installment}`}
-                              onPress={() => {
-                                setContributions((current) =>
-                                  current.filter((entry) => entry.installment !== item.installment),
-                                );
-                                changeAmount('');
-                              }}
-                            >
-                              Quitar
-                            </Button>
-                          </View>
-                        </View>
-                      ))}
+                      <Text style={typography.label}>1. ¿Qué quieres lograr?</Text>
+                      <View style={styles.tabs}>
+                        {(['REDUCE_TERM', 'REDUCE_PAYMENT'] as const).map((option) => (
+                          <MotionPressable
+                            key={option}
+                            accessibilityRole="radio"
+                            accessibilityLabel={
+                              option === 'REDUCE_TERM' ? 'Reducir plazo' : 'Reducir cuota mensual'
+                            }
+                            accessibilityState={{
+                              checked: strategy === option,
+                              disabled: simulate.isPending,
+                            }}
+                            disabled={simulate.isPending}
+                            onPress={() => {
+                              setStrategy(option);
+                              changeAmount(extraAmount);
+                            }}
+                            style={[styles.tab, strategy === option && styles.tabSelected]}
+                          >
+                            <Ionicons
+                              name={option === 'REDUCE_TERM' ? 'hourglass-outline' : 'wallet-outline'}
+                              size={20}
+                              color={strategy === option ? colors.mint : colors.primary}
+                            />
+                            <Text style={[styles.tabText, strategy === option && styles.tabTextSelected]}>
+                              {option === 'REDUCE_TERM' ? 'Terminar antes' : 'Bajar la cuota'}
+                            </Text>
+                          </MotionPressable>
+                        ))}
+                      </View>
                       <Text style={typography.caption}>
-                        Añade otro eligiendo una cuota distinta. Editar cambia el importe; Quitar lo saca de
-                        esta simulación.
+                        {strategy === 'REDUCE_TERM'
+                          ? 'Terminar antes: sigues pagando la misma cuota mensual y acabas en menos tiempo.'
+                          : 'Bajar la cuota: pagas menos cada mes después de cada abono y mantienes el plazo, salvo que saldes toda la deuda.'}
+                      </Text>
+                      <Text style={typography.label}>2. Prepara tu abono</Text>
+                      <MoneyInput
+                        label="Abono extra a capital"
+                        helperText="Dinero adicional a tu cuota normal. Se usa para reducir lo que debes."
+                        currency={currency}
+                        value={extraAmount}
+                        onChangeText={changeAmount}
+                        placeholder="0"
+                        secureTextEntry={hidden}
+                        disabled={simulate.isPending}
+                      />
+                      <SelectField
+                        label="¿En qué cuota harías el abono?"
+                        disabled={simulate.isPending}
+                        value={
+                          chosenRow
+                            ? `Cuota ${chosenRow.installment} · ${formatLocalDate(chosenRow.date, 'compact')}`
+                            : 'Elige una cuota'
+                        }
+                        onPress={() => {
+                          if (!simulate.isPending) setSelecting(true);
+                        }}
+                      />
+                      <Text style={typography.caption}>
+                        Saldo que quedaría después de esa cuota, sin estos abonos extra:{' '}
+                        {creditMoney(chosenRow?.endingBalance, currency, hidden)}
+                      </Text>
+                      <Button variant="secondary" disabled={simulate.isPending} onPress={addContribution}>
+                        {contributions.some((item) => item.installment === Number(installment))
+                          ? 'Actualizar abono de esta cuota'
+                          : 'Añadir abono al escenario'}
+                      </Button>
+                      {contributions.length ? (
+                        <View style={{ gap: spacing.md }}>
+                          <Text style={typography.cardTitle}>
+                            Abonos de esta simulación · {contributions.length}
+                          </Text>
+                          {contributions.map((item) => (
+                            <View
+                              key={item.installment}
+                              style={[
+                                styles.plannedContribution,
+                                item.installment === Number(installment) && styles.editingContribution,
+                              ]}
+                            >
+                              <Text style={typography.label}>
+                                Cuota {item.installment} · {creditMoney(item.amount, currency, hidden)}
+                              </Text>
+                              <Text style={typography.caption}>
+                                {formatLocalDate(
+                                  data.projectedSchedule.find((row) => row.installment === item.installment)
+                                    ?.date,
+                                  'compact',
+                                )}
+                                {item.installment === Number(installment) ? ' · En edición' : ''}
+                              </Text>
+                              <View style={styles.contributionActions}>
+                                <Button
+                                  variant="outline"
+                                  size="compact"
+                                  disabled={simulate.isPending}
+                                  accessibilityLabel={`Editar abono cuota ${item.installment}`}
+                                  onPress={() => {
+                                    showSimulator(String(item.installment));
+                                  }}
+                                >
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="compact"
+                                  tone="danger"
+                                  disabled={simulate.isPending}
+                                  accessibilityLabel={`Quitar abono cuota ${item.installment}`}
+                                  onPress={() => {
+                                    setContributions((current) =>
+                                      current.filter((entry) => entry.installment !== item.installment),
+                                    );
+                                    changeAmount(item.installment === Number(installment) ? '' : extraAmount);
+                                  }}
+                                >
+                                  Quitar
+                                </Button>
+                              </View>
+                            </View>
+                          ))}
+                          <Button
+                            variant="ghost"
+                            disabled={simulate.isPending || !nextAvailable}
+                            onPress={() => {
+                              if (nextAvailable) showSimulator(String(nextAvailable.installment));
+                            }}
+                          >
+                            Añadir otro abono
+                          </Button>
+                        </View>
+                      ) : null}
+                      <Text style={typography.caption}>
+                        Al calcular se incluye el importe escrito y los abonos de la lista.
+                      </Text>
+                      {contributions.length > 0 && !scenario ? (
+                        <Text accessibilityLiveRegion="polite" style={typography.caption}>
+                          Falta calcular: la lista de cuotas todavía no incluye estos cambios.
+                        </Text>
+                      ) : null}
+                      {error ? (
+                        <Text accessibilityLiveRegion="polite" style={styles.error}>
+                          {error}
+                        </Text>
+                      ) : null}
+                      <Button loading={simulate.isPending} onPress={() => void submit()}>
+                        Calcular impacto
+                      </Button>
+                      <Text style={typography.caption}>
+                        Simulación temporal: no registra ni programa pagos. Si ya pagaste, usa Registrar pago
+                        en tu crédito.
                       </Text>
                     </View>
-                  ) : null}
-                  <Text style={typography.caption}>
-                    Elige cuota e importe, añade los abonos que quieras y pulsa Calcular impacto. También se
-                    incluye el importe que tengas escrito arriba.
-                  </Text>
-                  {contributions.length > 0 && !scenario ? (
-                    <Text accessibilityLiveRegion="polite" style={typography.caption}>
-                      Falta calcular: la lista de cuotas todavía no incluye estos cambios.
-                    </Text>
-                  ) : null}
-                  {error ? (
-                    <Text accessibilityLiveRegion="polite" style={styles.error}>
-                      {error}
-                    </Text>
-                  ) : null}
-                  <Button loading={simulate.isPending} onPress={() => void submit()}>
-                    Calcular impacto
-                  </Button>
-                  <Text style={typography.caption}>
-                    No registra ni programa pagos. Esta prueba no se guarda al salir. Para un pago que ya
-                    hiciste, usa Registrar pago en el crédito.
-                  </Text>
-                </Card>
+                  </Disclosure>
+                </View>
               ) : (
                 <Card style={styles.successCard}>
                   <Ionicons name="checkmark-circle-outline" size={24} color={colors.success} />
@@ -399,98 +450,118 @@ function CreditAmortizationContent({ id }: { id: number }) {
                 </Card>
               )}
               {scenario ? (
-                <MotionEntry revision={scenario}>
-                  <Card style={styles.impactCard}>
-                    <Text style={styles.impactEyebrow}>
-                      {scenario.contributions?.length ?? 1} ABONOS SIMULADOS
-                    </Text>
-                    <Text style={styles.impactBody}>
-                      Total de abonos extra: {creditMoney(scenario.extraAmount, currency, hidden)}
-                    </Text>
-                    <Text accessibilityRole="header" style={styles.impactTitle}>
-                      {scenario.strategy === 'REDUCE_PAYMENT' && scenario.monthlyPaymentAfterExtra > 0
-                        ? 'Una cuota más liviana'
-                        : scenario.savedInstallments > 0
-                          ? `${scenario.savedInstallments} ${scenario.savedInstallments === 1 ? 'cuota menos' : 'cuotas menos'}`
-                          : 'El plazo se mantiene'}
-                    </Text>
-                    <View style={styles.impactDates}>
-                      <Fact
-                        label="Intereses sin abonos extra"
-                        value={creditMoney(scenario.baselineRemainingInterest, currency, hidden)}
-                        dark
-                      />
-                      <Fact
-                        label="Intereses con tus abonos"
-                        value={creditMoney(scenario.scenarioRemainingInterest, currency, hidden)}
-                        dark
-                      />
-                    </View>
-                    <Progress
-                      value={
-                        (100 * scenario.scenarioRemainingInstallments) /
-                        Math.max(1, scenario.baselineRemainingInstallments)
-                      }
-                      color={colors.mint}
-                      label={`${scenario.scenarioRemainingInstallments} cuotas frente a ${scenario.baselineRemainingInstallments}`}
-                    />
-                    <Text style={styles.impactBody}>
-                      {scenario.scenarioRemainingInstallments} cuotas con tus abonos ·{' '}
-                      {scenario.baselineRemainingInstallments} sin abonos extra
-                    </Text>
-                    {scenario.strategy === 'REDUCE_PAYMENT' ? (
-                      <Fact
-                        label="Cuota estimada después del último abono"
-                        value={creditMoney(scenario.monthlyPaymentAfterExtra, currency, hidden)}
-                        dark
-                      />
-                    ) : null}
-                    <Text style={styles.impactBody}>
-                      Intereses estimados que evitarías:{' '}
-                      {creditMoney(scenario.interestSaved, currency, hidden)}
-                    </Text>
-                    <View style={styles.impactDates}>
-                      <Fact
-                        label="Terminarías sin abonos extra"
-                        value={formatLocalDate(scenario.baselinePayoffDate, 'compact')}
-                        dark
-                      />
-                      <Fact
-                        label="Terminarías con tus abonos"
-                        value={formatLocalDate(scenario.scenarioPayoffDate, 'compact')}
-                        dark
-                      />
-                    </View>
-                    <Text style={styles.impactNote}>
-                      Compara el mismo saldo y tasa con y sin tus abonos. Son estimaciones, no cambios en tu
-                      contrato.
-                      {scenario.strategy === 'REDUCE_PAYMENT'
-                        ? ' La cuota baja después de cada abono; el valor mostrado corresponde al último. Mira cada pago en Con abonos.'
-                        : ' Mira las nuevas fechas y saldos en Con abonos.'}
-                    </Text>
-                  </Card>
-                </MotionEntry>
+                <View
+                  onLayout={(event) => {
+                    if (!revealResult.current) return;
+                    revealResult.current = false;
+                    scrollRef.current?.scrollTo({ y: event.nativeEvent.layout.y, animated: !reduced });
+                  }}
+                >
+                  <MotionEntry revision={scenario}>
+                    <Card style={styles.impactCard}>
+                      <Text style={styles.impactEyebrow}>
+                        {scenario.contributions?.length ?? 1}{' '}
+                        {(scenario.contributions?.length ?? 1) === 1 ? 'ABONO SIMULADO' : 'ABONOS SIMULADOS'}
+                      </Text>
+                      <Text style={styles.impactBody}>
+                        Total de abonos extra: {creditMoney(scenario.extraAmount, currency, hidden)}
+                      </Text>
+                      <Text accessibilityRole="header" style={styles.impactTitle}>
+                        {scenario.strategy === 'REDUCE_PAYMENT' && scenario.monthlyPaymentAfterExtra > 0
+                          ? 'Una cuota más liviana'
+                          : scenario.savedInstallments > 0
+                            ? `${scenario.savedInstallments} ${scenario.savedInstallments === 1 ? 'cuota menos' : 'cuotas menos'}`
+                            : 'El plazo se mantiene'}
+                      </Text>
+                      <View style={styles.impactDates}>
+                        <Fact
+                          label="Intereses sin abonos extra"
+                          value={creditMoney(scenario.baselineRemainingInterest, currency, hidden)}
+                          dark
+                        />
+                        <Fact
+                          label="Intereses con tus abonos"
+                          value={creditMoney(scenario.scenarioRemainingInterest, currency, hidden)}
+                          dark
+                        />
+                      </View>
+                      {!hidden ? (
+                        <Progress
+                          value={
+                            (100 * scenario.scenarioRemainingInstallments) /
+                            Math.max(1, scenario.baselineRemainingInstallments)
+                          }
+                          color={colors.mint}
+                          label={`${scenario.scenarioRemainingInstallments} cuotas frente a ${scenario.baselineRemainingInstallments}`}
+                        />
+                      ) : null}
+                      <Text style={styles.impactBody}>
+                        {scenario.scenarioRemainingInstallments} cuotas con tus abonos ·{' '}
+                        {scenario.baselineRemainingInstallments} sin abonos extra
+                      </Text>
+                      {scenario.strategy === 'REDUCE_PAYMENT' ? (
+                        <Fact
+                          label="Cuota estimada después del último abono"
+                          value={creditMoney(scenario.monthlyPaymentAfterExtra, currency, hidden)}
+                          dark
+                        />
+                      ) : null}
+                      <Text style={styles.impactBody}>
+                        Intereses estimados que evitarías:{' '}
+                        {creditMoney(scenario.interestSaved, currency, hidden)}
+                      </Text>
+                      <View style={styles.impactDates}>
+                        <Fact
+                          label="Terminarías sin abonos extra"
+                          value={formatLocalDate(scenario.baselinePayoffDate, 'compact')}
+                          dark
+                        />
+                        <Fact
+                          label="Terminarías con tus abonos"
+                          value={formatLocalDate(scenario.scenarioPayoffDate, 'compact')}
+                          dark
+                        />
+                      </View>
+                      <Text style={styles.impactNote}>
+                        Compara el mismo saldo y tasa con y sin tus abonos. Son estimaciones, no cambios en tu
+                        contrato.
+                        {scenario.strategy === 'REDUCE_PAYMENT'
+                          ? ' La cuota baja después de cada abono; el valor mostrado corresponde al último. Mira cada pago en Con abonos.'
+                          : ' Mira las nuevas fechas y saldos en Con abonos.'}
+                      </Text>
+                    </Card>
+                  </MotionEntry>
+                </View>
               ) : null}
-              <Card style={styles.forecastCard}>
-                <View style={styles.forecastTitle}>
-                  <Ionicons name="calendar-outline" size={22} color={colors.credit} />
-                  <Text style={typography.cardTitle}>Sin nuevos abonos extra</Text>
-                </View>
-                <Text style={typography.caption}>
-                  Este es el punto de comparación: sigues pagando tu cuota mensual desde el saldo actual.
-                </Text>
-                <View style={styles.forecastStats}>
-                  <Fact label="Cuotas por delante" value={String(data.projectedSchedule.length)} />
-                  <Fact
-                    label="Último pago estimado"
-                    value={formatLocalDate(data.projectedPayoffDate, 'compact')}
-                  />
-                  <Fact
-                    label="Intereses por delante"
-                    value={creditMoney(data.projectedRemainingInterest, currency, hidden)}
-                  />
-                </View>
-              </Card>
+              {!scenario ? (
+                <Card style={styles.forecastCard}>
+                  <View style={styles.forecastTitle}>
+                    <Ionicons name="calendar-outline" size={22} color={colors.credit} />
+                    <Text style={typography.cardTitle}>Sin nuevos abonos extra</Text>
+                  </View>
+                  <Text style={typography.caption}>
+                    Este es el punto de comparación: sigues pagando tu cuota mensual desde el saldo actual.
+                  </Text>
+                  <View style={styles.forecastStats}>
+                    <Fact label="Cuotas por delante" value={String(data.projectedSchedule.length)} />
+                    <Fact
+                      label="Último pago estimado"
+                      value={formatLocalDate(data.projectedPayoffDate, 'compact')}
+                    />
+                    <Fact
+                      label="Intereses por delante"
+                      value={creditMoney(data.projectedRemainingInterest, currency, hidden)}
+                    />
+                  </View>
+                </Card>
+              ) : null}
+              <AmortizationChart
+                currentBalance={data.currentBalance}
+                baseline={data.projectedSchedule}
+                scenario={scenario?.schedule}
+                currency={currency}
+                hidden={hidden}
+              />
             </>
           )}
           <ModalSelector
@@ -526,11 +597,13 @@ function CreditAmortizationContent({ id }: { id: number }) {
                 ? 'Con abonos: así quedaría el plan si haces todos los pagos extra de esta simulación.'
                 : 'Actual: parte de lo que debes según tus datos registrados, sin incluir los abonos de esta simulación.'}
           </Text>
-          <Text style={typography.caption}>
-            Saldo inicial y final: deuda antes y después de esa cuota. Interés: costo del préstamo en ese mes.
-            A capital: parte de la cuota normal que reduce la deuda. El abono extra aparece aparte.
-            {mode === 'current' ? ' Toca + en una cuota para elegirla en el simulador de arriba.' : ''}
-          </Text>
+          <Disclosure title="Qué significa cada importe">
+            <Text style={typography.caption}>
+              Saldo inicial y final: deuda antes y después de esa cuota. Interés: costo del préstamo en ese
+              mes. A capital: parte de la cuota normal que reduce la deuda. El abono extra aparece aparte.
+              {mode === 'current' ? ' Toca + en una cuota para elegirla en el simulador de arriba.' : ''}
+            </Text>
+          </Disclosure>
           {rows.length ? (
             <AmortizationSchedule
               key={mode}
@@ -540,7 +613,7 @@ function CreditAmortizationContent({ id }: { id: number }) {
               selectedInstallment={mode === 'current' ? Number(installment) : undefined}
               onSelect={
                 mode === 'current' && data.currentBalance > 0
-                  ? (selected) => changeInstallment(String(selected))
+                  ? (selected) => showSimulator(String(selected))
                   : undefined
               }
             />
@@ -553,13 +626,10 @@ function CreditAmortizationContent({ id }: { id: number }) {
               </Text>
             </Card>
           )}
-          <Card style={styles.terms}>
-            <View style={styles.termsHeading}>
-              <Ionicons name="information-circle-outline" size={21} color={colors.credit} />
-              <Text style={typography.cardTitle}>Así comenzó el crédito</Text>
-            </View>
+          <Disclosure title="Así comenzó el crédito" icon="document-text-outline">
             <View style={styles.termsGrid}>
               <Fact label="Monto inicial" value={creditMoney(data.principal, currency, hidden)} />
+              <Fact label="Desembolsado" value={formatLocalDate(data.disbursementDate, 'compact')} />
               <Fact label="Plazo pactado" value={`${data.termMonths} cuotas`} />
               <Fact label="Tasa EA" value={`${data.annualRate}%`} />
               <Fact
@@ -575,7 +645,7 @@ function CreditAmortizationContent({ id }: { id: number }) {
               La numeración sigue el calendario desde el desembolso; no indica cuántas cuotas has pagado. La
               cuota base se calcula con el monto, la tasa y el plazo registrados.
             </Text>
-          </Card>
+          </Disclosure>
 
           <SectionHeader title="Pagos que ya hiciste" />
           <Text style={typography.bodySecondary}>
@@ -700,7 +770,10 @@ const styles = themedStyleSheet(() => ({
     gap: spacing.sm,
     backgroundColor: colors.infoSoft,
     borderRadius: radius.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  editingContribution: { borderColor: colors.primary },
   contributionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   formHeading: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   formIcon: {

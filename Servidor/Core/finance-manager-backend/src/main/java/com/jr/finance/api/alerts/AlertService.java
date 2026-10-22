@@ -16,6 +16,8 @@ import com.jr.finance.api.budget.BudgetRepository;
 import com.jr.finance.api.budget.dto.BudgetResponse;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
+import com.jr.finance.api.recurrence.RecurringOccurrenceRepository;
+import com.jr.finance.api.recurrence.RecurringOccurrence;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class AlertService {
     private final UserAlertSeenRepository seenRepository;
     private final BudgetService budgetService;
     private final BudgetRepository budgetRepository;
+    private final RecurringOccurrenceRepository recurringOccurrences;
 
     public List<AlertResponse> buildAlerts(Long userId) {
         YearMonth now = YearMonth.now();
@@ -67,6 +70,11 @@ public class AlertService {
                 });
 
         List<AlertResponse> alerts = new ArrayList<>();
+        if (includeCurrentState) {
+            long pending = recurringOccurrences.countByRuleUserIdAndStatus(userId, RecurringOccurrence.Status.PENDING);
+            if (pending > 0) alerts.add(new AlertResponse("RECURRING_PENDING", "WARNING", 75,
+                    "Tienes ingresos o gastos programados por confirmar.", Map.of("count", pending)));
+        }
 
         // Créditos
         List<Credit> credits = includeCurrentState ? creditRepository.findByUserId(userId) : List.of();
