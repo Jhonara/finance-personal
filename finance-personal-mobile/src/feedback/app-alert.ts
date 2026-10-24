@@ -20,7 +20,12 @@ export const AppAlert = {
   alert(...args: Parameters<typeof Alert.alert>) {
     const [title, message, buttons, options] = args;
     if (presenter)
-      presenter({ title, message, buttons: buttons?.length ? buttons : [{ text: 'Entendido' }], options });
+      presenter({
+        title: title ?? '',
+        message: message ?? undefined,
+        buttons: buttons?.length ? buttons : [{ text: 'Entendido' }],
+        options,
+      });
     else Alert.alert(...args);
   },
 };

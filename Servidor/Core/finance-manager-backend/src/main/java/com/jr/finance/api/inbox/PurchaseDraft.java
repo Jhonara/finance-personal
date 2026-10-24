@@ -15,6 +15,7 @@ public class PurchaseDraft {
     @Column(nullable = false, length = 64) private String initialFingerprint;
     @Version @Column(nullable = false) private long version;
     @Column(nullable = false, length = 16) private String kind;
+    @Column(nullable = false, length = 16) private String source = "PASTED_TEXT";
     @Column(nullable = false, length = 16) private String status = "PENDING";
     @Column(nullable = false, length = 120) private String description;
     @Column(precision = 19, scale = 4) private BigDecimal amount;

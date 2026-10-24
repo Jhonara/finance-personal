@@ -40,7 +40,8 @@ public class InboxService {
     @Transactional
     public Draft create(Long userId, Create request) {
         lock(userId);
-        var fingerprint = digest(request.fields().toString());
+        var fingerprint = digest(request.fields().toString() +
+                (request.effectiveSource() == Source.PASTED_TEXT ? "" : ":SHORTCUT"));
         var previous = drafts.findByUserIdAndRequestKey(userId, request.requestKey());
         if (previous.isPresent()) {
             if (!previous.get().getInitialFingerprint().equals(fingerprint))
@@ -48,6 +49,7 @@ public class InboxService {
             return response(previous.get(), true);
         }
         var row = new PurchaseDraft(); row.setUserId(userId); row.setRequestKey(request.requestKey());
+        row.setSource(request.effectiveSource().name());
         row.setInitialFingerprint(fingerprint); row.setCreatedAt(recurrenceClock.instant());
         apply(row, request.fields());
         return response(drafts.saveAndFlush(row), true);
@@ -164,7 +166,7 @@ public class InboxService {
             var ids = prior.stream().map(tx -> tx.getCategory().getId()).distinct().toList();
             if (ids.size() == 1) suggestion = new Suggestion(ids.getFirst(), prior.getFirst().getCategory().getName());
         }
-        return new Draft(row.getId(), row.getVersion(), row.getStatus(), "PASTED_TEXT", fields(row), row.getCreatedAt(),
+        return new Draft(row.getId(), row.getVersion(), row.getStatus(), row.getSource(), fields(row), row.getCreatedAt(),
                 row.getTransactionId(), matches, token(row, matches), suggestion);
     }
     private static String digest(String value) {

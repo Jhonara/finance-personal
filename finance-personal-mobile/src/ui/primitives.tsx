@@ -19,6 +19,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type ScrollViewInstance,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
@@ -49,11 +50,11 @@ export function Screen({
   refreshing?: boolean;
   onRefresh?: () => void;
   entry?: boolean;
-  scrollRef?: RefObject<ScrollView | null>;
+  scrollRef?: RefObject<ScrollViewInstance | null>;
 }>) {
   const tour = useTour();
   const { palette } = useAppTheme();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const offset = useRef(0);
   const scrollContext = useMemo(() => ({ ref: scrollRef, offset }), []);
   const ScrollContainer = keyboard ? KeyboardAwareScrollView : ScrollView;

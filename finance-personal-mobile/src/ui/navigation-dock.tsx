@@ -14,7 +14,7 @@ import { dockIndex, dockItems } from './navigation-model';
 import { requestFormExit } from '@/features/forms/use-unsaved-form';
 
 type DockProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
-export function NavigationDock({ state, descriptors, navigation }: DockProps) {
+export function NavigationDock({ state, descriptors, emitter, navigateToTab }: DockProps) {
   const { palette } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -68,15 +68,15 @@ export function NavigationDock({ state, descriptors, navigation }: DockProps) {
               accessibilityState={{ selected: active }}
               style={styles.item}
               onPress={() => {
-                const event = navigation.emit({
+                const event = emitter.emit({
                   type: 'tabPress',
                   target: route.key,
                   canPreventDefault: true,
                 });
                 if (focused.key !== route.key && !event.defaultPrevented)
-                  requestFormExit(() => navigation.navigate(route.name, route.params));
+                  requestFormExit(() => navigateToTab(route.key));
               }}
-              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+              onLongPress={() => emitter.emit({ type: 'tabLongPress', target: route.key })}
             >
               <Ionicons
                 name={active ? item.activeIcon : item.icon}

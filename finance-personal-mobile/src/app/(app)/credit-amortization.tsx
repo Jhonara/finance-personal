@@ -1,6 +1,6 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Text, View, type ScrollView } from 'react-native';
+import { Keyboard, Text, View, type ScrollViewInstance } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -37,7 +37,7 @@ function CreditAmortizationContent({ id }: { id: number }) {
   const simulate = useAmortizationScenario();
   const { hidden } = usePrivacy();
   const busy = useRef(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const simulatorTop = useRef(0);
   const revealResult = useRef(false);
   const reduced = useReducedMotion();

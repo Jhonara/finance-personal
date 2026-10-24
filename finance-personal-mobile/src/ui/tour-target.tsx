@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, type PropsWithChildren } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 import { TourScrollContext, useTour } from '@/features/onboarding/tour-context';
 import { colors } from '@/theme';
 
@@ -10,7 +10,7 @@ export function TourTarget({
 }: PropsWithChildren<{ id: string; style?: StyleProp<ViewStyle> }>) {
   const tour = useTour();
   const scroll = useContext(TourScrollContext);
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const active = tour?.activeTarget === id;
   const report = tour?.reportTarget;
   useEffect(() => {

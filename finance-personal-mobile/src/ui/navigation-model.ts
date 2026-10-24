@@ -35,6 +35,7 @@ export function dockIndex(route: string) {
   if (
     route === 'transactions' ||
     route === 'inbox' ||
+    route === 'shortcuts' ||
     route === 'purchase-review' ||
     route === 'report-transactions' ||
     route.startsWith('new-')

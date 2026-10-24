@@ -1059,13 +1059,9 @@ describe('Credit screens with real hooks and forms', () => {
   it('keeps credits internal routes hidden and five primary tabs', async () => {
     const tree = await render(<AppLayout />);
     const routes = tree.root.findAll((n) => (n.type as unknown) === 'TabRoute');
-    expect(routes.filter((n) => n.props.options?.href !== null).map((n) => n.props.name)).toEqual([
-      'index',
-      'transactions',
-      'action',
-      'accounts',
-      'plan',
-    ]);
+    expect(routes.filter((n) => n.props.options?.tabBarButton?.() !== null).map((n) => n.props.name)).toEqual(
+      ['index', 'transactions', 'action', 'accounts', 'plan'],
+    );
     for (const name of [
       'credits',
       'credit-form',
@@ -1073,8 +1069,12 @@ describe('Credit screens with real hooks and forms', () => {
       'credit-amortization',
       'credit-payments',
       'credit-opening',
-    ])
-      expect(routes.find((n) => n.props.name === name)?.props.options.href).toBeNull();
+    ]) {
+      const options = routes.find((n) => n.props.name === name)!.props.options;
+      expect(options.href).not.toBeNull();
+      expect(options.hidden).not.toBe(true);
+      expect(options.tabBarButton()).toBeNull();
+    }
   });
 });
 

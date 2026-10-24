@@ -1,9 +1,11 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
 import { getThemeRevision } from './index';
+
+type NamedStyles<T> = { [Name in keyof T]: ViewStyle | TextStyle | ImageStyle };
 
 // Styles are evaluated when read, so existing screens pick up a saved appearance
 // without duplicating every StyleSheet definition for light and dark palettes.
-export function themedStyleSheet<T extends StyleSheet.NamedStyles<T>>(factory: () => T): T {
+export function themedStyleSheet<T extends NamedStyles<T>>(factory: () => T): T {
   let revision = -1;
   let styles: T;
   const current = () => {

@@ -71,6 +71,20 @@ class InboxIntegrationTest {
         }
         assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("950");
     }
+    @Test void shortcutOriginSurvivesEditsAndCannotReuseAKeyWithAnotherOrigin() throws Exception {
+        var request = new Create(UUID.randomUUID().toString(), fields("50"), Source.SHORTCUT);
+        var saved = inbox.create(owner.getId(), request);
+        assertThat(saved.source()).isEqualTo("SHORTCUT");
+        assertThat(inbox.create(owner.getId(), request).id()).isEqualTo(saved.id());
+        assertThatThrownBy(() -> inbox.create(owner.getId(), new Create(request.requestKey(), request.fields())))
+                .isInstanceOf(ConflictException.class);
+        var edited = inbox.update(owner.getId(), saved.id(), new Update(saved.version(), fields("60")));
+        assertThat(edited.source()).isEqualTo("SHORTCUT");
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("1000");
+        mvc.perform(post("/api/v1/inbox").header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"requestKey\":\"abcdefghijklmnop\",\"fields\":{\"kind\":\"EXPENSE\",\"description\":\"Compra\"},\"source\":\"WALLET_VERIFIED\"}"))
+                .andExpect(status().isBadRequest());
+    }
     @Test void detectsExistingMovementAndLinksWithoutAnotherExpense() {
         var tx = expense("50", "Mercado"); var saved = inbox.create(owner.getId(), create(fields("50")));
         assertThat(saved.matches()).anySatisfy(match -> { assertThat(match.id()).isEqualTo(tx.getId()); assertThat(match.kind()).isEqualTo("TRANSACTION"); });

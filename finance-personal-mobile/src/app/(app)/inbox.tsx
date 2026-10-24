@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useInbox } from '@/features/inbox/inbox-api';
+import { purchaseSourceLabel } from '@/features/inbox/shortcut-intake';
 import { openForm } from '@/features/forms/form-session';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
@@ -30,6 +31,9 @@ export default function InboxScreen() {
         onBack={() => router.back()}
       />
       <Button onPress={() => openForm('/(app)/purchase-review')}>Pegar aviso de compra</Button>
+      <Button variant="ghost" onPress={() => router.push('/(app)/shortcuts')}>
+        Usar Atajos en iPhone
+      </Button>
       {query.isPending ? (
         <SkeletonRow />
       ) : query.isError ? (
@@ -54,7 +58,7 @@ export default function InboxScreen() {
                 {draft.fields?.effectiveDate
                   ? formatLocalDate(draft.fields.effectiveDate)
                   : 'Fecha por completar'}{' '}
-                · Texto pegado
+                · {purchaseSourceLabel(draft.source)}
               </Text>
               <Button
                 variant="secondary"

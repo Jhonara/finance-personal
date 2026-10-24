@@ -404,7 +404,9 @@ it('keeps exactly five visible tabs and all Savings routes internal', async () =
   const tree = await render(<AppLayout />);
   const routes = tree.root.findAll((node) => (node.type as unknown) === 'TabRoute');
   expect(
-    routes.filter((route) => route.props.options.href !== null).map((route) => route.props.options.title),
+    routes
+      .filter((route) => route.props.options.tabBarButton?.() !== null)
+      .map((route) => route.props.options.title),
   ).toEqual(['Inicio', 'Movimientos', 'Registrar', 'Cuentas', 'Menú']);
   const shell = tree.root.find((node) => (node.type as unknown) === 'Tabs');
   expect(shell.props.screenOptions.tabBarStyle).toMatchObject({ height: 88, paddingBottom: 24 });
@@ -421,8 +423,12 @@ it('keeps exactly five visible tabs and all Savings routes internal', async () =
     'guide',
     'credits',
     'credit-amortization',
-  ])
-    expect(routes.find((route) => route.props.name === name)!.props.options.href).toBe(null);
+  ]) {
+    const options = routes.find((route) => route.props.name === name)!.props.options;
+    expect(options.href).not.toBeNull();
+    expect(options.hidden).not.toBe(true);
+    expect(options.tabBarButton()).toBeNull();
+  }
 });
 
 it('creates A, completes A, reopens the retained creation route clean and creates active B', async () => {

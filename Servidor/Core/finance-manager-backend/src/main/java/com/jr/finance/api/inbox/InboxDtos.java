@@ -10,6 +10,7 @@ import java.util.List;
 public final class InboxDtos {
     private InboxDtos() {}
     public enum Kind { EXPENSE, OTHER }
+    public enum Source { PASTED_TEXT, SHORTCUT }
     @Schema(name = "PurchaseDraftFields")
     public record Fields(@NotNull Kind kind, @NotBlank @Size(max = 120) String description,
             @Positive @Digits(integer = 15, fraction = 4) BigDecimal amount,
@@ -17,7 +18,10 @@ public final class InboxDtos {
             @Positive Long accountId, @Positive Long categoryId) {}
     @Schema(name = "CreatePurchaseDraft")
     public record Create(@NotBlank @Pattern(regexp = "[a-zA-Z0-9-]{16,80}") String requestKey,
-            @NotNull @Valid Fields fields) {}
+            @NotNull @Valid Fields fields, Source source) {
+        public Create(String requestKey, Fields fields) { this(requestKey, fields, Source.PASTED_TEXT); }
+        public Source effectiveSource() { return source == null ? Source.PASTED_TEXT : source; }
+    }
     @Schema(name = "UpdatePurchaseDraft")
     public record Update(@NotNull @PositiveOrZero Long version, @NotNull @Valid Fields fields) {}
     @Schema(name = "ConfirmPurchaseDraft")

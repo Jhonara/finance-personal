@@ -11,5 +11,9 @@ export default defineConfig({
       'expo-system-ui': fileURLToPath(new URL('./src/test/system-ui.ts', import.meta.url)),
     },
   },
-  test: { environment: 'node', include: ['src/**/*.test.{ts,tsx}'] },
+  test: {
+    environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
 });

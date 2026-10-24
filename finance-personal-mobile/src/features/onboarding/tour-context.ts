@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { RefObject } from 'react';
-import type { ScrollView } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 
 export const TourContext = createContext<{
   activeTarget?: string;
@@ -12,6 +12,6 @@ export const TourContext = createContext<{
 } | null>(null);
 export const useTour = () => useContext(TourContext);
 export const TourScrollContext = createContext<{
-  ref: RefObject<ScrollView | null>;
+  ref: RefObject<ScrollViewInstance | null>;
   offset: RefObject<number>;
 } | null>(null);

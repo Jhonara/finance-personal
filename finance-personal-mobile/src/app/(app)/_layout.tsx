@@ -11,6 +11,10 @@ import { BrandTabIcon } from '@/ui/brand-tab-icon';
 import { InteractiveTourProvider } from '@/features/onboarding/interactive-tour';
 import { NavigationDock } from '@/ui/navigation-dock';
 
+// SDK 58 redirects away from href: null/hidden routes. Internal screens must
+// stay reachable; only their dock button is omitted.
+const internalScreenOptions = { tabBarButton: () => null };
+
 export default function AppLayout() {
   const { state } = useAuth();
   const insets = useSafeAreaInsets();
@@ -106,34 +110,68 @@ export default function AppLayout() {
           />
           <Tabs.Screen name="accounts" options={options('Cuentas', 'wallet-outline', 'wallet')} />
           <Tabs.Screen name="plan" options={options('Menú', 'grid-outline', 'grid')} />
-          <Tabs.Screen name="more" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="reports" options={{ href: null }} />
-          <Tabs.Screen name="report-transactions" options={{ href: null }} />
-          <Tabs.Screen name="guide" options={{ href: null }} />
-          <Tabs.Screen name="new-expense" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="new-income" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="new-transfer" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="account-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="account-detail" options={{ href: null }} />
-          <Tabs.Screen name="recurrences" options={{ href: null }} />
-          <Tabs.Screen name="recurring-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="categories" options={{ href: null }} />
-          <Tabs.Screen name="category-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="budgets" options={{ href: null }} />
-          <Tabs.Screen name="alerts" options={{ href: null }} />
-          <Tabs.Screen name="savings" options={{ href: null }} />
-          <Tabs.Screen name="credits" options={{ href: null }} />
-          <Tabs.Screen name="budget-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="budget-detail" options={{ href: null }} />
-          <Tabs.Screen name="saving-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="saving-detail" options={{ href: null }} />
-          <Tabs.Screen name="credit-form" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="credit-detail" options={{ href: null }} />
-          <Tabs.Screen name="credit-amortization" options={{ href: null }} />
-          <Tabs.Screen name="credit-payments" options={{ href: null }} />
-          <Tabs.Screen name="credit-opening" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-          <Tabs.Screen name="inbox" options={{ href: null }} />
-          <Tabs.Screen name="purchase-review" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+          <Tabs.Screen name="more" options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }} />
+          <Tabs.Screen name="reports" options={internalScreenOptions} />
+          <Tabs.Screen name="report-transactions" options={internalScreenOptions} />
+          <Tabs.Screen name="guide" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="new-expense"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen
+            name="new-income"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen
+            name="new-transfer"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen
+            name="account-form"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="account-detail" options={internalScreenOptions} />
+          <Tabs.Screen name="recurrences" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="recurring-form"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="categories" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="category-form"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="budgets" options={internalScreenOptions} />
+          <Tabs.Screen name="alerts" options={internalScreenOptions} />
+          <Tabs.Screen name="savings" options={internalScreenOptions} />
+          <Tabs.Screen name="credits" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="budget-form"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="budget-detail" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="saving-form"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="saving-detail" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="credit-form"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="credit-detail" options={internalScreenOptions} />
+          <Tabs.Screen name="credit-amortization" options={internalScreenOptions} />
+          <Tabs.Screen name="credit-payments" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="credit-opening"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen name="inbox" options={internalScreenOptions} />
+          <Tabs.Screen name="shortcuts" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="purchase-review"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
         </Tabs>
       </InteractiveTourProvider>
     </QuickActionProvider>

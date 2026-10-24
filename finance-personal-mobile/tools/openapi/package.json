@@ -1,0 +1,10 @@
+{
+  "name": "@finance-personal/openapi-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated OpenAPI code generation with its supported TypeScript version.",
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "~5.9.3"
+  }
+}

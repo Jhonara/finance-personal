@@ -51,7 +51,11 @@ export function BrandTabIcon({
           : [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
       }}
     >
-      <Ionicons name={name} color={focused ? colors.mint : color} size={focused ? size + 1 : size} />
+      <Ionicons
+        name={name}
+        style={{ color: focused ? colors.mint : color }}
+        size={focused ? size + 1 : size}
+      />
     </Animated.View>
   );
 }

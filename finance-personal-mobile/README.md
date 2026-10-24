@@ -4,17 +4,17 @@ Cliente móvil de Finance Personal, construido con Expo, React Native y TypeScri
 
 ## Requisitos
 
-- Node.js 20 o superior.
+- Node.js 24 LTS (validado con 24.14.1).
 - npm.
-- Expo Go o un emulador Android/iOS.
+- Expo Go compatible con SDK 58 o una compilación de desarrollo de esta versión.
 - El backend Finance Personal disponible para las pruebas manuales.
 
 ## Inicio local
 
 ```powershell
 Copy-Item .env.example .env
-npm install
-npx expo start
+npm ci
+npx expo start --clear
 ```
 
 Configure `EXPO_PUBLIC_API_BASE_URL` en `.env` según el destino:
@@ -33,6 +33,10 @@ Los tipos de `src/api/generated/schema.ts` proceden exclusivamente de `/v3/api-d
 $env:OPENAPI_URL = 'http://localhost:8080/v3/api-docs'
 npm run api:generate
 ```
+
+La app usa TypeScript 6.0.3, requerido por Expo SDK 58. `openapi-typescript` 7.13.0 todavía declara compatibilidad con TypeScript 5; por eso se instala con TypeScript 5.9.3 en el workspace privado `tools/openapi`. `npm ci` instala ambos y `api:generate` resuelve el generador desde ese workspace. No se necesitan `--force`, `--legacy-peer-deps` ni exclusiones de Expo Doctor. `OPENAPI_OUTPUT` permite escribir una comprobación en otro archivo sin sobrescribir el contrato de la app.
+
+En el iPhone, mantén el servidor y Expo abiertos, usa la misma red del computador y escanea el QR nuevo después de reiniciar Expo. La migración de paquetes no actualiza automáticamente la app Expo Go del teléfono.
 
 ## Arquitectura
 

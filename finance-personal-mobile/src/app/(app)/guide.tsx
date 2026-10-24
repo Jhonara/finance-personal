@@ -1,6 +1,6 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
@@ -76,7 +76,7 @@ function GuideJourney({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const current = guideTopics.find((item) => item.id === selected)!;
   const index = guideTopics.indexOf(current);
   const choose = (id: GuideTopicId) => {

@@ -531,13 +531,9 @@ describe('More, preferences and session UI', () => {
   it('retains five brand tabs with alerts and all detail routes hidden', async () => {
     const tree = await render(<AppLayout />);
     const tabs = tree.root.findAll((node) => String(node.type) === 'TabRoute');
-    expect(tabs.filter((node) => node.props.options.href !== null).map((node) => node.props.name)).toEqual([
-      'index',
-      'transactions',
-      'action',
-      'accounts',
-      'plan',
-    ]);
+    expect(
+      tabs.filter((node) => node.props.options.tabBarButton?.() !== null).map((node) => node.props.name),
+    ).toEqual(['index', 'transactions', 'action', 'accounts', 'plan']);
   });
 });
 

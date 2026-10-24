@@ -13,6 +13,7 @@ import {
   type DraftFields,
 } from '@/features/inbox/inbox-api';
 import { emptyPurchase, parsePurchaseText, type PurchaseForm } from '@/features/inbox/purchase-parser';
+import { purchaseSourceLabel, type ShortcutIntake } from '@/features/inbox/shortcut-intake';
 import { withFormSession, openForm } from '@/features/forms/form-session';
 import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { LinkedTransactionDetail } from '@/features/transactions/linked-transaction-detail';
@@ -60,27 +61,44 @@ function PurchaseReviewScreen() {
   return <PurchaseEditor initial={query.data} />;
 }
 
-export function PurchaseEditor({ initial }: { initial?: Draft }) {
+export function PurchaseEditor({
+  initial,
+  imported,
+  onNewIntake,
+}: {
+  initial?: Draft;
+  imported?: ShortcutIntake;
+  onNewIntake?: () => void;
+}) {
   const [saved, setSaved] = useState(initial);
   const [stage, setStage] = useState<'edit' | 'review'>(initial ? 'review' : 'edit');
   const [text, setText] = useState('');
-  const [analyzed, setAnalyzed] = useState(false);
+  const [analyzed, setAnalyzed] = useState(Boolean(imported));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [selector, setSelector] = useState<'account' | 'category' | 'currency' | 'kind' | null>(null);
   const [transaction, setTransaction] = useState<number>();
   const lock = useRef(false);
   const operationEpoch = useRef(0);
-  const createRequest = useRef<{ requestKey: string; fields: DraftFields } | undefined>(undefined);
+  const createRequest = useRef<{ requestKey: string; fields: DraftFields; source?: 'SHORTCUT' } | undefined>(
+    undefined,
+  );
   const actions = useInboxActions();
   const accounts = useAccounts();
   const categories = useCategories('EXPENSE');
   const { hidden } = usePrivacy();
-  const form = useForm<PurchaseForm>({ defaultValues: asForm(initial) });
+  const form = useForm<PurchaseForm>({
+    defaultValues: initial ? asForm(initial) : (imported?.values ?? emptyPurchase()),
+  });
   const values = form.watch();
   const dirty = hasFormChanges(values, form.formState.defaultValues) || Boolean(text);
   const closed = saved?.status === 'POSTED' || saved?.status === 'LINKED';
-  const guard = useUnsavedForm({ dirty: !closed && dirty, busy, suspended: selector !== null });
+  const previewOnly = imported?.demo === true;
+  const guard = useUnsavedForm({
+    dirty: !previewOnly && !closed && (dirty || Boolean(imported && !saved)),
+    busy,
+    suspended: selector !== null,
+  });
   const account = accounts.data?.find((item) => item.id === values.accountId);
   const currencies = [
     ...new Set([
@@ -131,7 +149,7 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
     useCallback(() => {
       let active = true;
       const epoch = operationEpoch.current;
-      if (saved?.id && stage === 'review')
+      if (saved?.id && stage === 'review' && !closed)
         void getDraft(saved.id)
           .then((draft) => {
             if (active && epoch === operationEpoch.current) setSaved(draft);
@@ -143,12 +161,13 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
       return () => {
         active = false;
       };
-    }, [saved?.id, stage]),
+    }, [saved?.id, stage, closed]),
   );
 
   const save = form.handleSubmit(
     (data) =>
       void run(async () => {
+        if (previewOnly) return;
         let valid = true;
         if (!data.description.trim()) {
           form.setError('description', { message: 'Escribe el comercio o concepto.' });
@@ -173,13 +192,17 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
         let current = saved;
         if (!current?.id) {
           createRequest.current ??= {
-            requestKey: `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`,
+            requestKey: imported?.requestKey ?? `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`,
             fields,
+            ...(imported ? { source: 'SHORTCUT' as const } : {}),
           };
           current = await actions.create.mutateAsync(createRequest.current);
           setSaved(current);
           // Recover the same create after an uncertain response before applying any later edits.
-          if (JSON.stringify(createRequest.current.fields) !== JSON.stringify(fields))
+          if (
+            current.status === 'PENDING' &&
+            JSON.stringify(createRequest.current.fields) !== JSON.stringify(fields)
+          )
             current = await actions.update.mutateAsync({
               id: current.id!,
               version: current.version!,
@@ -225,11 +248,37 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
   return (
     <Screen entry scroll keyboard style={{ gap: spacing.lg }}>
       <ScreenHeader
-        title={closed ? 'Compra revisada' : saved ? 'Revisar compra' : 'Pegar aviso de compra'}
+        title={
+          closed
+            ? 'Compra revisada'
+            : previewOnly
+              ? 'Prueba de Atajos'
+              : imported
+                ? 'Compra desde Atajos'
+                : saved || analyzed
+                  ? 'Revisar compra'
+                  : 'Pegar aviso de compra'
+        }
         subtitle={closed ? 'Puedes consultar el movimiento.' : 'Revisa los datos antes de registrar.'}
         back
         onBack={() => guard.request(() => router.back())}
       />
+      {onNewIntake && (
+        <Card style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={typography.body}>Llegó otro enlace. Tus cambios actuales siguen aquí.</Text>
+          <Button variant="secondary" disabled={busy} onPress={() => guard.request(onNewIntake)}>
+            Revisar el nuevo enlace
+          </Button>
+        </Card>
+      )}
+      {previewOnly && (
+        <Card tone="info" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={typography.cardTitle}>Conexión de prueba</Text>
+          <Text style={typography.bodySecondary}>
+            Estos datos son ficticios. Esta pantalla no permite guardarlos ni registrar un gasto.
+          </Text>
+        </Card>
+      )}
       {error ? (
         <Card style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text accessibilityLiveRegion="polite" style={{ ...typography.body, color: colors.danger }}>
@@ -260,7 +309,7 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
         </>
       ) : stage === 'edit' ? (
         <>
-          {!saved && !analyzed && (
+          {!saved && !analyzed && !imported && (
             <Card style={{ padding: spacing.lg, gap: spacing.md }}>
               <Input
                 label="Texto del aviso"
@@ -380,11 +429,19 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
                   )}
                 </>
               )}
-              <Button loading={busy} disabled={busy} onPress={save}>
-                {saved ? 'Guardar cambios y revisar' : 'Guardar para revisar'}
-              </Button>
-              <Text style={typography.caption}>Guardar el borrador todavía no cambia tu saldo.</Text>
-              {!saved && (
+              {previewOnly ? (
+                <Button variant="secondary" onPress={() => router.replace('/(app)/shortcuts')}>
+                  Volver a la guía de Atajos
+                </Button>
+              ) : (
+                <>
+                  <Button loading={busy} disabled={busy} onPress={save}>
+                    {saved ? 'Guardar cambios y revisar' : 'Guardar para revisar'}
+                  </Button>
+                  <Text style={typography.caption}>Guardar el borrador todavía no cambia tu saldo.</Text>
+                </>
+              )}
+              {!saved && !imported && (
                 <Button variant="ghost" disabled={busy} onPress={() => setAnalyzed(false)}>
                   Cambiar texto del aviso
                 </Button>
@@ -410,7 +467,7 @@ export function PurchaseEditor({ initial }: { initial?: Draft }) {
                   'Categoría por completar'}
               </Text>
             )}
-            <Text style={typography.caption}>Origen: texto pegado</Text>
+            <Text style={typography.caption}>Origen: {purchaseSourceLabel(saved?.source)}</Text>
             <Button variant="outline" disabled={busy} onPress={edit}>
               Editar datos
             </Button>

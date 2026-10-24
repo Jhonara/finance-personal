@@ -1623,6 +1623,8 @@ export interface components {
         CreatePurchaseDraft: {
             requestKey: string;
             fields: components["schemas"]["PurchaseDraftFields"];
+            /** @enum {string} */
+            source?: "PASTED_TEXT" | "SHORTCUT";
         };
         LinkPurchaseDraft: {
             /** Format: int64 */
