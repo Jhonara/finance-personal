@@ -1,4 +1,5 @@
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -36,6 +37,12 @@ function SavingForm() {
   const [error, setError] = useState('');
   const [currency, setCurrency] = useState('COP');
   const [celebration, setCelebration] = useState<SavingsCelebration>();
+  const guard = useUnsavedForm({
+    dirty: hasFormChanges(form.watch(), form.formState.defaultValues) || currency !== 'COP',
+    busy: mutation.isPending,
+    enabled: !saved,
+    suspended: Boolean(celebration),
+  });
   const submit = () => {
     if (submitting.current || uncertain || saved) return;
     submitting.current = true;
@@ -90,7 +97,7 @@ function SavingForm() {
         subtitle="Ponle nombre a eso que quieres lograr."
         back
         onBack={() => {
-          if (!submitting.current) router.back();
+          if (!submitting.current) guard.request(() => router.back());
         }}
       />
       <Controller
@@ -135,7 +142,7 @@ function SavingForm() {
         </Text>
       ) : null}
       {uncertain ? (
-        <Button variant="secondary" onPress={() => router.back()}>
+        <Button variant="secondary" onPress={() => guard.request(() => router.back())}>
           Ver mis metas
         </Button>
       ) : (

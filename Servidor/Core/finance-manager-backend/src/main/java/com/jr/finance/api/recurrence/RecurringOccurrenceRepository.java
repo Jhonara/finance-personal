@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RecurringOccurrenceRepository extends JpaRepository<RecurringOccurrence, Long> {
+    List<RecurringOccurrence> findByRuleUserIdAndStatus(Long userId, RecurringOccurrence.Status status);
     long countByRuleUserIdAndStatus(Long userId, RecurringOccurrence.Status status);
     Optional<RecurringOccurrence> findByRuleIdAndDueDate(Long ruleId, LocalDate dueDate);
     @Query("""

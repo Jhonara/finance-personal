@@ -13,6 +13,7 @@ import {
 import { getCategory } from '@/features/categories/categories-api';
 import { useCreateCategory, useUpdateCategory } from '@/features/categories/use-categories';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { useTour } from '@/features/onboarding/tour-context';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -52,6 +53,18 @@ function CategoryForm() {
     categoryColors.find((item) => item.soft === fallback.soft) ??
     categoryColors[0];
   const busy = create.isPending || update.isPending;
+  const guard = useUnsavedForm({
+    busy,
+    suspended: picker,
+    enabled: !editing || Boolean(existing.data),
+    dirty:
+      name !== (editing ? (existing.data?.name ?? '') : (params.suggestedName ?? '')) ||
+      type !== (params.type === 'INCOME' ? 'INCOME' : 'EXPENSE') ||
+      icon !==
+        (editing ? categoryIcons.find((item) => item.key === existing.data?.iconKey)?.key : undefined) ||
+      color !==
+        (editing ? categoryColors.find((item) => item.key === existing.data?.colorKey)?.key : undefined),
+  });
   const submit = () => {
     if (busy) return;
     if (!name.trim()) {
@@ -96,7 +109,7 @@ function CategoryForm() {
     <Screen entry scroll keyboard style={styles.screen}>
       <MovementFormHeader
         title={editing ? 'Editar categoría' : 'Nueva categoría'}
-        onBack={() => router.back()}
+        onBack={() => guard.request(() => router.back())}
       />
       <View style={styles.previewWrap}>
         <MotionPressable

@@ -108,6 +108,7 @@ export default function AppLayout() {
           <Tabs.Screen name="plan" options={options('Menú', 'grid-outline', 'grid')} />
           <Tabs.Screen name="more" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="reports" options={{ href: null }} />
+          <Tabs.Screen name="report-transactions" options={{ href: null }} />
           <Tabs.Screen name="guide" options={{ href: null }} />
           <Tabs.Screen name="new-expense" options={{ href: null, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="new-income" options={{ href: null, tabBarStyle: { display: 'none' } }} />
@@ -131,6 +132,8 @@ export default function AppLayout() {
           <Tabs.Screen name="credit-amortization" options={{ href: null }} />
           <Tabs.Screen name="credit-payments" options={{ href: null }} />
           <Tabs.Screen name="credit-opening" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+          <Tabs.Screen name="inbox" options={{ href: null }} />
+          <Tabs.Screen name="purchase-review" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         </Tabs>
       </InteractiveTourProvider>
     </QuickActionProvider>

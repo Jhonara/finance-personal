@@ -19,6 +19,12 @@ public class RecurrenceController {
     private Long user(Authentication authentication) { return ((UserPrincipal) authentication.getPrincipal()).getUser().getId(); }
     @GetMapping @Operation(operationId = "listRecurringRules")
     public List<Rule> list(Authentication auth) { return service.list(user(auth)); }
+    @PostMapping("/preview") @Operation(operationId = "previewRecurringRule", description = "Vista previa sin guardar ni registrar movimientos.")
+    public Preview preview(@Valid @RequestBody PreviewRequest request) { return RecurrencePreview.calculate(request); }
+    @GetMapping("/upcoming") @Operation(operationId = "getUpcomingRecurringEntries")
+    public Upcoming upcoming(Authentication auth, @RequestParam(defaultValue = "America/Bogota") String timeZone) {
+        return service.upcoming(user(auth), timeZone);
+    }
     @GetMapping("/agenda") public Agenda agenda(Authentication auth, @RequestParam int year, @RequestParam int month) {
         return service.agenda(user(auth), year, month);
     }

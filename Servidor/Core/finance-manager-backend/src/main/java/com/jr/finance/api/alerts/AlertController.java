@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class AlertController {
 
     private final AlertService alertService;
+    private final AlertLifecycleService lifecycle;
 
     @Operation(
             summary = "Obtener alertas",
@@ -32,14 +33,28 @@ public class AlertController {
             @ApiResponse(responseCode = "401", description = "Usuario no autenticado")
     })
     @GetMapping
-    public Object getAlerts(Authentication auth) {
+    public java.util.List<com.jr.finance.api.alerts.dto.AlertResponse> getAlerts(Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-        return alertService.buildAlerts(principal.getUser().getId());
+        return lifecycle.list(principal.getUser().getId(), false);
+    }
+
+    @GetMapping("/history")
+    @Operation(summary = "Consultar los últimos 30 avisos resueltos o de períodos anteriores")
+    public java.util.List<com.jr.finance.api.alerts.dto.AlertResponse> history(Authentication auth) {
+        return lifecycle.list(((UserPrincipal) auth.getPrincipal()).getUser().getId(), true);
+    }
+
+    @PostMapping("/{id}/state")
+    @Operation(summary = "Leer, posponer hasta mañana o reactivar un aviso sin resolverlo manualmente")
+    public com.jr.finance.api.alerts.dto.AlertResponse update(@PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody com.jr.finance.api.alerts.dto.UpdateAlertRequest request,
+            Authentication auth) {
+        return lifecycle.update(((UserPrincipal) auth.getPrincipal()).getUser().getId(), id, request);
     }
 
     @Operation(
             summary = "Marcar alerta como vista",
-            description = "Marca una alerta como vista para que no vuelva a mostrarse."
+            description = "Compatibilidad con versiones anteriores. Leer un aviso no oculta una situación pendiente."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Alerta marcada como vista"),

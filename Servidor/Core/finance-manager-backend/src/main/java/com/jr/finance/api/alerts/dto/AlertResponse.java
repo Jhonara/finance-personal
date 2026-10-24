@@ -1,13 +1,13 @@
 package com.jr.finance.api.alerts.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.Data;
 
 import java.util.Map;
 
 @Data
-@AllArgsConstructor
+@NoArgsConstructor
 @Schema(
         name = "AlertResponse",
         description = "Representa una alerta financiera generada por el sistema."
@@ -42,4 +42,22 @@ public class AlertResponse {
             description = "Información adicional relacionada con la alerta."
     )
     private Map<String, Object> data;
+
+    private Long id;
+    private Long revision;
+    @Schema(allowableValues = {"ACTIVE", "SNOOZED", "RESOLVED", "ARCHIVED"})
+    private String state;
+    private boolean read;
+    private java.time.Instant detectedAt;
+    private java.time.Instant checkedAt;
+    private java.time.Instant snoozedUntil;
+    private java.time.Instant closedAt;
+
+    public AlertResponse(String code, String severity, int score, String message, Map<String, Object> data) {
+        this.code = code;
+        this.severity = severity;
+        this.score = score;
+        this.message = message;
+        this.data = data;
+    }
 }

@@ -78,6 +78,14 @@ class BudgetIntegrationTests {
         roleRepository.deleteAll();
     }
 
+    // These fixtures exercise August reports. Reversals normally use today's date;
+    // give this fixture an explicit August date so its assertions do not depend on the test run month.
+    private void reverseInAugust(Long transactionId, Long userId) {
+        var reversal = ledgerService.reverseTransaction(transactionId, userId);
+        reversal.setEffectiveDate(LocalDate.of(2026, 8, 20));
+        financialTransactionRepository.saveAndFlush(reversal);
+    }
+
     @Test
     void createsOwnBudgetAndRejectsDuplicatesInvalidPeriodsAndForeignCategories() throws Exception {
         User owner = createUser();
@@ -135,7 +143,7 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.percentageUsed").value(87.5))
                 .andExpect(jsonPath("$.status").value("WARNING"));
 
-        ledgerService.reverseTransaction(reversible.getId(), user.getId());
+        reverseInAugust(reversible.getId(), user.getId());
         mockMvc.perform(get("/api/v1/budgets?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].spentAmount").value(150000))
@@ -208,7 +216,7 @@ class BudgetIntegrationTests {
         ledgerService.recordExpense(user.getId(), account.getId(), command("100000", LocalDate.of(2026, 8, 4), food.getId()));
         assertThat(alertService.buildAlerts(user.getId(), 2026, 8, false))
                 .extracting(alert -> alert.getCode()).contains("BUDGET_EXCEEDED");
-        ledgerService.reverseTransaction(warningExpense.getId(), user.getId());
+        reverseInAugust(warningExpense.getId(), user.getId());
         assertThat(alertService.buildAlerts(user.getId(), 2026, 8, false))
                 .extracting(alert -> alert.getCode()).contains("ALL_GOOD")
                 .doesNotContain("BUDGET_WARNING", "BUDGET_EXCEEDED");
@@ -266,10 +274,10 @@ class BudgetIntegrationTests {
 
         markSeen(owner, "BUDGET_WARNING", augustFood).andExpect(status().isNoContent());
         assertThat(userAlertSeenRepository.count()).isEqualTo(1);
-        assertThat(alertService.buildAlerts(owner.getId()).stream()
+        assertThat(alertService.buildAlerts(owner.getId(), 2026, 8, false).stream()
                 .filter(alert -> "BUDGET_WARNING".equals(alert.getCode()))
                 .map(alert -> ((Number) alert.getData().get("budgetId")).longValue()))
-                .contains(augustTransport).doesNotContain(augustFood);
+                .contains(augustTransport, augustFood);
 
         markSeen(owner, "BUDGET_WARNING", augustFood).andExpect(status().isNoContent());
         assertThat(userAlertSeenRepository.count()).isEqualTo(1);
@@ -284,7 +292,7 @@ class BudgetIntegrationTests {
 
         markSeen(owner, "BUDGET_WARNING", julyFood).andExpect(status().isNoContent());
         assertThat(userAlertSeenRepository.count()).isEqualTo(2);
-        assertThat(alertService.buildAlerts(owner.getId()).stream()
+        assertThat(alertService.buildAlerts(owner.getId(), 2026, 8, false).stream()
                 .filter(alert -> "BUDGET_WARNING".equals(alert.getCode()))
                 .map(alert -> ((Number) alert.getData().get("budgetId")).longValue()))
                 .contains(augustTransport);
@@ -293,7 +301,7 @@ class BudgetIntegrationTests {
                 command("200000", LocalDate.of(2026, 8, 4), food.getId()));
         assertThat(budgetService.list(owner.getId(), 2026, 8)).filteredOn(budget -> budget.getId().equals(augustFood))
                 .singleElement().satisfies(budget -> assertThat(budget.getStatus().name()).isEqualTo("EXCEEDED"));
-        assertThat(alertService.buildAlerts(owner.getId()).stream()
+        assertThat(alertService.buildAlerts(owner.getId(), 2026, 8, false).stream()
                 .filter(alert -> "BUDGET_EXCEEDED".equals(alert.getCode()))
                 .map(alert -> ((Number) alert.getData().get("budgetId")).longValue()))
                 .contains(augustFood);
@@ -366,7 +374,7 @@ class BudgetIntegrationTests {
         transferService.create(owner.getId(), request);
         ledgerService.recordOpeningBalance(owner.getId(), destination.getId(),
                 command("10", LocalDate.of(2026, 8, 5), null));
-        ledgerService.reverseTransaction(julyIncome.getId(), owner.getId());
+        reverseInAugust(julyIncome.getId(), owner.getId());
 
         mockMvc.perform(get("/api/v1/dashboard/month?year=2026&month=8").header("Authorization", bearer(owner)))
                 .andExpect(status().isOk())
@@ -443,7 +451,7 @@ class BudgetIntegrationTests {
                 .andExpect(jsonPath("$.budgets.warningCount").value(1))
                 .andExpect(jsonPath("$.budgets.exceededCount").value(0));
 
-        ledgerService.reverseTransaction(foodExpense.getId(), owner.getId());
+        reverseInAugust(foodExpense.getId(), owner.getId());
         assertBudget(budgetService.list(owner.getId(), 2026, 8), "Food", "0", "500000", "0.00", "OK");
 
         createBudget(owner, food, "200000", 2026, 7);

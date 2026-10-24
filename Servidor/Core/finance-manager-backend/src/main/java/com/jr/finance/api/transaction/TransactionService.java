@@ -26,6 +26,13 @@ public class TransactionService {
     private final CategoryRepository categories;
 
     @Transactional(readOnly = true)
+    public TransactionResponse detail(Long userId, Long id) {
+        var transaction = transactions.findById(id).filter(item -> item.getUser().getId().equals(userId))
+                .orElseThrow(() -> new NotFoundException("Movimiento no encontrado"));
+        return map(transaction, entries.findByFinancialTransactionIdInWithAccount(List.of(id)));
+    }
+
+    @Transactional(readOnly = true)
     public TransactionPageResponse find(Long userId, TransactionQuery query) {
         query = validateAndResolve(userId, query);
         var pageable = PageRequest.of(query.page(), query.size(), Sort.by(Sort.Order.desc("effectiveDate"),
@@ -46,7 +53,7 @@ public class TransactionService {
         if (query.year() != null) {
             if (query.from() != null || query.to() != null) throw new BadRequestException("No combines year/month con from/to");
             YearMonth period = com.jr.finance.api.common.FinancialPeriod.of(query.year(), query.month());
-            query = new TransactionQuery(period.atDay(1), period.atEndOfMonth(), null, null, query.accountId(), query.categoryId(), query.type(), query.status(), query.page(), query.size());
+            query = new TransactionQuery(period.atDay(1), period.atEndOfMonth(), null, null, query.accountId(), query.categoryId(), query.type(), query.status(), query.page(), query.size(), query.currency(), query.expenseReport(), query.reportCategory(), query.searchText());
         }
         if (query.accountId() != null && accounts.findByIdAndUserId(query.accountId(), userId).isEmpty()) throw new NotFoundException("Cuenta no encontrada");
         if (query.categoryId() != null && categories.findByIdAndUserId(query.categoryId(), userId).isEmpty()) throw new NotFoundException("Categoría no encontrada");

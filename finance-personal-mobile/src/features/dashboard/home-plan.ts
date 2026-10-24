@@ -1,6 +1,6 @@
 import type { DashboardMonth } from '@/api/dashboard-api';
 import type { DashboardPeriod } from './dashboard-period';
-import { presentAlert } from '@/features/alerts/alert-presentation';
+import { actionableAlerts, presentAlert } from '@/features/alerts/alert-presentation';
 import { financialProgress } from '@/features/progress/financial-progress';
 
 export function homeColumns(width: number, fontScale: number): 1 | 2 {
@@ -22,7 +22,8 @@ export function homePlan(data: DashboardMonth, period: DashboardPeriod) {
       : undefined;
   const active = data.credits?.filter((c) => c.status === 'ACTIVE' || c.status === 'LATE').length;
   const paid = data.credits?.filter((c) => c.status === 'PAID').length;
-  const alerts = data.alerts?.filter((a) => a.code && a.code !== 'ALL_GOOD');
+  const alerts = data.alerts && actionableAlerts(data.alerts);
+  const snoozed = data.alerts?.filter((alert) => alert.state === 'SNOOZED').length ?? 0;
   const clear = data.alerts !== undefined && data.alerts.every((a) => Boolean(a.code));
   return {
     budget:
@@ -37,7 +38,13 @@ export function homePlan(data: DashboardMonth, period: DashboardPeriod) {
       : paid
         ? `${paid} ${paid === 1 ? 'pagado' : 'pagados'}`
         : 'Ver tus créditos',
-    alerts: alerts?.length ? `${alerts.length} por revisar` : clear ? 'Sin avisos' : 'Ver tus alertas',
+    alerts: alerts?.length
+      ? `${alerts.length} por revisar`
+      : snoozed
+        ? `${snoozed} pospuestas`
+        : clear
+          ? 'Sin avisos'
+          : 'Ver tus alertas',
     alertState: alerts?.length
       ? alerts.some((alert) => presentAlert(alert).level === 'Importante')
         ? ('important' as const)

@@ -32,7 +32,14 @@ export const dockItems = [
 export function dockIndex(route: string) {
   if (route === 'more') return -1;
   if (route === 'index' || route === 'guide') return 0;
-  if (route === 'transactions' || route.startsWith('new-')) return 1;
+  if (
+    route === 'transactions' ||
+    route === 'inbox' ||
+    route === 'purchase-review' ||
+    route === 'report-transactions' ||
+    route.startsWith('new-')
+  )
+    return 1;
   if (route.startsWith('account') || route === 'recurrences' || route === 'recurring-form') return 3;
   return 4;
 }

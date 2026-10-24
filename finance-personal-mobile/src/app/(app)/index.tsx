@@ -3,6 +3,7 @@ import { openForm } from '@/features/forms/form-session';
 import { HomeMetrics, FinancialPanorama } from '@/features/dashboard/home-metrics';
 import { HomeModules } from '@/features/dashboard/home-modules';
 import { HomeShortcuts } from '@/features/dashboard/home-shortcuts';
+import { HomeUpcoming } from '@/features/dashboard/home-upcoming';
 import { HomeAttention } from '@/features/dashboard/home-attention';
 import {
   presentTransaction,
@@ -268,6 +269,7 @@ export default function HomeScreen() {
           <FinancialPanorama data={data} />
         </Animated.View>
       ) : null}
+      <HomeUpcoming userId={currentUser.data?.id} />
       {view.hasPanorama ? periodControl : null}
       {view.hasPanorama ? (
         <Text style={styles.periodHint}>Ingresos, gastos y movimientos del mes elegido.</Text>

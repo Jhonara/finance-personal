@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
+  alert: vi.fn(),
   get: vi.fn(),
   post: vi.fn(),
   patch: vi.fn(),
@@ -38,6 +39,8 @@ vi.mock('react-native', () => {
     stop: vi.fn(),
   });
   return {
+    BackHandler: { addEventListener: () => ({ remove() {} }) },
+    Alert: { alert: mocks.alert },
     ActivityIndicator: primitive('ActivityIndicator'),
     useWindowDimensions: () => ({ width: 360, height: 640, fontScale: 1 }),
     AccessibilityInfo: {
@@ -806,6 +809,13 @@ it('opens account detail read-only, edits only name and cancels without a reques
   expect(input(tree, 'Moneda')).toBeUndefined();
   await act(async () => input(tree, 'Nombre').props.onChangeText('Draft'));
   await act(async () => press(tree, 'Cancelar'));
+  expect(input(tree, 'Nombre').props.value).toBe('Draft');
+  await act(async () =>
+    mocks.alert.mock.calls
+      .at(-1)![2]
+      .find((button: { text: string }) => button.text === 'Descartar')
+      .onPress(),
+  );
   expect(input(tree, 'Nombre')).toBeUndefined();
   expect(mocks.patch).not.toHaveBeenCalled();
   await act(async () => press(tree, 'Editar cuenta'));
@@ -1099,6 +1109,112 @@ describe('Para ti on Home', () => {
     });
     await settled(() => expect(textContent(tree.toJSON())).toContain('Sigues viendo el historial guardado'));
     expect(textContent(tree.toJSON())).toContain('Compra de prueba');
+  });
+  it('searches all pages with the active filters and keeps the input mounted while loading', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    const originalGet = mocks.get.getMockImplementation()!;
+    const request = deferred<{ data: object }>();
+    mocks.get.mockImplementation(async (url, options) => {
+      if (url !== '/transactions') return originalGet(url, options);
+      if (options.params.q && options.params.page === 0) return request.promise;
+      return {
+        data: {
+          content: [
+            {
+              id: 80 + options.params.page,
+              type: 'EXPENSE',
+              amount: 25,
+              currency: 'COP',
+              description: options.params.q ? 'Mercado segunda página' : 'Compra anterior',
+              date: '2026-02-18',
+            },
+          ],
+          page: options.params.page,
+          last: true,
+        },
+      };
+    });
+    const tree = await render(<TransactionsScreen />);
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Compra anterior'));
+    await act(async () =>
+      tree.root.findByType(TransactionFiltersModal).props.onApply({
+        year: 2026,
+        month: 2,
+        type: 'EXPENSE',
+        accountId: 1,
+      }),
+    );
+    const input = tree.root.findByType(Input);
+    await act(async () => input.props.onChangeText('  mercado  '));
+    expect(tree.root.findByType(Input)).toBe(input);
+    expect(textContent(tree.toJSON())).not.toContain('Compra anterior');
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    });
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith('/transactions', {
+        params: expect.objectContaining({
+          q: 'mercado',
+          year: 2026,
+          month: 2,
+          type: 'EXPENSE',
+          accountId: 1,
+          page: 0,
+        }),
+      }),
+    );
+    expect(tree.root.findByType(Input)).toBe(input);
+    await act(async () =>
+      request.resolve({
+        data: {
+          content: [
+            {
+              id: 79,
+              type: 'EXPENSE',
+              amount: 25,
+              currency: 'COP',
+              description: 'Mercado primera página',
+              date: '2026-02-18',
+            },
+          ],
+          totalElements: 2,
+          page: 0,
+          last: false,
+        },
+      }),
+    );
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Mercado primera página'));
+    await act(async () => press(tree, 'Cargar más movimientos'));
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Mercado segunda página'));
+    expect(mocks.get).toHaveBeenCalledWith('/transactions', {
+      params: expect.objectContaining({ q: 'mercado', accountId: 1, page: 1 }),
+    });
+    await act(async () => press(tree, 'Borrar búsqueda'));
+    expect(tree.root.findByType(Input).props.value).toBe('');
+    expect(tree.root.findByType(TransactionFiltersModal).props.filters).toEqual({
+      year: 2026,
+      month: 2,
+      type: 'EXPENSE',
+      accountId: 1,
+    });
+  });
+  it('lets the user replace a failed search without losing the search field', async () => {
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation(async (url, options) => {
+      if (url !== '/transactions') return originalGet(url, options);
+      if (options.params.q === 'fallo') throw new Error('Offline');
+      return { data: { content: [], last: true, totalElements: 0 } };
+    });
+    const tree = await render(<TransactionsScreen />);
+    await act(async () => tree.root.findByType(Input).props.onChangeText('fallo'));
+    await act(async () => tree.root.findByType(Input).props.onSubmitEditing());
+    await settled(() => expect(client.getQueryState(['transactions', { q: 'fallo' }])?.status).toBe('error'));
+    expect(tree.root.findByType(Input).props.value).toBe('fallo');
+    expect(textContent(tree.toJSON())).not.toContain('Resultados · 0');
+    await act(async () => tree.root.findByType(Input).props.onChangeText('otra búsqueda'));
+    await act(async () => tree.root.findByType(Input).props.onSubmitEditing());
+    await settled(() => expect(textContent(tree.toJSON())).toContain('No encontramos coincidencias.'));
+    expect(tree.root.findByType(Input).props.value).toBe('otra búsqueda');
   });
   it('opens movements in the selected month and accepts a new period on the retained screen', async () => {
     mocks.params = { year: '2026', month: '2' };
@@ -1403,7 +1519,14 @@ describe('Home visual hub', () => {
     expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/budgets', params: period });
     expect(
       mocks.get.mock.calls.every(([url]) =>
-        ['/dashboard/month', '/accounts', '/transactions', '/me', '/alerts'].includes(url),
+        [
+          '/dashboard/month',
+          '/accounts',
+          '/transactions',
+          '/me',
+          '/alerts',
+          '/recurrences/upcoming',
+        ].includes(url),
       ),
     ).toBe(true);
   });

@@ -3,6 +3,34 @@ import { actionableAlerts, positiveId, presentAlert } from './alert-presentation
 import { profileInitials } from '@/features/profile/profile-presentation';
 
 describe('Alert contract presentation', () => {
+  it('counts read pending alerts but excludes snoozed and closed alerts', () => {
+    expect(
+      actionableAlerts([
+        { id: 1, code: 'CREDIT_BEHIND', state: 'ACTIVE', read: true },
+        { id: 2, code: 'CREDIT_BEHIND', state: 'SNOOZED' },
+        { id: 3, code: 'SPEND_SPIKE', state: 'RESOLVED' },
+        { id: 4, code: 'SPEND_SPIKE', state: 'ARCHIVED' },
+      ]).map((alert) => alert.id),
+    ).toEqual([1]);
+  });
+  it('masks structured evidence without needing a credit request', () => {
+    const alert = {
+      code: 'HIGH_INTEREST',
+      data: {
+        creditId: 4,
+        creditName: 'Casa',
+        currency: 'COP',
+        realInterest: 123456,
+        plannedInterest: 100000,
+      },
+    };
+    expect(presentAlert(alert).context).toContain('Crédito: Casa');
+    expect(JSON.stringify(presentAlert(alert))).not.toContain('123.456');
+    expect(JSON.stringify(presentAlert(alert, undefined, false))).toContain('123.456');
+    expect(
+      presentAlert({ code: 'SPEND_SPIKE', data: { currency: 'USD', year: 2026, month: 10 } }).key,
+    ).not.toBe(presentAlert({ code: 'SPEND_SPIKE', data: { currency: 'COP', year: 2026, month: 10 } }).key);
+  });
   it.each([
     ['ALL_GOOD', 'Información', 'Todo en orden'],
     ['BUDGET_WARNING', 'Atención', 'Presupuesto cerca del límite'],

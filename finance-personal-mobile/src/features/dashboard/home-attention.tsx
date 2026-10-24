@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import type { DashboardMonth } from '@/api/dashboard-api';
-import { presentAlert } from '@/features/alerts/alert-presentation';
+import { actionableAlerts, presentAlert } from '@/features/alerts/alert-presentation';
 import { MotionPressable } from '@/ui/motion';
 import { colors, radius, spacing, typography } from '@/theme';
 import { themedStyleSheet } from '@/theme/themed-styles';
@@ -14,8 +14,7 @@ export function HomeAttention({
   alerts: DashboardMonth['alerts'];
   unavailable?: boolean;
 }) {
-  const pending = (alerts ?? [])
-    .filter((alert) => alert.code && alert.code !== 'ALL_GOOD')
+  const pending = actionableAlerts(alerts ?? [])
     .map((alert) => presentAlert(alert))
     .filter((alert) => alert.level !== 'Información');
   if (!pending.length && !unavailable) return null;

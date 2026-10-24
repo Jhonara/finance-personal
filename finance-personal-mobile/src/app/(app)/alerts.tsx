@@ -1,106 +1,129 @@
-import { themedStyleSheet } from '@/theme/themed-styles';
+import { useState } from 'react';
 import { router } from 'expo-router';
-import { TourTarget } from '@/ui/tour-target';
 import { Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { TourTarget } from '@/ui/tour-target';
 import { ScreenHeader } from '@/ui/headers';
-import { Card, Screen } from '@/ui/primitives';
+import { Button, Screen } from '@/ui/primitives';
+import { Disclosure } from '@/ui/disclosure';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
-import { useAlerts, useCredits } from '@/features/secondary/use-secondary';
+import { useAlerts, useAlertHistory, useCredits } from '@/features/secondary/use-secondary';
 import { actionableAlerts, alertLevels, presentAlert } from '@/features/alerts/alert-presentation';
 import { FinancialAlertCard } from '@/features/alerts/financial-alert-card';
-import { colors, radius, spacing, typography } from '@/theme';
+import type { Alert } from '@/features/secondary/secondary-api';
+import { spacing, typography } from '@/theme';
+
 export default function AlertsScreen() {
-  const q = useAlerts();
+  const [history, setHistory] = useState(false);
+  const current = useAlerts();
+  const past = useAlertHistory(history);
   const credits = useCredits();
-  const alerts = actionableAlerts(q.data ?? []);
-  const important = alerts.some((alert) => presentAlert(alert).level === 'Importante');
+  const q = history ? past : current;
+  const alerts = actionableAlerts(current.data ?? []);
+  const snoozed = (current.data ?? []).filter((alert) => alert.state === 'SNOOZED');
+  const card = (alert: Alert) => (
+    <FinancialAlertCard
+      key={presentAlert(alert).key}
+      alert={alert}
+      credit={credits.data?.find((credit) => credit.id === alert.data?.creditId)}
+    />
+  );
   return (
-    <Screen entry scroll refreshing={q.isRefetching} onRefresh={() => void q.refetch()} style={styles.screen}>
+    <Screen
+      entry
+      scroll
+      refreshing={q.isRefetching}
+      onRefresh={() => void q.refetch()}
+      style={{ gap: spacing.lg }}
+    >
       <TourTarget id="alerts-heading">
         <ScreenHeader
           title="Alertas"
-          subtitle="Lo que merece tu atención."
+          subtitle="Qué revisar y cómo seguir."
           back
           onBack={() => router.back()}
         />
       </TourTarget>
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button variant={history ? 'secondary' : 'primary'} onPress={() => setHistory(false)}>
+            Pendientes
+          </Button>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button variant={history ? 'primary' : 'secondary'} onPress={() => setHistory(true)}>
+            Historial
+          </Button>
+        </View>
+      </View>
       {q.isPending ? (
         <SkeletonRow />
       ) : q.isError ? (
         <ErrorState onRetry={() => void q.refetch()} />
-      ) : alerts.length ? (
-        <>
-          <Card style={[styles.summary, important && styles.summaryImportant]}>
-            <View style={styles.summaryIcon}>
-              <Ionicons
-                name={important ? 'alert-circle-outline' : 'notifications-outline'}
-                size={25}
-                color={important ? colors.danger : colors.warning}
-              />
-            </View>
-            <View style={styles.summaryCopy}>
-              <Text style={[styles.eyebrow, important && { color: colors.danger }]}>PARA REVISAR</Text>
-              <Text style={typography.sectionTitle}>
-                {alerts.length === 1 ? '1 aviso para ti' : `${alerts.length} avisos para ti`}
-              </Text>
-              <Text style={typography.bodySecondary}>
-                Abre cada aviso para ver el contexto y decidir qué hacer.
-              </Text>
-            </View>
-          </Card>
-          {alertLevels.map((level) => {
-            const group = alerts.filter((alert) => presentAlert(alert).level === level);
-            return group.length ? (
-              <View key={level} style={styles.group}>
-                <Text accessibilityRole="header" style={typography.sectionTitle}>
-                  {level}
-                </Text>
-                {group.map((alert, index) => (
-                  <FinancialAlertCard
-                    key={`${presentAlert(alert).key}:${index}`}
-                    alert={alert}
-                    credit={credits.data?.find((credit) => credit.id === alert.data?.creditId)}
-                  />
-                ))}
-              </View>
-            ) : null;
-          })}
-        </>
+      ) : history ? (
+        past.data?.length ? (
+          <>
+            <Text style={typography.caption}>
+              Últimos 30 avisos que se resolvieron o cuyo período terminó. Se guardan desde que consultas esta
+              sección o Inicio.
+            </Text>
+            {past.data.map(card)}
+          </>
+        ) : (
+          <EmptyState
+            title="Aún no hay historial"
+            description="Aquí verás los avisos que dejen de estar pendientes."
+          />
+        )
       ) : (
-        <EmptyState
-          tone="success"
-          title={q.data?.some((alert) => alert.code === 'ALL_GOOD') ? 'Todo en orden' : 'Todo en calma'}
-          description={
-            q.data?.some((alert) => alert.code === 'ALL_GOOD')
-              ? 'No encontramos alertas importantes para este período.'
-              : 'No hay alertas que necesiten tu atención.'
-          }
-        />
+        <>
+          {alerts.length ? (
+            <>
+              <Text style={typography.bodySecondary}>
+                {alerts.length} {alerts.length === 1 ? 'pendiente' : 'pendientes'} ·{' '}
+                {alerts.filter((alert) => !alert.read).length} sin leer
+              </Text>
+              {alertLevels.map((level) => {
+                const group = alerts.filter((alert) => presentAlert(alert).level === level);
+                return group.length ? (
+                  <View key={level} style={{ gap: spacing.md }}>
+                    <Text accessibilityRole="header" style={typography.sectionTitle}>
+                      {level}
+                    </Text>
+                    {group.map(card)}
+                  </View>
+                ) : null;
+              })}
+            </>
+          ) : (
+            <EmptyState
+              tone={snoozed.length ? 'info' : 'success'}
+              title={snoozed.length ? 'Tus avisos están pospuestos' : 'Sin avisos pendientes'}
+              description={
+                snoozed.length
+                  ? 'Puedes retomarlos abajo. Posponer no cambia tus cuentas.'
+                  : 'No encontramos situaciones pendientes con los datos registrados.'
+              }
+            />
+          )}
+          {snoozed.length > 0 && (
+            <Disclosure title={`Pospuestas · ${snoozed.length}`}>{snoozed.map(card)}</Disclosure>
+          )}
+        </>
       )}
+      <Disclosure title="Cómo funcionan las alertas">
+        <Text style={typography.bodySecondary}>
+          Marcar como vista solo indica que la leíste. El aviso permanece hasta que cambien los datos que lo
+          originaron.
+        </Text>
+        <Text style={typography.bodySecondary}>
+          Posponer lo aparta hasta mañana, según el horario de Colombia. Se revisa al actualizar la app; no
+          envía una notificación al teléfono.
+        </Text>
+        <Text style={typography.bodySecondary}>
+          Los avisos dependen de lo que has registrado. Un período finalizado se archiva, aunque su situación
+          no se haya resuelto.
+        </Text>
+      </Disclosure>
     </Screen>
   );
 }
-
-const styles = themedStyleSheet(() => ({
-  screen: { gap: spacing.lg },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.warningSoft,
-  },
-  summaryImportant: { backgroundColor: colors.dangerSoft },
-  summaryIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.medium,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
-  eyebrow: { ...typography.caption, color: colors.warning, fontWeight: '700', letterSpacing: 0.4 },
-  group: { gap: spacing.md },
-}));

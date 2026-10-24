@@ -1,5 +1,6 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
@@ -88,6 +89,23 @@ function CreditForm() {
   const tour = useTour();
   const { hidden } = usePrivacy();
   const wizard = imported && !editing;
+  const openingDefault = {
+    balance: String(existing.data?.openingBalance ?? ''),
+    date: existing.data?.openingDate ?? form.formState.defaultValues?.disbursementDate ?? '',
+    remainingMonths: String(existing.data?.openingRemainingMonths ?? ''),
+    nextPaymentDate: existing.data?.openingNextPaymentDate ?? '',
+  };
+  const guard = useUnsavedForm({
+    dirty:
+      hasFormChanges(values, form.formState.defaultValues) ||
+      imported !== (existing.data?.openingBalance != null) ||
+      (imported && hasFormChanges(opening, openingDefault)) ||
+      account !== undefined,
+    busy: safety.busy,
+    enabled: !saved && (!editing || Boolean(existing.data)),
+    onBack: () => router.replace('/(app)/credits'),
+    onStepBack: wizard && step > 0 ? () => setStep(step === 2 ? 1 : 0) : undefined,
+  });
   const nextFromOpening = async () => {
     const identityValid = await form.trigger(['name', 'currency']);
     const parsed = openingPositionSchema.safeParse(opening);
@@ -232,7 +250,7 @@ function CreditForm() {
           onBack={() => {
             if (!safety.busy) {
               if (wizard && step > 0) setStep(step === 2 ? 1 : 0);
-              else router.replace('/(app)/credits');
+              else guard.request(() => router.replace('/(app)/credits'));
             }
           }}
         />

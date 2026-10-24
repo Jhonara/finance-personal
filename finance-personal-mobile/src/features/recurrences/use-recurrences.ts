@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import {
   confirmRecurringEntry,
   getRecurringAgenda,
@@ -6,7 +7,27 @@ import {
   saveRecurringRule,
   setRecurringActive,
   skipRecurringEntry,
+  previewRecurringRule,
+  type RecurringPreviewRequest,
 } from './recurrence-api';
+
+export function useRecurringPreview(request: RecurringPreviewRequest) {
+  const key = JSON.stringify(request);
+  const [settled, setSettled] = useState(key);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(key), 300);
+    return () => clearTimeout(timer);
+  }, [key]);
+  const valid = request.amount > 0 && Number.isFinite(request.amount) && Boolean(request.startDate);
+  const query = useQuery({
+    queryKey: [...recurrenceKeys.all, 'preview', key],
+    queryFn: ({ signal }) => previewRecurringRule(request, signal),
+    enabled: valid && key === settled,
+    retry: false,
+    staleTime: 60_000,
+  });
+  return { ...query, waiting: valid && (key !== settled || query.isPending) };
+}
 
 export const recurrenceKeys = { all: ['recurrences'] as const, rules: ['recurrences', 'rules'] as const };
 export const useRecurringRules = () =>

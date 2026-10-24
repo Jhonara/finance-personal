@@ -8,6 +8,7 @@ import { colors, motion, radius, typography } from '@/theme';
 import { MotionPressable } from './motion';
 import { useReducedMotion } from './use-reduced-motion';
 import { TourTarget } from './tour-target';
+import { requestFormExit } from '@/features/forms/use-unsaved-form';
 
 export function CenterActionButton({ dark = false }: { dark?: boolean }) {
   const { open, active } = useQuickActions();
@@ -36,7 +37,7 @@ export function CenterActionButton({ dark = false }: { dark?: boolean }) {
           accessibilityLabel="Registrar movimiento"
           accessibilityHint="Abre opciones de gasto, ingreso y transferencia"
           accessibilityState={{ expanded: active }}
-          onPress={open}
+          onPress={() => requestFormExit(open)}
           style={[styles.button, dark && styles.dockButton]}
         >
           <Animated.View

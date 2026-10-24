@@ -1,6 +1,7 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useState } from 'react';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useForm } from 'react-hook-form';
@@ -51,7 +52,7 @@ export function CreditPaymentForm({
       mutation.reset();
     }
   };
-  const close = () => {
+  const dismiss = () => {
     if (!safety.busy) {
       form.reset({ amount: '', paymentDate: localDateFromNative(new Date()), extraPrincipalAmount: '' });
       setAccount(undefined);
@@ -60,6 +61,13 @@ export function CreditPaymentForm({
       onClose();
     }
   };
+  const guard = useUnsavedForm({
+    dirty: hasFormChanges(values, form.formState.defaultValues) || account !== undefined,
+    busy: safety.busy,
+    enabled: visible,
+    onBack: dismiss,
+  });
+  const close = () => guard.request(dismiss);
   const submit = () => {
     if (credit.status === 'PAID' || credit.id === undefined) return;
     void safety.run(

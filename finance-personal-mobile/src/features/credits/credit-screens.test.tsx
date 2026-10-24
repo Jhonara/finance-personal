@@ -57,6 +57,7 @@ vi.mock('react-native', () => {
     stop: vi.fn(),
   });
   return {
+    BackHandler: { addEventListener: () => ({ remove() {} }) },
     Alert: { alert: mocks.alert },
     Keyboard: { dismiss: vi.fn() },
     AccessibilityInfo: {
@@ -1089,6 +1090,13 @@ it('clears payment fields and mutation errors after closing the retained modal',
   await press(tree, 'Confirmar pago');
   expect(text(tree.toJSON())).toContain('Revisa el monto del pago.');
   await press(tree, 'Volver');
+  expect(onClose).not.toHaveBeenCalled();
+  await act(async () =>
+    mocks.alert.mock.calls
+      .at(-1)![2]
+      .find((button: { text: string }) => button.text === 'Descartar')
+      .onPress(),
+  );
   expect(onClose).toHaveBeenCalledOnce();
   expect(text(tree.toJSON())).not.toContain('Revisa el monto del pago.');
   expect(

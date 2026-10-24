@@ -54,6 +54,7 @@ export function positiveId(value: unknown): number | undefined {
 export function presentAlert(
   alert: Alert,
   creditContext?: { name: string; currency: string; hidden: boolean },
+  hidden = creditContext?.hidden ?? true,
 ) {
   const code = alert.code ?? '';
   const definition = definitions[code] ?? {
@@ -62,6 +63,11 @@ export function presentAlert(
     level: 'Información' as const,
   };
   const data = alert.data ?? {};
+  const currency = creditContext?.currency ?? (typeof data.currency === 'string' ? data.currency : undefined);
+  const money = (value: unknown) =>
+    currency && typeof value === 'number' && Number.isFinite(value)
+      ? formatPrivateMoney(value, currency, hidden)
+      : undefined;
   const budget = code === 'BUDGET_WARNING' || code === 'BUDGET_EXCEEDED';
   const credit = ['CREDIT_BEHIND', 'HIGH_INTEREST', 'OPPORTUNITY_PREPAY'].includes(code);
   const relatedId = positiveId(budget ? data.budgetId : credit ? data.creditId : undefined);
@@ -73,9 +79,16 @@ export function presentAlert(
     context.push(`${data.count} por confirmar`);
   if (budget && typeof data.categoryName === 'string' && data.categoryName.trim())
     context.push(`Categoría ${data.categoryName}`);
-  if (budget && period) context.push(`Período ${period.year}-${String(period.month).padStart(2, '0')}`);
+  if ((budget || code === 'SPEND_SPIKE') && period)
+    context.push(
+      `${new Date(period.year, period.month - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}${currency ? ` · ${currency}` : ''}`,
+    );
   if (credit && relatedId)
-    context.push(creditContext?.name ? `Crédito: ${creditContext.name}` : `Crédito #${relatedId}`);
+    context.push(
+      creditContext?.name || typeof data.creditName === 'string'
+        ? `Crédito: ${creditContext?.name ?? data.creditName}`
+        : `Crédito #${relatedId}`,
+    );
   if (
     code === 'HIGH_INTEREST' &&
     typeof data.annualEffectiveRatePercent === 'number' &&
@@ -84,25 +97,41 @@ export function presentAlert(
     context.push(`Tasa EA ${data.annualEffectiveRatePercent}%`);
   if (
     code === 'HIGH_INTEREST' &&
-    creditContext &&
+    currency &&
     typeof data.realInterest === 'number' &&
     Number.isFinite(data.realInterest) &&
     typeof data.plannedInterest === 'number' &&
     Number.isFinite(data.plannedInterest)
   ) {
-    context.push(
-      `Intereses pagados: ${formatPrivateMoney(data.realInterest, creditContext.currency, creditContext.hidden)}`,
-    );
-    context.push(
-      `Estimación del plan: ${formatPrivateMoney(data.plannedInterest, creditContext.currency, creditContext.hidden)}`,
-    );
+    context.push(`Intereses pagados: ${money(data.realInterest)}`);
+    context.push(`Estimación del plan: ${money(data.plannedInterest)}`);
   }
   if (
     code === 'SPEND_SPIKE' &&
     typeof data.differencePercent === 'number' &&
     Number.isFinite(data.differencePercent)
   )
-    context.push(`Variación mensual ${data.differencePercent}%`);
+    context.push(
+      `Variación mensual ${data.differencePercent.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`,
+    );
+  if (budget && money(data.spentAmount) && money(data.limitAmount))
+    context.push(`Gastado: ${money(data.spentAmount)}`, `Límite: ${money(data.limitAmount)}`);
+  if (code === 'SPEND_SPIKE' && money(data.currentExpense) && money(data.previousExpense))
+    context.push(
+      `Este mes: ${money(data.currentExpense)}`,
+      `Mes anterior completo: ${money(data.previousExpense)}`,
+      'El mes actual puede estar en curso. La comparación usa los gastos registrados de cada mes.',
+    );
+  if (
+    code === 'CREDIT_BEHIND' &&
+    typeof data.pendingAmount === 'number' &&
+    data.pendingAmount > 0 &&
+    money(data.pendingAmount)
+  )
+    context.push(
+      `Cuotas pendientes estimadas: ${money(data.pendingAmount)}`,
+      'No es el capital pendiente ni incluye posibles cargos de mora.',
+    );
   const seen: SeenAlert | undefined =
     code === 'SPEND_SPIKE'
       ? { code, data: {} }
@@ -116,10 +145,20 @@ export function presentAlert(
         ? { kind: 'credit' as const, id: relatedId }
         : budget && relatedId && period
           ? { kind: 'budget' as const, id: relatedId, ...period }
-          : undefined;
-  // Only allowlisted non-monetary context is rendered. Backend messages can contain amounts.
-  return { ...definition, context, seen, target, key: `${code}:${relatedId ?? 'global'}` };
+          : code === 'SPEND_SPIKE' && period && currency
+            ? { kind: 'reports' as const, ...period, currency }
+            : undefined;
+  // Render allowlisted fields and privacy-formatted amounts, never raw backend prose.
+  return {
+    ...definition,
+    context,
+    seen,
+    target,
+    key: String(alert.id ?? `${code}:${relatedId ?? 'global'}:${year}:${month}:${currency}`),
+  };
 }
 export function actionableAlerts(alerts: Alert[]) {
-  return alerts.filter((alert) => alert.code !== 'ALL_GOOD');
+  return alerts.filter(
+    (alert) => Boolean(alert.code) && alert.code !== 'ALL_GOOD' && (!alert.state || alert.state === 'ACTIVE'),
+  );
 }

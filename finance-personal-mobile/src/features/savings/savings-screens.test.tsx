@@ -41,6 +41,7 @@ vi.mock('react-native', () => {
     stop: vi.fn(),
   });
   return {
+    BackHandler: { addEventListener: () => ({ remove() {} }) },
     AccessibilityInfo: {
       isReduceMotionEnabled: async () => false,
       addEventListener: () => ({ remove: vi.fn() }),

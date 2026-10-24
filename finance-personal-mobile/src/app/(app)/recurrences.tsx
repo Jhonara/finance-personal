@@ -1,6 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { Text, View } from 'react-native';
+import { AppAlert as Alert } from '@/feedback/app-alert';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
+import { LinkedTransactionDetail } from '@/features/transactions/linked-transaction-detail';
+import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import {
   useRecurringActions,
   useRecurringAgenda,
@@ -31,6 +35,7 @@ import { formatLocalDate, localDateFromNative } from '@/utils/local-date';
 import { colors, spacing, typography } from '@/theme';
 
 export default function RecurrencesScreen() {
+  const params = useLocalSearchParams<{ agendaMonth?: string; agendaYear?: string; agendaEntry?: string }>();
   const [tab, setTab] = useState<'agenda' | 'rules'>('agenda');
   const [period, setPeriod] = useState(currentDashboardPeriod);
   const rules = useRecurringRules();
@@ -41,6 +46,19 @@ export default function RecurrencesScreen() {
   const { hidden } = usePrivacy();
   const [entry, setEntry] = useState<RecurringEntry>();
   const [credit, setCredit] = useState<Credit>();
+  const [transactionId, setTransactionId] = useState<number>();
+  useEffect(() => {
+    if (
+      params.agendaEntry &&
+      Number(params.agendaYear) >= 2000 &&
+      Number(params.agendaYear) <= 2100 &&
+      Number(params.agendaMonth) >= 1 &&
+      Number(params.agendaMonth) <= 12
+    ) {
+      setTab('agenda');
+      setPeriod({ year: Number(params.agendaYear), month: Number(params.agendaMonth) });
+    }
+  }, [params.agendaEntry, params.agendaYear, params.agendaMonth]);
   const changing = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -176,7 +194,12 @@ export default function RecurrencesScreen() {
                 <View style={{ gap: spacing.md }}>
                   <Text style={typography.sectionTitle}>Próximos del mes</Text>
                   {planned.map((item) => (
-                    <EntryCard key={`${item.ruleId}-${item.dueDate}`} entry={item} hidden={hidden} />
+                    <EntryCard
+                      key={`${item.ruleId}-${item.dueDate}`}
+                      entry={item}
+                      hidden={hidden}
+                      onOpen={setTransactionId}
+                    />
                   ))}
                 </View>
               )}
@@ -189,7 +212,12 @@ export default function RecurrencesScreen() {
               {history.length > 0 && (
                 <Disclosure title={`Historial del mes · ${history.length}`} icon="receipt-outline">
                   {history.map((item) => (
-                    <EntryCard key={`${item.ruleId}-${item.dueDate}`} entry={item} hidden={hidden} />
+                    <EntryCard
+                      key={`${item.ruleId}-${item.dueDate}`}
+                      entry={item}
+                      hidden={hidden}
+                      onOpen={setTransactionId}
+                    />
                   ))}
                 </Disclosure>
               )}
@@ -263,17 +291,24 @@ export default function RecurrencesScreen() {
               }}
             >
               <Text style={{ ...typography.cardTitle, flex: 1 }}>{rule.name}</Text>
-              <Text style={typography.caption}>{rule.active ? 'Activa' : 'Pausada / finalizada'}</Text>
+              <Text style={typography.caption}>
+                {rule.state === 'FINISHED' ? 'Finalizada' : rule.active ? 'Activa' : 'Pausada'}
+              </Text>
             </View>
             <Text style={typography.moneySmall}>
               {formatPrivateMoney(rule.amount, rule.currency, hidden)}
+              <Text style={typography.caption}> por pago</Text>
             </Text>
             <Text style={typography.bodySecondary}>
               {scheduleLabel(rule)} · {rule.accountName}
             </Text>
             <Text style={typography.caption}>
               {rule.mode === 'AUTOMATIC' ? 'Registro automático' : 'Confirmar cada pago'}
-              {rule.active ? ` · Próximo: ${formatLocalDate(rule.nextDate)}` : ''}
+              {rule.state === 'FINISHED'
+                ? ` · Terminó: ${formatLocalDate(rule.endDate ?? undefined)}`
+                : rule.active
+                  ? ` · Próximo: ${formatLocalDate(rule.nextDate)}`
+                  : ''}
             </Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <Button
@@ -289,9 +324,17 @@ export default function RecurrencesScreen() {
                 size="compact"
                 style={{ flex: 1 }}
                 disabled={actions.active.isPending}
-                onPress={() => toggle(rule)}
+                onPress={() =>
+                  rule.state === 'FINISHED'
+                    ? openForm('/(app)/recurring-form', {
+                        id: String(rule.id),
+                        type: rule.kind,
+                        editEnd: '1',
+                      })
+                    : toggle(rule)
+                }
               >
-                {rule.active ? 'Pausar' : 'Reanudar'}
+                {rule.state === 'FINISHED' ? 'Cambiar fecha de fin' : rule.active ? 'Pausar' : 'Reanudar'}
               </Button>
             </View>
           </Card>
@@ -307,6 +350,11 @@ export default function RecurrencesScreen() {
           historial. Si ya anotaste un pendiente por otra vía, usa «Omitir este pago».
         </Text>
       </Disclosure>
+      <LinkedTransactionDetail
+        id={transactionId}
+        hidden={hidden}
+        onClose={() => setTransactionId(undefined)}
+      />
       {entry && (
         <ConfirmEntry
           key={`${entry.ruleId}-${entry.dueDate}`}
@@ -337,10 +385,12 @@ function EntryCard({
   entry,
   hidden,
   onConfirm,
+  onOpen,
 }: {
   entry: RecurringEntry;
   hidden: boolean;
   onConfirm?: () => void;
+  onOpen?: (id: number) => void;
 }) {
   const awaitingAutomatic = entry.status === 'PENDING' && entry.mode === 'AUTOMATIC' && entry.id === null;
   const status = {
@@ -380,6 +430,11 @@ function EntryCard({
           Registrado el {formatLocalDate(entry.recordedDate)} · Movimiento #{entry.transactionId}
         </Text>
       )}
+      {entry.transactionId != null && onOpen && (
+        <Button variant="secondary" size="compact" onPress={() => onOpen(entry.transactionId!)}>
+          Ver movimiento
+        </Button>
+      )}
       {awaitingAutomatic && (
         <Text style={typography.caption}>
           Se registrará automáticamente. La agenda se actualiza cada minuto.
@@ -402,6 +457,12 @@ function ConfirmEntry({ entry, onClose }: { entry: RecurringEntry; onClose(): vo
   const feedback = useFeedback();
   const submitting = useRef(false);
   const busy = actions.confirm.isPending || actions.skip.isPending;
+  const [initialDate] = useState(date);
+  const guard = useUnsavedForm({
+    dirty: amount !== String(entry.amount) || date !== initialDate,
+    busy,
+    onBack: onClose,
+  });
   const act = async (skip = false) => {
     if (submitting.current) return;
     if (!skip && (!Number.isFinite(Number(amount)) || Number(amount) <= 0)) {
@@ -431,7 +492,7 @@ function ConfirmEntry({ entry, onClose }: { entry: RecurringEntry; onClose(): vo
     <MotionModal
       visible
       onRequestClose={() => {
-        if (!busy) onClose();
+        if (!busy) guard.request(onClose);
       }}
     >
       <Screen scroll keyboard>
@@ -440,7 +501,7 @@ function ConfirmEntry({ entry, onClose }: { entry: RecurringEntry; onClose(): vo
           subtitle={entry.name}
           back
           onBack={() => {
-            if (!busy) onClose();
+            if (!busy) guard.request(onClose);
           }}
         />
         <Text style={typography.bodySecondary}>

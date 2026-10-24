@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put: operations["update"];
+        post?: never;
+        delete: operations["discard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/credits/{id}": {
         parameters: {
             query?: never;
@@ -32,7 +48,7 @@ export interface paths {
          * @description Obtiene la información de un crédito específico del usuario autenticado.
          */
         get: operations["findById"];
-        put: operations["update"];
+        put: operations["update_1"];
         post?: never;
         delete: operations["delete"];
         options?: never;
@@ -168,6 +184,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recurrences/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Vista previa sin guardar ni registrar movimientos. */
+        post: operations["previewRecurringRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/incomes": {
         parameters: {
             query?: never;
@@ -188,6 +221,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["create_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/{id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expenses": {
         parameters: {
             query?: never;
@@ -201,7 +282,7 @@ export interface paths {
          * Registrar un gasto
          * @description Registra un nuevo gasto asociado al usuario autenticado.
          */
-        post: operations["create_2"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -219,13 +300,13 @@ export interface paths {
          * Listar créditos
          * @description Obtiene todos los créditos registrados por el usuario autenticado.
          */
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         /**
          * Registrar crédito
          * @description Crea un nuevo crédito asociado al usuario autenticado.
          */
-        post: operations["create_3"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -363,13 +444,13 @@ export interface paths {
          * Listar categorías
          * @description Obtiene todas las categorías registradas por el usuario autenticado.
          */
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         /**
          * Crear una categoría
          * @description Crea una nueva categoría personalizada para clasificar los gastos del usuario.
          */
-        post: operations["create_4"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -387,13 +468,13 @@ export interface paths {
          * Listar presupuestos
          * @description Permite filtrar por año y mes. spent, remaining, percentage y status se calculan al consultar.
          */
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         /**
          * Crear presupuesto
          * @description Crea un límite por categoría y período. Un presupuesto duplicado para el mismo usuario, categoría y mes genera conflicto.
          */
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -500,6 +581,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alerts/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leer, posponer hasta mañana o reactivar un aviso sin resolverlo manualmente */
+        post: operations["update_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/alerts/{code}/seen": {
         parameters: {
             query?: never;
@@ -511,7 +609,7 @@ export interface paths {
         put?: never;
         /**
          * Marcar alerta como vista
-         * @description Marca una alerta como vista para que no vuelva a mostrarse.
+         * @description Compatibilidad con versiones anteriores. Leer un aviso no oculta una situación pendiente.
          */
         post: operations["markAsSeen"];
         delete?: never;
@@ -528,10 +626,10 @@ export interface paths {
             cookie?: never;
         };
         /** Listar las cuentas propias */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /** Crear una cuenta financiera */
-        post: operations["create_6"];
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -598,7 +696,7 @@ export interface paths {
             cookie?: never;
         };
         /** Consultar una categoría propia */
-        get: operations["get"];
+        get: operations["get_1"];
         put?: never;
         post?: never;
         /**
@@ -609,7 +707,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Actualizar nombre o estado de una categoría propia */
-        patch: operations["update_1"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/budgets/{id}": {
@@ -623,7 +721,7 @@ export interface paths {
          * Consultar presupuesto
          * @description Obtiene un presupuesto propio con sus valores derivados para el período.
          */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -633,7 +731,7 @@ export interface paths {
          * Actualizar presupuesto
          * @description Actualiza el límite usando la versión recibida para controlar concurrencia optimista.
          */
-        patch: operations["update_2"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/accounts/{id}": {
@@ -644,14 +742,14 @@ export interface paths {
             cookie?: never;
         };
         /** Consultar una cuenta propia */
-        get: operations["get_2"];
+        get: operations["get_3"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Actualizar metadatos de una cuenta propia */
-        patch: operations["update_3"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/users": {
@@ -685,7 +783,23 @@ export interface paths {
          * Historial financiero unificado
          * @description Vista paginada de operaciones lógicas. Use from/to o year/month, no ambos grupos de filtros; size tiene máximo 100.
          */
-        get: operations["list_4"];
+        get: operations["list_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTransactionDetail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -722,6 +836,39 @@ export interface paths {
             cookie?: never;
         };
         get: operations["month"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Operaciones que explican el gasto neto del reporte, incluidas reversiones. Filtra antes de paginar. */
+        get: operations["getReportExpenseTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurrences/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getUpcomingRecurringEntries"];
         put?: never;
         post?: never;
         delete?: never;
@@ -966,6 +1113,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alerts/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar los últimos 30 avisos resueltos o de períodos anteriores */
+        get: operations["history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expenses/{id}": {
         parameters: {
             query?: never;
@@ -1048,6 +1212,58 @@ export interface components {
             /** Format: int64 */
             version?: number;
             requestKey?: string;
+            state?: string;
+        };
+        PurchaseDraftFields: {
+            /** @enum {string} */
+            kind: "EXPENSE" | "OTHER";
+            description: string;
+            amount?: number;
+            currency?: string;
+            /** Format: date */
+            effectiveDate?: string;
+            /** Format: int64 */
+            accountId?: number;
+            /** Format: int64 */
+            categoryId?: number;
+        };
+        UpdatePurchaseDraft: {
+            /** Format: int64 */
+            version: number;
+            fields: components["schemas"]["PurchaseDraftFields"];
+        };
+        PurchaseCategorySuggestion: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+        };
+        PurchaseDraftResponse: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            version?: number;
+            status?: string;
+            source?: string;
+            fields?: components["schemas"]["PurchaseDraftFields"];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            transactionId?: number;
+            matches?: components["schemas"]["PurchaseMatch"][];
+            reviewToken?: string;
+            categorySuggestion?: components["schemas"]["PurchaseCategorySuggestion"];
+        };
+        PurchaseMatch: {
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+            description?: string;
+            /** Format: date */
+            date?: string;
+            amount?: number;
+            currency?: string;
+            accountName?: string;
+            transactionType?: string;
         };
         UpdateCreditRequest: {
             /**
@@ -1307,6 +1523,32 @@ export interface components {
             /** Format: date */
             date: string;
         };
+        RecurringPreviewRequest: {
+            /** @enum {string} */
+            frequency: "WEEKLY" | "BIWEEKLY" | "SEMIMONTHLY" | "MONTHLY";
+            /** @enum {string} */
+            amountBasis: "PER_PAYMENT" | "MONTHLY_TOTAL";
+            amount: number;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string;
+            /** Format: int32 */
+            firstDay?: number;
+            /** Format: int32 */
+            secondDay?: number;
+        };
+        RecurringPreviewMonth: {
+            /** Format: date */
+            month?: string;
+            dates?: string[];
+            total?: number;
+        };
+        RecurringPreviewResponse: {
+            amountPerPayment?: number;
+            fullMonthTotal?: number;
+            months?: components["schemas"]["RecurringPreviewMonth"][];
+        };
         /** @description Información necesaria para registrar un nuevo ingreso. */
         CreateIncomeRequest: {
             /**
@@ -1377,6 +1619,22 @@ export interface components {
              * @example 2026-07-22
              */
             incomeDate?: string;
+        };
+        CreatePurchaseDraft: {
+            requestKey: string;
+            fields: components["schemas"]["PurchaseDraftFields"];
+        };
+        LinkPurchaseDraft: {
+            /** Format: int64 */
+            version: number;
+            /** Format: int64 */
+            transactionId: number;
+        };
+        ConfirmPurchaseDraft: {
+            /** Format: int64 */
+            version: number;
+            reviewToken: string;
+            distinctPurchase?: boolean;
         };
         /** @description Información necesaria para registrar un nuevo gasto. */
         CreateExpenseRequest: {
@@ -1914,6 +2172,55 @@ export interface components {
              */
             password: string;
         };
+        UpdateAlertRequest: {
+            /** Format: int64 */
+            revision: number;
+            /** @enum {string} */
+            action: "READ" | "SNOOZE" | "RESUME";
+        };
+        /** @description Representa una alerta financiera generada por el sistema. */
+        AlertResponse: {
+            /**
+             * @description Código único de la alerta.
+             * @example CREDIT_BEHIND
+             */
+            code?: string;
+            /**
+             * @description Nivel de severidad de la alerta.
+             * @example WARNING
+             */
+            severity?: string;
+            /**
+             * Format: int32
+             * @description Prioridad de la alerta entre 0 y 100. Un valor mayor indica mayor importancia.
+             * @example 90
+             */
+            score?: number;
+            /**
+             * @description Mensaje mostrado al usuario.
+             * @example Vas atrasado en el crédito #12. Revisa tus pagos.
+             */
+            message?: string;
+            /** @description Información adicional relacionada con la alerta. */
+            data?: {
+                [key: string]: unknown;
+            };
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            revision?: number;
+            /** @enum {string} */
+            state?: "ACTIVE" | "SNOOZED" | "RESOLVED" | "ARCHIVED";
+            read?: boolean;
+            /** Format: date-time */
+            detectedAt?: string;
+            /** Format: date-time */
+            checkedAt?: string;
+            /** Format: date-time */
+            snoozedUntil?: string;
+            /** Format: date-time */
+            closedAt?: string;
+        };
         MarkAlertSeenRequest: {
             /** Format: int64 */
             relatedId?: number;
@@ -2059,6 +2366,15 @@ export interface components {
                 [key: string]: number;
             };
         };
+        RecurringUpcomingResponse: {
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            entries?: components["schemas"]["RecurringEntryResponse"][];
+            /** Format: int32 */
+            total?: number;
+        };
         RecurringAgendaResponse: {
             entries?: components["schemas"]["RecurringEntryResponse"][];
         };
@@ -2068,6 +2384,12 @@ export interface components {
             id?: number;
             name?: string;
             email?: string;
+        };
+        PurchaseDraftPage: {
+            content?: components["schemas"]["PurchaseDraftResponse"][];
+            /** Format: int64 */
+            totalElements?: number;
+            hasNext?: boolean;
         };
         /** @description Resumen de los gastos registrados durante un período determinado. */
         MonthlySummaryResponse: {
@@ -2189,34 +2511,6 @@ export interface components {
              * @example Los gastos del primer período aumentaron un 12.39% respecto al segundo.
              */
             insight?: string;
-        };
-        /** @description Representa una alerta financiera generada por el sistema. */
-        AlertResponse: {
-            /**
-             * @description Código único de la alerta.
-             * @example CREDIT_BEHIND
-             */
-            code?: string;
-            /**
-             * @description Nivel de severidad de la alerta.
-             * @example WARNING
-             */
-            severity?: string;
-            /**
-             * Format: int32
-             * @description Prioridad de la alerta entre 0 y 100. Un valor mayor indica mayor importancia.
-             * @example 90
-             */
-            score?: number;
-            /**
-             * @description Mensaje mostrado al usuario.
-             * @example Vas atrasado en el crédito #12. Revisa tus pagos.
-             */
-            message?: string;
-            /** @description Información adicional relacionada con la alerta. */
-            data?: {
-                [key: string]: unknown;
-            };
         };
         DashboardAccountResponse: {
             /** Format: int64 */
@@ -2733,6 +3027,76 @@ export interface operations {
             };
         };
     };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePurchaseDraft"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
+    discard: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     findById: {
         parameters: {
             query?: never;
@@ -2773,7 +3137,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3109,6 +3473,30 @@ export interface operations {
             };
         };
     };
+    previewRecurringRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecurringPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringPreviewResponse"];
+                };
+            };
+        };
+    };
     create_1: {
         parameters: {
             query?: never;
@@ -3151,7 +3539,105 @@ export interface operations {
             };
         };
     };
+    list: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftPage"];
+                };
+            };
+        };
+    };
     create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePurchaseDraft"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
+    link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPurchaseDraft"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
+    confirm_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPurchaseDraft"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
+    create_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -3193,7 +3679,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3222,7 +3708,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -3494,7 +3980,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_2: {
         parameters: {
             query?: {
                 type?: "EXPENSE" | "INCOME";
@@ -3526,7 +4012,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -3577,7 +4063,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query?: {
                 year?: number;
@@ -3600,7 +4086,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -3808,6 +4294,32 @@ export interface operations {
             };
         };
     };
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAlertRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AlertResponse"];
+                };
+            };
+        };
+    };
     markAsSeen: {
         parameters: {
             query?: never;
@@ -3853,7 +4365,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: {
                 active?: boolean;
@@ -3875,7 +4387,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -4031,7 +4543,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4091,7 +4603,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -4144,7 +4656,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4166,7 +4678,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -4210,7 +4722,7 @@ export interface operations {
             };
         };
     };
-    get_2: {
+    get_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -4232,7 +4744,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -4314,7 +4826,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 from?: string;
@@ -4325,6 +4837,8 @@ export interface operations {
                 categoryId?: number;
                 type?: "INCOME" | "EXPENSE" | "OPENING_BALANCE" | "REVERSAL" | "TRANSFER" | "CREDIT_DISBURSEMENT" | "CREDIT_PAYMENT";
                 status?: "POSTED" | "VOIDED" | "REVERSED";
+                /** @description Buscar por concepto, categoría o cuenta; ignora mayúsculas y tildes */
+                q?: string;
                 /** @description Página desde cero */
                 page?: number;
                 /** @description Tamaño de página, máximo 100 */
@@ -4343,6 +4857,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TransactionPageResponse"];
+                };
+            };
+        };
+    };
+    getTransactionDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransactionResponse"];
                 };
             };
         };
@@ -4412,6 +4948,55 @@ export interface operations {
                     "*/*": {
                         [key: string]: components["schemas"]["MonthlyCurrencyReport"];
                     };
+                };
+            };
+        };
+    };
+    getReportExpenseTransactions: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+                currency: string;
+                category?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransactionPageResponse"];
+                };
+            };
+        };
+    };
+    getUpcomingRecurringEntries: {
+        parameters: {
+            query?: {
+                timeZone?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecurringUpcomingResponse"];
                 };
             };
         };
@@ -4845,7 +5430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": Record<string, never>;
+                    "*/*": components["schemas"]["AlertResponse"][];
                 };
             };
             /** @description Usuario no autenticado */
@@ -4854,7 +5439,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": Record<string, never>;
+                    "*/*": components["schemas"]["AlertResponse"][];
+                };
+            };
+        };
+    };
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AlertResponse"][];
                 };
             };
         };

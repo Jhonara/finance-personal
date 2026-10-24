@@ -327,6 +327,28 @@ describe('Report journeys', () => {
     expect(content(tree)).toContain('-');
     expect(tree.root.findAll((node) => (node.type as unknown) === 'Circle')).toHaveLength(0);
   });
+  it('opens category movements with the report month and currency while retaining the comparison', async () => {
+    const tree = await render(
+      <ExpenseBreakdown
+        current={months[10]!.COP!}
+        currency="COP"
+        hidden={false}
+        period={{ year: 2026, month: 10 }}
+      />,
+    );
+    await press(tree, 'Comparar categoría Mercado');
+    await press(tree, 'Ver movimientos de esta categoría');
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/report-transactions',
+      params: { year: 2026, month: 10, currency: 'COP', category: 'Mercado' },
+    });
+    expect(content(tree)).toContain('Ver movimientos de esta categoría');
+    await press(tree, 'Ver movimientos de gastos');
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/report-transactions',
+      params: { year: 2026, month: 10, currency: 'COP', category: '' },
+    });
+  });
   it('keeps archived and negative account balances visible without a misleading distribution', async () => {
     const tree = await render(
       <AccountReport

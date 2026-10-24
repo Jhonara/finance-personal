@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useState } from 'react';
@@ -33,6 +34,12 @@ function NewTransferScreen() {
   const mutation = useTransferMutation();
   const feedback = useFeedback();
   const client = useQueryClient();
+  const [initialDate] = useState(effectiveDate);
+  const guard = useUnsavedForm({
+    dirty: Boolean(amount || source || destination || effectiveDate !== initialDate),
+    busy: mutation.isPending,
+    suspended: selector !== null,
+  });
   const active = accounts.data?.filter((a) => a.active) ?? [];
   const sourceAccount = active.find((account) => account.id === source);
   const destinations = sourceAccount
@@ -89,7 +96,7 @@ function NewTransferScreen() {
   };
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nueva transferencia" onBack={() => router.back()} />
+      <MovementFormHeader title="Nueva transferencia" onBack={() => guard.request(() => router.back())} />
       <View style={styles.form}>
         <MovementFormIntro
           kind="transfer"

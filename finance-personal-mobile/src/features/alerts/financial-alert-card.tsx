@@ -5,9 +5,10 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Alert, Credit } from '@/features/secondary/secondary-api';
 import { usePrivacy } from '@/privacy/privacy-provider';
-import { useSeenAlert } from '@/features/secondary/use-secondary';
+import { useUpdateAlert } from '@/features/secondary/use-secondary';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { Button, Card } from '@/ui/primitives';
+import { Disclosure } from '@/ui/disclosure';
 import { colors, spacing, typography } from '@/theme';
 import { presentAlert } from './alert-presentation';
 import { alertDestination } from './alert-navigation';
@@ -17,6 +18,7 @@ export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: C
   const item = presentAlert(
     alert,
     credit?.name && credit.currency ? { name: credit.name, currency: credit.currency, hidden } : undefined,
+    hidden,
   );
   const opacity = useRef(new Animated.Value(1)).current;
   const reduced = useRef(true);
@@ -43,21 +45,34 @@ export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: C
       opacity.stopAnimation();
     };
   }, [opacity]);
-  const seen = useSeenAlert(
-    () =>
-      new Promise<void>((resolve) => {
-        if (reduced.current) return resolve();
-        Animated.timing(opacity, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => resolve());
-      }),
-  );
-  const run = async (action: 'seen' | 'open') => {
+  const update = useUpdateAlert();
+  const closed = alert.state === 'RESOLVED' || alert.state === 'ARCHIVED';
+  const snoozed = alert.state === 'SNOOZED';
+  const editable = !closed && alert.id !== undefined && alert.revision !== undefined;
+  const stateLabel = closed
+    ? alert.state === 'RESOLVED'
+      ? 'Resuelta'
+      : 'Período finalizado'
+    : snoozed
+      ? 'Pospuesta'
+      : alert.read
+        ? 'Vista · pendiente'
+        : 'Pendiente';
+  const run = async (action: 'READ' | 'SNOOZE' | 'RESUME' | 'open') => {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     try {
-      if (action === 'seen' && item.seen) {
-        await seen.mutateAsync(item.seen);
-        feedback.show('Alerta marcada como vista.', 'success');
+      if (action !== 'open' && editable) {
+        await update.mutateAsync({ id: alert.id!, revision: alert.revision!, action });
+        feedback.show(
+          action === 'READ'
+            ? 'Vista. Sigue pendiente hasta que cambie la situación.'
+            : action === 'SNOOZE'
+              ? 'Pospuesta hasta mañana.'
+              : 'El aviso vuelve a tus pendientes.',
+          'success',
+        );
       } else {
         const destination = await alertDestination(item.target, client);
         if (destination) router.push(destination);
@@ -65,7 +80,7 @@ export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: C
       }
     } catch {
       feedback.show(
-        action === 'seen'
+        action !== 'open'
           ? 'No pudimos confirmar el cambio. Actualiza las alertas antes de intentarlo nuevamente.'
           : 'No pudimos abrir el detalle. Revisa tu conexión.',
         'error',
@@ -82,7 +97,9 @@ export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: C
       <Card style={{ gap: spacing.md, padding: spacing.lg }}>
         <View
           accessible
-          accessibilityLabel={[item.level, item.title, ...item.context].join('. ')}
+          accessibilityLabel={[item.level, stateLabel, item.title, item.context[0]]
+            .filter(Boolean)
+            .join('. ')}
           style={{ gap: spacing.sm }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -99,29 +116,58 @@ export function FinancialAlertCard({ alert, credit }: { alert: Alert; credit?: C
                 color={colors[tone]}
               />
             </View>
-            <Text style={[typography.label, { color: colors.textPrimary }]}>{item.level}</Text>
+            <Text style={[typography.label, { color: colors.textPrimary, flex: 1 }]}>{stateLabel}</Text>
           </View>
           <Text style={typography.cardTitle}>{item.title}</Text>
-          {item.context.map((line) => (
+          {item.context[0] ? <Text style={typography.bodySecondary}>{item.context[0]}</Text> : null}
+        </View>
+        <Disclosure title={closed ? 'Detalle del aviso' : 'Por qué aparece'}>
+          <Text style={typography.bodySecondary}>{item.description}</Text>
+          {item.context.slice(1).map((line) => (
             <Text key={line} style={typography.bodySecondary}>
               {line}
             </Text>
           ))}
-        </View>
-        <Text style={typography.bodySecondary}>{item.description}</Text>
+          {closed && (
+            <Text style={typography.caption}>
+              {alert.state === 'ARCHIVED'
+                ? 'El período terminó. Esto no significa que el problema se haya solucionado.'
+                : 'La condición que generaba este aviso ya no aparece en tus registros.'}
+            </Text>
+          )}
+          {snoozed && (
+            <Text style={typography.caption}>
+              Volverá a Pendientes al actualizar la app mañana, o antes si cambia la situación. Horario de
+              Colombia.
+            </Text>
+          )}
+        </Disclosure>
         {item.target && (
           <Button variant="secondary" disabled={busy} onPress={() => void run('open')}>
             {item.target.kind === 'credit'
               ? 'Ver crédito'
               : item.target.kind === 'recurrence'
                 ? 'Revisar programados'
-                : 'Ver presupuesto'}
+                : item.target.kind === 'reports'
+                  ? 'Ver gastos del mes'
+                  : 'Ver presupuesto'}
           </Button>
         )}
-        {item.seen && (
-          <Button variant="ghost" disabled={busy} onPress={() => void run('seen')}>
-            Marcar como vista
-          </Button>
+        {editable && (
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            {!alert.read && !snoozed && (
+              <View style={{ flex: 1 }}>
+                <Button variant="ghost" disabled={busy} onPress={() => void run('READ')}>
+                  Marcar como vista
+                </Button>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Button variant="ghost" disabled={busy} onPress={() => void run(snoozed ? 'RESUME' : 'SNOOZE')}>
+                {snoozed ? 'Volver a pendientes' : 'Posponer a mañana'}
+              </Button>
+            </View>
+          </View>
         )}
       </Card>
     </Animated.View>

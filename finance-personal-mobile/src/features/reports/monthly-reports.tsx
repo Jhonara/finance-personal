@@ -214,11 +214,13 @@ export function ExpenseBreakdown({
   previous,
   currency,
   hidden,
+  period,
 }: {
   current: CurrencyMonth;
   previous?: CurrencyMonth;
   currency: string;
   hidden: boolean;
+  period?: DashboardPeriod;
 }) {
   const [mode, setMode] = useState<'amount' | 'percentage'>('amount');
   const [selected, setSelected] = useState<string>();
@@ -241,6 +243,13 @@ export function ExpenseBreakdown({
   const selectedPart = parts.findIndex((part) => part.name === selected);
   const detail = rows.find((row) => row.name === selected);
   const money = (value: number) => formatPrivateMoney(value, currency, hidden);
+  const openMovements = (category?: string) => {
+    if (period)
+      router.push({
+        pathname: '/(app)/report-transactions',
+        params: { ...period, currency, category: category ?? '' },
+      });
+  };
   return (
     <>
       <ReportPanel
@@ -284,34 +293,35 @@ export function ExpenseBreakdown({
               />
             ) : null}
             {(all ? rows : rows.slice(0, 5)).map((row, index) => (
-              <MotionPressable
-                key={row.name}
-                accessibilityRole="button"
-                accessibilityLabel={`Comparar categoría ${row.name}`}
-                accessibilityState={{ selected: selected === row.name }}
-                onPress={() => setSelected(selected === row.name ? undefined : row.name)}
-                style={s.item}
-              >
-                <View style={s.between}>
-                  <View style={[s.row, { flex: 1 }]}>
-                    <View style={[s.dot, { backgroundColor: palette[Math.min(index, 5)] }]} />
-                    <Text style={[s.label, { flex: 1 }]}>{row.name}</Text>
+              <View key={row.name} style={s.item}>
+                <MotionPressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Comparar categoría ${row.name}`}
+                  accessibilityState={{ selected: selected === row.name }}
+                  onPress={() => setSelected(selected === row.name ? undefined : row.name)}
+                  style={{ gap: spacing.sm }}
+                >
+                  <View style={s.between}>
+                    <View style={[s.row, { flex: 1 }]}>
+                      <View style={[s.dot, { backgroundColor: palette[Math.min(index, 5)] }]} />
+                      <Text style={[s.label, { flex: 1 }]}>{row.name}</Text>
+                    </View>
+                    <Text style={s.label}>
+                      {mode === 'percentage' && safeShares
+                        ? hidden
+                          ? '•••'
+                          : `${row.percentage?.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`
+                        : money(row.amount)}
+                    </Text>
                   </View>
-                  <Text style={s.label}>
-                    {mode === 'percentage' && safeShares
-                      ? hidden
-                        ? '•••'
-                        : `${row.percentage?.toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`
-                      : money(row.amount)}
-                  </Text>
-                </View>
-                {safeShares && !hidden ? (
-                  <Progress
-                    value={row.percentage ?? 0}
-                    label={row.name}
-                    color={palette[Math.min(index, 5)]}
-                  />
-                ) : null}
+                  {safeShares && !hidden ? (
+                    <Progress
+                      value={row.percentage ?? 0}
+                      label={row.name}
+                      color={palette[Math.min(index, 5)]}
+                    />
+                  ) : null}
+                </MotionPressable>
                 {selected === row.name ? (
                   <View style={s.note}>
                     <Text style={s.caption}>
@@ -321,9 +331,14 @@ export function ExpenseBreakdown({
                       {money(row.amount)} en este mes.{' '}
                       {row.previous === 0 ? 'Esta categoría no tenía gastos en el mes anterior.' : ''}
                     </Text>
+                    {period && (
+                      <Button size="compact" variant="secondary" onPress={() => openMovements(row.name)}>
+                        Ver movimientos de esta categoría
+                      </Button>
+                    )}
                   </View>
                 ) : null}
-              </MotionPressable>
+              </View>
             ))}
             {rows.length > 5 ? (
               <Button variant="ghost" size="compact" onPress={() => setAll(!all)}>
@@ -339,6 +354,11 @@ export function ExpenseBreakdown({
               <Text style={s.label}>Total del mes</Text>
               <Text style={s.amount}>{money(current.expense)}</Text>
             </View>
+            {period && (
+              <Button variant="secondary" onPress={() => openMovements()}>
+                Ver movimientos de gastos
+              </Button>
+            )}
           </>
         ) : (
           <ReportEmpty title="Sin gastos en este mes">

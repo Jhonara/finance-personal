@@ -4,6 +4,8 @@ import type { TransactionFilters } from './filters';
 
 export type TransactionPage = components['schemas']['TransactionPageResponse'];
 export type Transaction = components['schemas']['TransactionResponse'];
+export const getTransactionDetail = async (id: number) =>
+  (await api.get<Transaction>(`/transactions/${id}`)).data;
 export const getTransactionPage = async (page: number, filters: TransactionFilters = {}, size = 20) =>
   (await api.get<TransactionPage>('/transactions', { params: { page, size, ...filters } })).data;
 export const createExpense = async (data: components['schemas']['CreateExpenseRequest']) =>

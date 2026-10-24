@@ -16,6 +16,12 @@ export const createBudget = async (data: components['schemas']['CreateBudgetRequ
 export const updateBudget = async (id: number, data: components['schemas']['UpdateBudgetRequest']) =>
   (await api.patch<Budget>(`/budgets/${id}`, data)).data;
 export const getAlerts = async () => (await api.get<Alert[]>('/alerts')).data;
+export const getAlertHistory = async () => (await api.get<Alert[]>('/alerts/history')).data;
+export const updateAlert = async ({
+  id,
+  ...data
+}: components['schemas']['UpdateAlertRequest'] & { id: number }) =>
+  (await api.post<Alert>(`/alerts/${id}/state`, data)).data;
 export type SeenAlert = { code: string; data: components['schemas']['MarkAlertSeenRequest'] };
 export const markAlertSeen = async ({ code, data }: SeenAlert) => {
   await api.post(`/alerts/${encodeURIComponent(code)}/seen`, data);

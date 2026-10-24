@@ -13,6 +13,7 @@ import { useAccountUpdateMutation, useOpeningBalanceMutation } from '@/features/
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { AccountBalanceAmount } from '@/ui/account-balance';
+import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { Button, Card, Input, MoneyInput, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { accountConflict, type AccountConflict } from '@/features/accounts/account-conflicts';
@@ -48,6 +49,12 @@ function AccountDetail() {
   const ordinaryMovement = useFirstOrdinaryMovementExists(Boolean(account), account?.id);
   const balance = balanceForAccount(dashboard, account?.id);
   const openingReady = !openingExists.isPending && !ordinaryMovement.isPending;
+  const guard = useUnsavedForm({
+    dirty: (editing && draft?.name !== account?.name) || Boolean(amount),
+    busy: update.isPending || opening.isPending,
+    suspended: confirm || Boolean(conflict),
+    enabled: Boolean(account),
+  });
   if (accountsQuery.isPending)
     return (
       <Screen>
@@ -125,7 +132,7 @@ function AccountDetail() {
         title={account.name ?? 'Cuenta'}
         subtitle={`${accountTypeLabel(account.type)} · ${account.currency}`}
         back
-        onBack={() => router.back()}
+        onBack={() => guard.request(() => router.back())}
       />
       <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.hero}>
         <View style={styles.heroHead}>
@@ -173,12 +180,14 @@ function AccountDetail() {
           <Button
             variant="ghost"
             disabled={update.isPending}
-            onPress={() => {
-              setEditing(false);
-              setConflict(null);
-              update.reset();
-              setDraft({ name: account.name ?? '', version: draft.version });
-            }}
+            onPress={() =>
+              guard.request(() => {
+                setEditing(false);
+                setConflict(null);
+                update.reset();
+                setDraft({ name: account.name ?? '', version: draft.version });
+              })
+            }
           >
             Cancelar
           </Button>

@@ -11,6 +11,7 @@ import { MotionPressable } from './motion';
 import { CenterActionButton } from './center-action';
 import { useReducedMotion } from './use-reduced-motion';
 import { dockIndex, dockItems } from './navigation-model';
+import { requestFormExit } from '@/features/forms/use-unsaved-form';
 
 type DockProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 export function NavigationDock({ state, descriptors, navigation }: DockProps) {
@@ -73,7 +74,7 @@ export function NavigationDock({ state, descriptors, navigation }: DockProps) {
                   canPreventDefault: true,
                 });
                 if (focused.key !== route.key && !event.defaultPrevented)
-                  navigation.navigate(route.name, route.params);
+                  requestFormExit(() => navigation.navigate(route.name, route.params));
               }}
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
             >

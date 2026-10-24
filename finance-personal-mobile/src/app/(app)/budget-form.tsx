@@ -1,4 +1,5 @@
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCategories } from '@/features/categories/use-categories';
@@ -59,13 +60,19 @@ function BudgetForm() {
       });
     else router.back();
   };
+  const guard = useUnsavedForm({
+    dirty: amount !== (id ? (limit ?? '') : '') || category !== (id ? Number(categoryId) : 0),
+    busy: mutation.isPending || update.isPending,
+    suspended: open || quickCategory,
+    onBack: leave,
+  });
   return (
     <Screen scroll keyboard style={{ gap: spacing.lg }}>
       <ScreenHeader
         title={id ? 'Editar presupuesto' : 'Nuevo presupuesto'}
         subtitle={formatDashboardPeriod(period)}
         back
-        onBack={leave}
+        onBack={() => guard.request(leave)}
       />
       <Card tone="info" style={[styles.intro, compact && styles.introCompact]}>
         <View style={styles.introIcon}>

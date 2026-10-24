@@ -173,11 +173,34 @@ public class RecurrenceService {
     private void checkVersion(RecurringRule rule, Long version) {
         if (!Objects.equals(rule.getVersion(), version)) throw new ConflictException("La programación cambió. Actualiza antes de editar.");
     }
+    @Transactional(readOnly = true)
+    public Upcoming upcoming(Long userId, String timeZone) {
+        ZoneId zone;
+        try { zone = ZoneId.of(timeZone); }
+        catch (DateTimeException exception) { throw new BadRequestException("Selecciona una zona horaria válida"); }
+        LocalDate from = LocalDate.now(recurrenceClock.withZone(zone));
+        LocalDate to = from.plusDays(6);
+        Map<String, Entry> unique = new LinkedHashMap<>();
+        for (YearMonth month = YearMonth.from(from); !month.isAfter(YearMonth.from(to)); month = month.plusMonths(1)) {
+            for (Entry entry : agenda(userId, month.getYear(), month.getMonthValue()).entries()) {
+                if (!entry.dueDate().isBefore(from) && !entry.dueDate().isAfter(to)
+                        && (entry.status().equals("PLANNED") || entry.status().equals("PENDING")))
+                    unique.put(entry.ruleId() + ":" + entry.dueDate(), entry);
+            }
+        }
+        var items = unique.values().stream().sorted(Comparator.comparing(Entry::dueDate).thenComparing(Entry::ruleId)).toList();
+        return new Upcoming(from, to, items.stream().limit(3).toList(), items.size());
+    }
+    private String state(RecurringRule r) {
+        if (r.getEndDate() != null && (r.getNextDate().isAfter(r.getEndDate()) || worker.today(r).isAfter(r.getEndDate())))
+            return "FINISHED";
+        return r.isActive() ? "ACTIVE" : "PAUSED";
+    }
     private Rule response(RecurringRule r) {
         return new Rule(r.getId(), r.getName(), r.getKind(), r.getFrequency(), r.getMode(), r.getAmount(),
                 r.getAccount().getId(), r.getAccount().getName(), r.getCategory() == null ? null : r.getCategory().getId(),
                 r.getCurrency(), r.getTimeZone(), r.getStartDate(), r.getEndDate(), r.getFirstDay(), r.getSecondDay(),
-                r.getNextDate(), r.isActive(), r.getVersion(), r.getRequestKey());
+                r.getNextDate(), r.isActive(), r.getVersion(), r.getRequestKey(), state(r));
     }
     private Entry entry(RecurringOccurrence o) {
         boolean reversed = o.getTransaction() != null && o.getTransaction().getStatus() != FinancialTransactionStatus.POSTED;

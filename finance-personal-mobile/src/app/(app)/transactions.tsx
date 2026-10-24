@@ -2,7 +2,7 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { dashboardPeriodFromParams } from '@/features/dashboard/dashboard-period';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -15,7 +15,7 @@ import { filterCount, type TransactionFilters } from '@/features/transactions/fi
 import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { TransactionRow } from '@/ui/financial';
-import { Screen } from '@/ui/primitives';
+import { Button, Input, Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 import { HomeBrandMark, HomeCompanion } from '@/features/dashboard/home-brand';
 import { MotionPressable } from '@/ui/motion';
@@ -31,18 +31,30 @@ export default function TransactionsScreen() {
   const { width } = useWindowDimensions();
   const { open: openQuickActions } = useQuickActions();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
   const [filters, setFilters] = useState<TransactionFilters>(
     () => dashboardPeriodFromParams(year, month) ?? {},
   );
   useEffect(() => {
     const requested = dashboardPeriodFromParams(year, month);
-    if (requested) setFilters(requested);
+    if (requested) {
+      setFilters(requested);
+      setSearch('');
+      setSearchQuery('');
+    }
   }, [year, month]);
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
   const { hidden, toggle } = usePrivacy();
   const accounts = useAccounts();
-  const transactions = useTransactions(filters);
+  const transactions = useTransactions({ ...filters, q: searchQuery || undefined });
+  const searchPending = search.trim() !== searchQuery;
+  const loading = transactions.isPending || searchPending;
   const items = transactions.data?.pages.flatMap((page) => page.content ?? []) ?? [];
   const groups = useMemo(() => groupTransactionsByDate(items), [items]);
   const hasAccounts = Boolean(accounts.data?.some((account) => account.active));
@@ -69,32 +81,56 @@ export default function TransactionsScreen() {
       </View>
     </View>
   );
-  if (transactions.isPending)
-    return (
-      <Screen entry scroll>
-        {pageHeader}
-        <SkeletonRow />
-        <SkeletonRow />
-        <SkeletonRow />
-      </Screen>
-    );
-  if (transactions.isError && !transactions.data)
-    return (
-      <Screen entry>
-        {pageHeader}
-        <ErrorState onRetry={() => void transactions.refetch()} />
-      </Screen>
-    );
   return (
     <Screen entry scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
       {pageHeader}
-      {transactions.isError ? (
+      <Button variant="secondary" onPress={() => router.push('/(app)/inbox')}>
+        Por revisar · avisos de compra
+      </Button>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <Input
+            accessibilityLabel="Buscar movimientos"
+            placeholder="Concepto, categoría o cuenta"
+            icon="search-outline"
+            value={search}
+            onChangeText={setSearch}
+            maxLength={120}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            onSubmitEditing={() => setSearchQuery(search.trim())}
+          />
+        </View>
+        {search.length > 0 && (
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel="Borrar búsqueda"
+            onPress={() => {
+              setSearch('');
+              setSearchQuery('');
+            }}
+            style={styles.privacy}
+          >
+            <Ionicons name="close-outline" size={20} color={colors.primary} />
+          </MotionPressable>
+        )}
+      </View>
+      {searchQuery && activeFilters > 0 ? (
+        <Text style={typography.caption}>La búsqueda respeta los filtros seleccionados.</Text>
+      ) : null}
+      {transactions.isError && transactions.data && !searchPending ? (
         <Text style={typography.caption}>No pudimos actualizar. Sigues viendo el historial guardado.</Text>
       ) : null}
       <View style={styles.toolbar}>
         <Text accessibilityRole="header" style={styles.historyTitle}>
-          Historial · {items.length}
-          {transactions.hasNextPage ? '+' : ''}
+          {loading
+            ? 'Buscando movimientos…'
+            : searchQuery
+              ? transactions.data
+                ? `Resultados · ${transactions.data.pages[0]?.totalElements ?? items.length}`
+                : 'Resultados'
+              : `Historial · ${items.length}${transactions.hasNextPage ? '+' : ''}`}
         </Text>
         <TourTarget id="movement-filters">
           <MotionPressable
@@ -142,7 +178,14 @@ export default function TransactionsScreen() {
           ) : null}
         </View>
       )}
-      {items.length ? (
+      {loading ? (
+        <>
+          <SkeletonRow />
+          <SkeletonRow />
+        </>
+      ) : transactions.isError && !transactions.data ? (
+        <ErrorState onRetry={() => void transactions.refetch()} />
+      ) : items.length ? (
         <View style={styles.list}>
           {groups.map((group) => (
             <View key={group.date} style={styles.group}>
@@ -178,6 +221,7 @@ export default function TransactionsScreen() {
             <MotionPressable
               accessibilityRole="button"
               accessibilityLabel="Cargar más movimientos"
+              disabled={transactions.isFetchingNextPage}
               onPress={() => void transactions.fetchNextPage()}
             >
               <Text style={styles.loadMore}>Cargar más</Text>
@@ -185,12 +229,18 @@ export default function TransactionsScreen() {
           )}
           {transactions.isFetchingNextPage && <ActivityIndicator />}
         </View>
-      ) : filterCount(filters) ? (
+      ) : searchQuery || activeFilters ? (
         <EmptyState
-          title="No encontramos movimientos con estos filtros."
+          title={
+            searchQuery ? 'No encontramos coincidencias.' : 'No encontramos movimientos con estos filtros.'
+          }
           description="Prueba ajustando los criterios de búsqueda."
-          actionLabel="Limpiar filtros"
-          onAction={() => setFilters({})}
+          actionLabel={searchQuery ? 'Limpiar búsqueda y filtros' : 'Limpiar filtros'}
+          onAction={() => {
+            setFilters({});
+            setSearch('');
+            setSearchQuery('');
+          }}
         />
       ) : (
         <View style={styles.empty}>

@@ -8,6 +8,7 @@ import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google
 import { AuthProvider } from '@/auth/auth-provider';
 import { PrivacyProvider } from '@/privacy/privacy-provider';
 import { FeedbackProvider } from '@/feedback/feedback-provider';
+import { ConfirmationProvider } from '@/feedback/confirmation-provider';
 import { AppThemeProvider } from '@/theme/theme-provider';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
@@ -33,7 +34,9 @@ export default function RootLayout() {
           <AppThemeProvider>
             <PrivacyProvider>
               <FeedbackProvider>
-                <Slot />
+                <ConfirmationProvider>
+                  <Slot />
+                </ConfirmationProvider>
               </FeedbackProvider>
             </PrivacyProvider>
           </AppThemeProvider>

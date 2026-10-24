@@ -11,6 +11,8 @@ import {
   deleteCredit,
   createSavingGoal,
   getAlerts,
+  getAlertHistory,
+  updateAlert,
   getBudgets,
   getCredit,
   getCredits,
@@ -45,6 +47,18 @@ const invalidate = (client: ReturnType<typeof useQueryClient>, keys: ReadonlyArr
 export const useBudgets = (year: number, month: number) =>
   useQuery({ queryKey: secondaryKeys.budgets(year, month), queryFn: () => getBudgets(year, month) });
 export const useAlerts = () => useQuery({ queryKey: secondaryKeys.alerts, queryFn: getAlerts });
+export const useAlertHistory = (enabled: boolean) =>
+  useQuery({ queryKey: [...secondaryKeys.alerts, 'history'], queryFn: getAlertHistory, enabled });
+export const useUpdateAlert = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: updateAlert,
+    retry: false,
+    onSuccess: () => invalidate(client, [secondaryKeys.alerts]),
+    // A stale revision can mean the situation changed. Re-read it without retrying the action.
+    onError: () => client.invalidateQueries({ queryKey: secondaryKeys.alerts }),
+  });
+};
 export const useSavings = () =>
   useQuery({ queryKey: secondaryKeys.savings, queryFn: getSavingGoals, staleTime: 60_000 });
 export const useSavingProgress = (id: number, enabled = true) =>

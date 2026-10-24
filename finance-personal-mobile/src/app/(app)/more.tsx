@@ -1,6 +1,7 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState, type PropsWithChildren } from 'react';
-import { Alert, Switch, Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
+import { AppAlert as Alert } from '@/feedback/app-alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useTour } from '@/features/onboarding/tour-context';
@@ -21,6 +22,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { useAppTheme, type AppearanceMode } from '@/theme/theme-provider';
 import { MotionPressable } from '@/ui/motion';
 import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
+import { HomeUpcomingSettings } from '@/features/dashboard/home-upcoming';
 
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   const { palette } = useAppTheme();
@@ -149,6 +151,7 @@ export default function MoreScreen() {
       </Section>
       <Section title="Preferencias">
         <HomePrioritySettings userId={profile.data?.id} />
+        <HomeUpcomingSettings userId={profile.data?.id} />
         <View style={styles.appearance}>
           <View style={styles.appearanceTitle}>
             <View style={[styles.appearanceIcon, { backgroundColor: palette.infoSoft }]}>

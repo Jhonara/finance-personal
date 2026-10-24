@@ -9,10 +9,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import com.jr.finance.api.transaction.dto.TransactionResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +28,10 @@ import java.time.LocalDate;
 @Tag(name = "Transactions", description = "Historial unificado de operaciones financieras del ledger.")
 public class TransactionController {
     private final TransactionService service;
+    @GetMapping("/{id}") @Operation(operationId = "getTransactionDetail")
+    public TransactionResponse detail(@PathVariable Long id, Authentication authentication) {
+        return service.detail(((UserPrincipal) authentication.getPrincipal()).getUser().getId(), id);
+    }
 
     @Operation(summary = "Historial financiero unificado", description = "Vista paginada de operaciones lógicas. Use from/to o year/month, no ambos grupos de filtros; size tiene máximo 100.")
     @GetMapping
@@ -37,10 +44,12 @@ public class TransactionController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) FinancialTransactionType type,
             @RequestParam(required = false) FinancialTransactionStatus status,
+            @Parameter(description = "Buscar por concepto, categoría o cuenta; ignora mayúsculas y tildes")
+            @RequestParam(required = false) @Size(max = 120) String q,
             @Parameter(description = "Página desde cero") @RequestParam(defaultValue = "0") @Min(0) int page,
             @Parameter(description = "Tamaño de página, máximo 100") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             Authentication authentication) {
         Long userId = ((UserPrincipal) authentication.getPrincipal()).getUser().getId();
-        return service.find(userId, new TransactionQuery(from, to, year, month, accountId, categoryId, type, status, page, size));
+        return service.find(userId, new TransactionQuery(from, to, year, month, accountId, categoryId, type, status, page, size, null, false, null, q));
     }
 }

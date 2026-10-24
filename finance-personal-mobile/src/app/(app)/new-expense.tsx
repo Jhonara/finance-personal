@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
@@ -49,6 +50,11 @@ function NewExpenseScreen() {
   const feedback = useFeedback();
   const tour = useTour();
   const client = useQueryClient();
+  const guard = useUnsavedForm({
+    dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
+    busy: mutation.isPending,
+    suspended: selector !== null,
+  });
   const submit = form.handleSubmit((data) => {
     const parsedAmount = Number(data.amount);
     const validAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -105,7 +111,7 @@ function NewExpenseScreen() {
   const selectedCategory = categories.data?.find((item) => item.id === form.watch('categoryId'));
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nuevo gasto" onBack={() => router.back()} />
+      <MovementFormHeader title="Nuevo gasto" onBack={() => guard.request(() => router.back())} />
       <View style={styles.form}>
         <MovementFormIntro
           kind="expense"

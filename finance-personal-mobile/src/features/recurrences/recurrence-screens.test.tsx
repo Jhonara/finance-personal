@@ -27,7 +27,13 @@ vi.mock('@/features/forms/form-session', () => ({
 }));
 vi.mock('@/privacy/privacy-provider', () => ({ usePrivacy: () => ({ hidden: mocks.hidden }) }));
 vi.mock('@/feedback/feedback-provider', () => ({ useFeedback: () => ({ show: mocks.show }) }));
-vi.mock('react-native', () => ({ Text: 'Text', View: 'View', Switch: 'Switch', Alert: { alert: vi.fn() } }));
+vi.mock('react-native', () => ({
+  BackHandler: { addEventListener: () => ({ remove() {} }) },
+  Text: 'Text',
+  View: 'View',
+  Switch: 'Switch',
+  Alert: { alert: vi.fn() },
+}));
 vi.mock('@/theme', () => ({
   colors: { danger: 'red', success: 'green', textPrimary: 'black' },
   spacing: { sm: 8, md: 12 },
@@ -52,6 +58,7 @@ vi.mock('@/ui/financial-date-field', () => ({ FinancialDateField: 'FinancialDate
 vi.mock('@/ui/modal-selector', () => ({ ModalSelector: 'ModalSelector' }));
 vi.mock('@/ui/quick-category-modal', () => ({ QuickCategoryModal: 'QuickCategoryModal' }));
 vi.mock('@/ui/motion-modal', () => ({ MotionModal: 'MotionModal' }));
+vi.mock('@/ui/transaction-detail-sheet', () => ({ TransactionDetailSheet: 'TransactionDetailSheet' }));
 vi.mock('@/features/credits/credit-payment-form', () => ({ CreditPaymentForm: 'CreditPaymentForm' }));
 import RecurrencesScreen from '@/app/(app)/recurrences';
 import RecurringForm from '@/app/(app)/recurring-form';
@@ -81,6 +88,16 @@ async function flush() {
     await new Promise((resolve) => setTimeout(resolve, 15));
   });
 }
+async function waitForPreview() {
+  // Let the debounce commit before waiting for the resulting query render.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  });
+  await flush();
+  expect(
+    client.getQueriesData({ queryKey: ['recurrences', 'preview'] }).some(([, data]) => Boolean(data)),
+  ).toBe(true);
+}
 async function mount(component: React.ReactNode) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   await act(async () => {
@@ -99,6 +116,7 @@ async function press(label: string) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   mocks.hidden = false;
   mocks.params = { type: 'INCOME' };
   entries = [];
@@ -125,7 +143,24 @@ beforeEach(() => {
                   ]
                 : [],
   }));
-  mocks.post.mockResolvedValue({ data: {} });
+  mocks.post.mockImplementation(
+    async (url: string, data: { amount: number; amountBasis?: string; frequency?: string }) => {
+      const payment =
+        data?.amountBasis === 'MONTHLY_TOTAL' && data.frequency === 'SEMIMONTHLY'
+          ? data.amount / 2
+          : data?.amount;
+      return {
+        data:
+          url === '/recurrences/preview'
+            ? {
+                amountPerPayment: payment,
+                fullMonthTotal: data.frequency === 'SEMIMONTHLY' ? payment * 2 : payment,
+                months: [],
+              }
+            : {},
+      };
+    },
+  );
 });
 afterEach(async () => {
   if (renderer) await act(async () => renderer.unmount());
@@ -193,13 +228,16 @@ describe('recurring payments', () => {
       find('SelectField', 'label', 'Cuenta que recibe el dinero').props.onPress();
     });
     await act(async () => find('ModalSelector', 'visible', true).props.onSelect(1));
+    await waitForPreview();
+    const previewCalls = mocks.post.mock.calls.length;
     mocks.post.mockRejectedValue({ response: { status: 503 } });
     await press('Guardar programación');
     await press('Guardar programación');
-    expect(mocks.post).toHaveBeenCalledTimes(2);
-    expect(mocks.post.mock.calls[0]?.[1].requestKey).toBe(mocks.post.mock.calls[1]?.[1].requestKey);
+    expect(mocks.post).toHaveBeenCalledTimes(previewCalls + 2);
+    const saves = mocks.post.mock.calls.filter(([url]) => url === '/recurrences');
+    expect(saves[0]?.[1].requestKey).toBe(saves[1]?.[1].requestKey);
     expect(find('Input', 'label', 'Nombre').props.value).toBe('Mi salario');
-    expect(mocks.post.mock.calls[0]?.[1]).toMatchObject({
+    expect(saves[0]?.[1]).toMatchObject({
       mode: 'AUTOMATIC',
       amount: 1500000,
       startDate: future,
@@ -221,5 +259,112 @@ describe('recurring payments', () => {
       '15 y último día de cada mes',
     );
     expect(scheduleLabel({ frequency: 'BIWEEKLY', firstDay: 15, secondDay: null })).toBe('Cada 14 días');
+  });
+  it('previews a monthly salary and saves the per-payment amount without the UI-only choice', async () => {
+    await mount(<RecurringForm />);
+    await act(async () => find('SelectField', 'label', '¿Cada cuánto?').props.onPress());
+    await act(async () => find('ModalSelector', 'visible', true).props.onSelect(1));
+    await press('Total mensual');
+    await act(async () => {
+      find('Input', 'label', 'Nombre').props.onChangeText('Mi salario');
+      find('MoneyInput', 'label', 'Total que recibes al mes').props.onChangeText('3000000');
+      find('FinancialDateField', 'label', 'Empezar a partir de').props.onChange(future);
+      find('SelectField', 'label', 'Cuenta que recibe el dinero').props.onPress();
+    });
+    await act(async () => find('ModalSelector', 'visible', true).props.onSelect(1));
+    await waitForPreview();
+    await press('Guardar programación');
+    const save = mocks.post.mock.calls.find(([url]) => url === '/recurrences');
+    expect(save?.[1]).toMatchObject({
+      amount: 1500000,
+      frequency: 'SEMIMONTHLY',
+      firstDay: 15,
+      secondDay: 31,
+    });
+    expect(save?.[1]).not.toHaveProperty('amountBasis');
+  });
+  it('opens the exact posted movement from recurring history', async () => {
+    entries = [{ ...entry, status: 'POSTED', transactionId: 99, recordedDate: '2026-01-01' }];
+    const original = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation((url: string) =>
+      url === '/transactions/99'
+        ? Promise.resolve({
+            data: { id: 99, type: 'INCOME', amount: 1500000, currency: 'COP', status: 'POSTED' },
+          })
+        : original(url),
+    );
+    await mount(<RecurrencesScreen />);
+    await press('Ver movimiento');
+    await act(async () => {
+      await vi.waitFor(() => expect(client.getQueryData(['transactions', 'detail', 99])).toBeDefined());
+    });
+    expect(renderer.root.findByType('TransactionDetailSheet' as never).props.transaction.id).toBe(99);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+  it('keeps an existing twice-monthly salary as its original per-payment amount', async () => {
+    mocks.params = { id: '1', type: 'INCOME' };
+    const original = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation((url: string) =>
+      url === '/recurrences'
+        ? Promise.resolve({
+            data: [
+              {
+                ...entry,
+                id: 1,
+                amount: 3000000,
+                frequency: 'SEMIMONTHLY',
+                firstDay: 15,
+                secondDay: 31,
+                state: 'ACTIVE',
+                active: true,
+                nextDate: future,
+                version: 1,
+                requestKey: 'existing',
+                timeZone: 'America/Bogota',
+              },
+            ],
+          })
+        : original(url),
+    );
+    mocks.put.mockResolvedValue({ data: {} });
+    await mount(<RecurringForm />);
+    await waitForPreview();
+    expect(find('MoneyInput', 'label', 'Importe de cada pago').props.value).toBe('3000000');
+    await press('Guardar programación');
+    expect(mocks.put).toHaveBeenCalledWith(
+      '/recurrences/1',
+      expect.objectContaining({ amount: 3000000, frequency: 'SEMIMONTHLY', version: 1 }),
+    );
+  });
+  it('offers changing the end date instead of resuming an expired rule', async () => {
+    const original = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation((url: string) =>
+      url === '/recurrences'
+        ? Promise.resolve({
+            data: [
+              {
+                ...entry,
+                id: 1,
+                frequency: 'MONTHLY',
+                firstDay: 20,
+                secondDay: null,
+                state: 'FINISHED',
+                active: false,
+                endDate: '2026-01-01',
+                version: 1,
+              },
+            ],
+          })
+        : original(url),
+    );
+    await mount(<RecurrencesScreen />);
+    await press('Programaciones');
+    expect(JSON.stringify(renderer.toJSON())).toContain('Finalizada');
+    await press('Cambiar fecha de fin');
+    expect(mocks.push).toHaveBeenCalledWith(
+      '/(app)/recurring-form',
+      expect.objectContaining({ id: '1', editEnd: '1' }),
+    );
+    expect(mocks.patch).not.toHaveBeenCalled();
   });
 });

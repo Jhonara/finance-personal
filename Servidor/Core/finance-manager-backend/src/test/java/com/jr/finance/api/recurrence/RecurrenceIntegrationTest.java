@@ -55,6 +55,8 @@ class RecurrenceIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired JwtService jwt;
     @Autowired com.jr.finance.api.alerts.AlertService alerts;
+    @Autowired com.jr.finance.api.transaction.TransactionService transactionHistory;
+    @Autowired com.jr.finance.api.reports.ReportService reports;
     User user;
     Account account;
     Category category;
@@ -217,8 +219,78 @@ class RecurrenceIntegrationTest {
         var json = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.components.schemas.SaveRecurringRuleRequest").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/recurrences/agenda']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/reports/expenses']").exists())
+                .andExpect(jsonPath("$.components.schemas.RecurringUpcomingResponse").exists())
                 .andReturn().getResponse().getContentAsString();
         Files.createDirectories(Path.of("target"));
         Files.writeString(Path.of("target/recurrence-openapi.json"), json);
+    }
+
+    @Test void pausedAndFinishedHaveDifferentStatesAndEditingKeepsPause() {
+        var base = request(RecurrenceKind.INCOME, RecurrenceMode.CONFIRM, today.plusDays(1));
+        var rule = service.create(user.getId(), new SaveRule(base.name(), base.kind(), base.frequency(), base.mode(),
+                base.amount(), base.accountId(), null, base.timeZone(), base.startDate(), today.plusDays(1),
+                21, null, base.requestKey(), null));
+        var paused = service.setActive(user.getId(), rule.id(), new SetActive(false, rule.version()));
+        assertThat(paused.state()).isEqualTo("PAUSED");
+        clock.now = Instant.parse("2026-10-22T15:00:00Z");
+        var finished = service.list(user.getId()).getFirst();
+        assertThat(finished.state()).isEqualTo("FINISHED");
+        assertThatThrownBy(() -> service.setActive(user.getId(), rule.id(), new SetActive(true, finished.version())))
+                .isInstanceOf(BadRequestException.class);
+        var edited = service.update(user.getId(), rule.id(), new SaveRule(base.name(), base.kind(), base.frequency(), base.mode(),
+                base.amount(), base.accountId(), null, base.timeZone(), today.plusDays(2), null,
+                21, null, base.requestKey(), finished.version()));
+        assertThat(edited.state()).isEqualTo("PAUSED");
+        assertThat(service.setActive(user.getId(), rule.id(), new SetActive(true, edited.version())).state()).isEqualTo("ACTIVE");
+    }
+
+    @Test void upcomingCrossesTheMonthAndLimitsRowsWithoutChangingMoney() {
+        service.create(user.getId(), request(RecurrenceKind.INCOME, RecurrenceMode.CONFIRM, today));
+        clock.now = Instant.parse("2026-10-30T15:00:00Z");
+        for (int day = 0; day < 8; day++) service.create(user.getId(), request(RecurrenceKind.INCOME,
+                RecurrenceMode.CONFIRM, LocalDate.of(2026,10,30).plusDays(day)));
+        var result = service.upcoming(user.getId(), "America/Bogota");
+        assertThat(result.from()).isEqualTo(LocalDate.of(2026,10,30));
+        assertThat(result.to()).isEqualTo(LocalDate.of(2026,11,5));
+        assertThat(result.total()).isEqualTo(7);
+        assertThat(result.entries()).hasSize(3).extracting(Entry::dueDate)
+                .containsExactly(LocalDate.of(2026,10,30), LocalDate.of(2026,10,31), LocalDate.of(2026,11,1));
+        assertThat(service.upcoming(user.getId() + 100000, "America/Bogota").entries()).isEmpty();
+        assertThat(ledger.getAccountBalance(user.getId(), account.getId())).isZero();
+    }
+
+    @Test void reportHistoryFiltersBeforePaginationAndIncludesExpenseReversals() throws Exception {
+        LocalDate date = LocalDate.now();
+        ledger.recordOpeningBalance(user.getId(), account.getId(), new FinancialOperationCommand(new BigDecimal("10000"),date,"Inicio",null,null));
+        Long first = null;
+        for (int i=0;i<25;i++) {
+            var transaction = ledger.recordExpense(user.getId(), account.getId(), new FinancialOperationCommand(new BigDecimal("10"),date,"Factura",null,category.getId()));
+            if (first == null) first = transaction.getId();
+        }
+        var reversal = ledger.reverseTransaction(first, user.getId());
+        var usd = new Account(); usd.setUser(user); usd.setName("USD"); usd.setType(AccountType.BANK); usd.setCurrency("USD"); usd.setActive(true);
+        usd = accounts.saveAndFlush(usd);
+        ledger.recordOpeningBalance(user.getId(), usd.getId(), new FinancialOperationCommand(new BigDecimal("1000"),date,"Inicio",null,null));
+        ledger.recordExpense(user.getId(), usd.getId(), new FinancialOperationCommand(new BigDecimal("77"),date,"Factura USD",null,category.getId()));
+        var query = new com.jr.finance.api.transaction.TransactionQuery(null,null,date.getYear(),date.getMonthValue(),null,null,null,null,0,5,"COP",true,category.getName());
+        var firstPage = transactionHistory.find(user.getId(), query);
+        assertThat(firstPage.totalElements()).isEqualTo(26);
+        assertThat(firstPage.content()).hasSize(5).allSatisfy(item -> assertThat(item.currency()).isEqualTo("COP"));
+        assertThat(firstPage.content()).anySatisfy(item -> assertThat(item.id()).isEqualTo(reversal.getId()));
+        var all = transactionHistory.find(user.getId(), new com.jr.finance.api.transaction.TransactionQuery(null,null,date.getYear(),date.getMonthValue(),null,null,null,null,0,100,"COP",true,category.getName()));
+        var net = all.content().stream().map(item -> item.type().equals("REVERSAL") ? item.amount().negate() : item.amount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(net).isEqualByComparingTo(reports.month(user.getId(),date.getYear(),date.getMonthValue()).get("COP").expensesByCategory().get(category.getName()));
+        assertThat(net).isEqualByComparingTo("240");
+        Long owned = first;
+        assertThat(transactionHistory.detail(user.getId(), owned).id()).isEqualTo(owned);
+        assertThatThrownBy(() -> transactionHistory.detail(user.getId()+100000, owned)).isInstanceOf(NotFoundException.class);
+        assertThat(transactionHistory.find(user.getId()+100000, query).content()).isEmpty();
+        mvc.perform(get("/api/v1/reports/expenses").param("year",String.valueOf(date.getYear())).param("month",String.valueOf(date.getMonthValue()))
+                .param("currency","COP").param("category",category.getName()).param("page","1").param("size","5")
+                .header("Authorization","Bearer " + jwt.generateToken(user.getEmail())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(26)).andExpect(jsonPath("$.content.length()").value(5));
+        mvc.perform(get("/api/v1/transactions/" + owned)).andExpect(status().isUnauthorized());
     }
 }

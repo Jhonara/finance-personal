@@ -1,5 +1,6 @@
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { useRef, useState } from 'react';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { Text } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,8 +45,14 @@ export function SavingContributionForm({
   const [uncertain, setUncertain] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [reviewed, setReviewed] = useState(false);
+  const guard = useUnsavedForm({
+    dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
+    busy: mutation.isPending,
+    enabled: visible,
+    onBack: onClose,
+  });
   const close = () => {
-    if (!submitting.current) onClose();
+    if (!submitting.current) guard.request(onClose);
   };
   const submit = () => {
     if (submitting.current || uncertain || completed || goal.id === undefined) return;

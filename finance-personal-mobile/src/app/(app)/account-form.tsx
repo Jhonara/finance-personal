@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { useRef, useState } from 'react';
@@ -47,6 +48,12 @@ function AccountForm() {
   const [createdAccountId, setCreatedAccountId] = useState<number>();
   const mutation = useAccountMutation();
   const feedback = useFeedback();
+  const guard = useUnsavedForm({
+    dirty: Boolean(name || type !== 'BANK' || currency !== 'COP'),
+    enabled: createdAccountId === undefined,
+    busy: mutation.isPending,
+    suspended: selectorOpen,
+  });
   const tour = useTour();
   const selectedType = accountTypes.find((option) => option.value === type)!;
   const submit = () => {
@@ -106,7 +113,7 @@ function AccountForm() {
     );
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nueva cuenta" onBack={() => router.back()} />
+      <MovementFormHeader title="Nueva cuenta" onBack={() => guard.request(() => router.back())} />
       <LinearGradient colors={[colors.primarySoft, colors.surface]} style={styles.intro}>
         <View style={styles.introIcon}>
           <Ionicons name="wallet-outline" size={25} color={colors.success} />

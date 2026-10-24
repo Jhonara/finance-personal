@@ -42,7 +42,11 @@ import { Button, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 
 export default function ReportsScreen() {
-  const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
+  const {
+    year,
+    month,
+    currency: requestedCurrency,
+  } = useLocalSearchParams<{ year?: string; month?: string; currency?: string }>();
   const [period, setPeriod] = useState<DashboardPeriod>(
     () => dashboardPeriodFromParams(year, month) ?? currentDashboardPeriod(),
   );
@@ -52,7 +56,10 @@ export default function ReportsScreen() {
   }, [year, month]);
   const [view, setView] = useState<ReportView>('summary');
   const [count, setCount] = useState(6);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>();
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(requestedCurrency ?? '');
+  useEffect(() => {
+    if (requestedCurrency) setSelectedCurrency(requestedCurrency);
+  }, [requestedCurrency]);
   const { hidden, toggle } = usePrivacy();
   const today = currentDashboardPeriod();
   const monthly = reportViews.find((item) => item.id === view)!.monthly;
@@ -220,7 +227,13 @@ export default function ReportsScreen() {
                 />
               ) : null}
               {view === 'expenses' && current ? (
-                <ExpenseBreakdown current={current} previous={previous} currency={currency} hidden={hidden} />
+                <ExpenseBreakdown
+                  current={current}
+                  previous={previous}
+                  currency={currency}
+                  hidden={hidden}
+                  period={period}
+                />
               ) : null}
               {view === 'budgets' && budgets.data ? (
                 <BudgetReport budgets={budgets.data} period={period} currency={currency} hidden={hidden} />

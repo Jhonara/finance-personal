@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
@@ -48,6 +49,11 @@ function NewIncomeScreen() {
   const feedback = useFeedback();
   const tour = useTour();
   const client = useQueryClient();
+  const guard = useUnsavedForm({
+    dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
+    busy: mutation.isPending,
+    suspended: selector !== null,
+  });
   const submit = form.handleSubmit((data) => {
     const parsedAmount = Number(data.amount);
     const validAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -103,7 +109,7 @@ function NewIncomeScreen() {
   const category = categories.data?.find((x) => x.id === form.watch('categoryId'));
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nuevo ingreso" onBack={() => router.back()} />
+      <MovementFormHeader title="Nuevo ingreso" onBack={() => guard.request(() => router.back())} />
       <View style={styles.form}>
         <MovementFormIntro
           kind="income"

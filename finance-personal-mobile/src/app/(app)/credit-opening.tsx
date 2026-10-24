@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -32,14 +33,22 @@ export default function CreditOpeningScreen() {
     nextPaymentDate: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [initialValues, setInitialValues] = useState(values);
+  const guard = useUnsavedForm({
+    dirty: hasFormChanges(values, initialValues),
+    busy: safety.busy,
+    enabled: Boolean(credit.data),
+  });
   useEffect(() => {
     if (!credit.data) return;
-    setValues({
+    const initial = {
       balance: String(credit.data.openingBalance ?? ''),
       date: credit.data.openingDate ?? localDateFromNative(new Date()),
       remainingMonths: String(credit.data.openingRemainingMonths ?? ''),
       nextPaymentDate: credit.data.openingNextPaymentDate ?? '',
-    });
+    };
+    setValues(initial);
+    setInitialValues(initial);
   }, [credit.data?.id]);
   const lastPayment = history.data?.payments.reduce<string | undefined>(
     (latest, payment) => (payment.date && (!latest || payment.date > latest) ? payment.date : latest),
@@ -92,7 +101,7 @@ export default function CreditOpeningScreen() {
         title="Actualizar desde extracto"
         subtitle={credit.data?.name ?? 'Crédito'}
         back
-        onBack={() => router.back()}
+        onBack={() => guard.request(() => router.back())}
       />
       {credit.isPending ? (
         <Skeleton height={180} />

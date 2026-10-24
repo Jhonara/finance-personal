@@ -41,6 +41,7 @@ vi.mock('react-native', () => {
       );
   const animation = () => ({ start: (done?: () => void) => done?.(), stop: vi.fn() });
   return {
+    BackHandler: { addEventListener: () => ({ remove() {} }) },
     Alert: { alert: mocks.alert },
     Switch: host('Switch'),
     AccessibilityInfo: { isReduceMotionEnabled: async () => true, addEventListener: () => ({ remove() {} }) },
@@ -194,15 +195,71 @@ afterEach(async () => {
   client.clear();
 });
 describe('Alerts real screens and hooks', () => {
+  it('snoozes and resumes without claiming everything is resolved', async () => {
+    alerts = [{ id: 8, revision: 1, state: 'ACTIVE', code: 'CREDIT_BEHIND', data: { creditId: 9 } }];
+    mocks.post.mockImplementation(async (_path: string, data: { action: string }) => {
+      alerts = alerts.map((alert) => ({ ...alert, state: data.action === 'SNOOZE' ? 'SNOOZED' : 'ACTIVE' }));
+      return { data: alerts[0] };
+    });
+    const tree = await render(<AlertsScreen />);
+    await press(tree, 'Posponer a mañana');
+    expect(text(tree.toJSON())).toContain('Tus avisos están pospuestos');
+    expect(text(tree.toJSON())).not.toContain('Sin avisos pendientes');
+    await press(tree, 'Pospuestas · 1');
+    await press(tree, 'Volver a pendientes');
+    expect(mocks.post).toHaveBeenLastCalledWith('/alerts/8/state', { revision: 1, action: 'RESUME' });
+    expect(text(tree.toJSON())).toContain('Pago de crédito pendiente');
+    expect(text(tree.toJSON())).not.toContain('Tus avisos están pospuestos');
+  });
+  it('loads history on demand and distinguishes expired periods from resolved conditions', async () => {
+    mocks.get.mockImplementation(async (path: string) => ({
+      data:
+        path === '/alerts/history'
+          ? [
+              { id: 1, revision: 1, state: 'ARCHIVED', code: 'SPEND_SPIKE' },
+              { id: 2, revision: 1, state: 'RESOLVED', code: 'CREDIT_BEHIND' },
+            ]
+          : [],
+    }));
+    const tree = await render(<AlertsScreen />);
+    expect(mocks.get).not.toHaveBeenCalledWith('/alerts/history');
+    await press(tree, 'Historial');
+    expect(mocks.get).toHaveBeenCalledWith('/alerts/history');
+    expect(text(tree.toJSON())).toContain('Período finalizado');
+    expect(text(tree.toJSON())).toContain('Resuelta');
+    expect(buttons(tree, 'Marcar como vista')).toHaveLength(0);
+    expect(buttons(tree, 'Posponer a mañana')).toHaveLength(0);
+    await press(tree, 'Detalle del aviso');
+    expect(text(tree.toJSON())).toContain('no significa que el problema se haya solucionado');
+  });
+  it('opens the spending report with its exact period and currency', async () => {
+    alerts = [{ code: 'SPEND_SPIKE', data: { year: 2026, month: 10, currency: 'USD' } }];
+    const tree = await render(<AlertsScreen />);
+    await press(tree, 'Ver gastos del mes');
+    expect(mocks.push).toHaveBeenCalledWith({
+      pathname: '/(app)/reports',
+      params: { year: '2026', month: '10', currency: 'USD' },
+    });
+  });
+  it('shows a retry state when history cannot load', async () => {
+    mocks.get.mockImplementation(async (path: string) => {
+      if (path === '/alerts/history') throw Error('offline');
+      return { data: [] };
+    });
+    const tree = await render(<AlertsScreen />);
+    await press(tree, 'Historial');
+    expect(text(tree.toJSON())).not.toContain('Aún no hay historial');
+    expect(buttons(tree, 'Reintentar')).toHaveLength(1);
+  });
   it('shows a calm empty state without an unnecessary action', async () => {
     const tree = await render(<AlertsScreen />);
-    expect(text(tree.toJSON())).toContain('Todo en calma');
+    expect(text(tree.toJSON())).toContain('Sin avisos pendientes');
     expect(buttons(tree, 'Marcar como vista')).toHaveLength(0);
   });
   it('renders ALL_GOOD positively but suppresses it alongside real alerts', async () => {
     alerts = [{ code: 'ALL_GOOD' }];
     const tree = await render(<AlertsScreen />);
-    expect(text(tree.toJSON())).toContain('Todo en orden');
+    expect(text(tree.toJSON())).toContain('Sin avisos pendientes');
     await act(async () => {
       client.setQueryData(
         ['alerts'],
@@ -212,7 +269,7 @@ describe('Alerts real screens and hooks', () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(text(tree.toJSON())).not.toContain('Todo en orden');
+    expect(text(tree.toJSON())).not.toContain('Sin avisos pendientes');
     expect(text(tree.toJSON())).toContain('Presupuesto cerca del límite');
   });
   it('renders all human groups and uniquely identifies same-code credits', async () => {
@@ -224,10 +281,13 @@ describe('Alerts real screens and hooks', () => {
       'BUDGET_EXCEEDED',
       'SPEND_SPIKE',
     ].map((code, i) => ({
+      id: i + 1,
+      revision: 0,
+      state: 'ACTIVE',
       code,
       data: { creditId: i + 1, budgetId: i + 1, categoryName: 'Comida', year: 2026, month: 9 },
     }));
-    alerts.push({ code: 'CREDIT_BEHIND', data: { creditId: 99 } });
+    alerts.push({ id: 99, revision: 0, state: 'ACTIVE', code: 'CREDIT_BEHIND', data: { creditId: 99 } });
     const tree = await render(<AlertsScreen />);
     const output = text(tree.toJSON());
     for (const alert of alerts) {
@@ -237,14 +297,14 @@ describe('Alerts real screens and hooks', () => {
     for (const level of ['Importante', 'Atención', 'Información']) expect(output).toContain(level);
     expect(buttons(tree, 'Marcar como vista')).toHaveLength(7);
   });
-  it('sends relatedId, prevents double submit, refetches and shows success', async () => {
-    alerts = [{ code: 'CREDIT_BEHIND', data: { creditId: 9 } }];
+  it('marks read once without hiding a pending condition', async () => {
+    alerts = [{ id: 3, revision: 0, state: 'ACTIVE', code: 'CREDIT_BEHIND', data: { creditId: 9 } }];
     let finish!: () => void;
     mocks.post.mockImplementation(
       () =>
         new Promise((resolve) => {
           finish = () => {
-            alerts = [{ code: 'ALL_GOOD' }];
+            alerts = alerts.map((alert) => ({ ...alert, read: true }));
             resolve({ data: undefined });
           };
         }),
@@ -256,7 +316,7 @@ describe('Alerts real screens and hooks', () => {
       click();
     });
     expect(mocks.post).toHaveBeenCalledTimes(1);
-    expect(mocks.post).toHaveBeenCalledWith('/alerts/CREDIT_BEHIND/seen', { relatedId: 9 });
+    expect(mocks.post).toHaveBeenCalledWith('/alerts/3/state', { revision: 0, action: 'READ' });
     expect(client.getMutationCache().getAll()[0]?.options.retry).toBe(false);
     await act(async () => {
       finish();
@@ -264,16 +324,18 @@ describe('Alerts real screens and hooks', () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 40));
     });
-    expect(mocks.feedback).toHaveBeenCalledWith('Alerta marcada como vista.', 'success');
-    expect(text(tree.toJSON())).toContain('Todo en orden');
+    expect(mocks.feedback).toHaveBeenCalledWith(expect.stringContaining('Sigue pendiente'), 'success');
+    expect(text(tree.toJSON())).toContain('Vista · pendiente');
+    expect(text(tree.toJSON())).not.toContain('Sin avisos pendientes');
+    expect(buttons(tree, 'Marcar como vista')).toHaveLength(0);
   });
   it('keeps failed seen visible and never retries automatically', async () => {
-    alerts = [{ code: 'SPEND_SPIKE' }];
+    alerts = [{ id: 5, revision: 2, state: 'ACTIVE', code: 'SPEND_SPIKE' }];
     mocks.post.mockRejectedValue(Error('offline'));
     const tree = await render(<AlertsScreen />);
     await press(tree, 'Marcar como vista');
     expect(mocks.post).toHaveBeenCalledTimes(1);
-    expect(mocks.post).toHaveBeenCalledWith('/alerts/SPEND_SPIKE/seen', {});
+    expect(mocks.post).toHaveBeenCalledWith('/alerts/5/state', { revision: 2, action: 'READ' });
     expect(text(tree.toJSON())).toContain('Gasto inusual');
     expect(mocks.feedback).toHaveBeenCalledWith(expect.stringContaining('No pudimos confirmar'), 'error');
   });
@@ -333,6 +395,7 @@ describe('Alerts real screens and hooks', () => {
         .map((node) => node.props.accessibilityLabel)
         .join(' '),
     ).not.toContain('123456');
+    await press(tree, 'Por qué aparece');
     expect(text(tree.toJSON())).toContain('Tasa EA 18%');
     expect(buttons(tree, 'Ver crédito')).toHaveLength(1);
   });
@@ -414,12 +477,18 @@ describe('More, preferences and session UI', () => {
         <Probe />
       </>,
     );
-    const toggle = tree.root.find((node) => String(node.type) === 'Switch');
+    const toggle = tree.root.find(
+      (node) => String(node.type) === 'Switch' && node.props.accessibilityLabel === 'Ocultar importes',
+    );
     await act(async () => {
       await toggle.props.onValueChange(true);
     });
     expect(text(tree.toJSON())).toContain('hidden');
-    expect(tree.root.find((node) => String(node.type) === 'Switch').props.value).toBe(true);
+    expect(
+      tree.root.find(
+        (node) => String(node.type) === 'Switch' && node.props.accessibilityLabel === 'Ocultar importes',
+      ).props.value,
+    ).toBe(true);
     expect(mocks.write).toHaveBeenCalledWith('finance-personal.privacy-hidden.v1', 'true');
   });
   it('opens the full guide without modifying onboarding or setup storage', async () => {

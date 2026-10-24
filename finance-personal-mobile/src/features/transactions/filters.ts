@@ -36,6 +36,7 @@ export function normalizeTransactionFilters(filters: TransactionFilters): Transa
   if (filters.categoryId !== undefined) result.categoryId = filters.categoryId;
   if (filters.type) result.type = filters.type;
   if (filters.status) result.status = filters.status;
+  if (filters.q?.trim()) result.q = filters.q.trim();
   return result;
 }
 
