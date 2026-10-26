@@ -10,7 +10,7 @@ import java.util.List;
 public final class InboxDtos {
     private InboxDtos() {}
     public enum Kind { EXPENSE, OTHER }
-    public enum Source { PASTED_TEXT, SHORTCUT, APP_INTENT, WALLET }
+    public enum Source { PASTED_TEXT, SHARED_TEXT, SHORTCUT, APP_INTENT, WALLET }
     @Schema(name = "NativePurchaseIntake")
     public record NativeIntake(@NotNull @Positive Long ownerId,
             @NotBlank @Pattern(regexp = "[a-zA-Z0-9-]{16,64}") String invocationId,

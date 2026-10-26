@@ -1713,7 +1713,7 @@ export interface components {
             requestKey: string;
             fields: components["schemas"]["PurchaseDraftFields"];
             /** @enum {string} */
-            source?: "PASTED_TEXT" | "SHORTCUT" | "APP_INTENT" | "WALLET";
+            source?: "PASTED_TEXT" | "SHARED_TEXT" | "SHORTCUT" | "APP_INTENT" | "WALLET";
         };
         LinkPurchaseDraft: {
             /** Format: int64 */

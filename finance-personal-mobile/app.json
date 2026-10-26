@@ -44,7 +44,15 @@
       "expo-app-intents",
       "./plugins/with-android-launcher-shortcuts.cjs",
       "./plugins/with-android-widget-qa-network.cjs",
-      "expo-sharing"
+      [
+        "expo-sharing",
+        {
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["text/plain"]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

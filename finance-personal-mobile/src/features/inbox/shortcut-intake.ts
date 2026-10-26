@@ -6,6 +6,7 @@ export type ShortcutIntake = {
   requestKey?: string;
   demo: boolean;
   identity: string;
+  source?: 'SHORTCUT' | 'SHARED_TEXT';
 };
 type Result = { ok: true; intake: ShortcutIntake } | { ok: false; message: string };
 const acceptedKeys = new Set(['v', 'kind', 'description', 'amount', 'currency', 'date', 'id', 'demo']);
@@ -67,6 +68,8 @@ export function parseShortcutIntake(params: Record<string, string | string[] | u
 export const purchaseSourceLabel = (source?: string) =>
   source === 'WALLET'
     ? 'Wallet · compra detectada'
+    : source === 'SHARED_TEXT'
+      ? 'Mensaje compartido · por revisar'
     : source === 'APP_INTENT'
       ? 'Atajo nativo · por revisar'
       : source === 'SHORTCUT'

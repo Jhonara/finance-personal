@@ -13,6 +13,7 @@ import {
   type DraftFields,
 } from '@/features/inbox/inbox-api';
 import { emptyPurchase, parsePurchaseText, type PurchaseForm } from '@/features/inbox/purchase-parser';
+import { interpretFinancialText } from '@/features/capture/interpret-text';
 import { purchaseSourceLabel, type ShortcutIntake } from '@/features/inbox/shortcut-intake';
 import { withFormSession, openForm } from '@/features/forms/form-session';
 import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
@@ -66,10 +67,12 @@ export function PurchaseEditor({
   initial,
   imported,
   onNewIntake,
+  onSavedImport,
 }: {
   initial?: Draft;
   imported?: ShortcutIntake;
   onNewIntake?: () => void;
+  onSavedImport?: () => void;
 }) {
   const [saved, setSaved] = useState(initial);
   const [stage, setStage] = useState<'edit' | 'review'>(initial ? 'review' : 'edit');
@@ -81,7 +84,7 @@ export function PurchaseEditor({
   const [transaction, setTransaction] = useState<number>();
   const lock = useRef(false);
   const operationEpoch = useRef(0);
-  const createRequest = useRef<{ requestKey: string; fields: DraftFields; source?: 'SHORTCUT' } | undefined>(
+  const createRequest = useRef<{ requestKey: string; fields: DraftFields; source?: 'SHORTCUT' | 'SHARED_TEXT' } | undefined>(
     undefined,
   );
   const actions = useInboxActions();
@@ -195,7 +198,7 @@ export function PurchaseEditor({
           createRequest.current ??= {
             requestKey: imported?.requestKey ?? `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`,
             fields,
-            ...(imported ? { source: 'SHORTCUT' as const } : {}),
+            ...(imported ? { source: imported.source ?? 'SHORTCUT' } : {}),
           };
           current = await actions.create.mutateAsync(createRequest.current);
           setSaved(current);
@@ -212,6 +215,7 @@ export function PurchaseEditor({
         } else
           current = await actions.update.mutateAsync({ id: current.id, version: current.version!, fields });
         accept(current);
+        if (imported) onSavedImport?.();
       }),
   );
   const refresh = () =>
@@ -255,7 +259,7 @@ export function PurchaseEditor({
             : previewOnly
               ? 'Prueba de Atajos'
               : imported
-                ? 'Compra desde Atajos'
+                ? imported.source === 'SHARED_TEXT' ? 'Mensaje compartido' : 'Compra desde Atajos'
                 : saved || analyzed
                   ? 'Revisar compra'
                   : 'Pegar aviso de compra'
@@ -266,9 +270,9 @@ export function PurchaseEditor({
       />
       {onNewIntake && (
         <Card style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={typography.body}>Llegó otro enlace. Tus cambios actuales siguen aquí.</Text>
+          <Text style={typography.body}>Llegó otro {imported?.source === 'SHARED_TEXT' ? 'mensaje' : 'enlace'}. Tus cambios actuales siguen aquí.</Text>
           <Button variant="secondary" disabled={busy} onPress={() => guard.request(onNewIntake)}>
-            Revisar el nuevo enlace
+            Revisar el nuevo {imported?.source === 'SHARED_TEXT' ? 'mensaje' : 'enlace'}
           </Button>
         </Card>
       )}
@@ -337,7 +341,13 @@ export function PurchaseEditor({
                 disabled={!text.trim() || busy}
                 onPress={() => {
                   Keyboard.dismiss();
+                  if (!interpretFinancialText(text, 'PASTED_TEXT')) {
+                    setText('');
+                    setError('No identificamos un movimiento financiero. No pegues claves ni códigos de verificación.');
+                    return;
+                  }
                   form.reset(parsePurchaseText(text));
+                  setText('');
                   setAnalyzed(true);
                   setError('');
                 }}

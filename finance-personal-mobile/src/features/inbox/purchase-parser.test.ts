@@ -13,9 +13,9 @@ describe('Voluntary local purchase suggestions', () => {
       effectiveDate: '2026-10-23',
     });
   });
-  it('leaves multiple amounts, missing dates and ambiguous currency for review', () => {
+  it('separates a labeled balance from the purchase and leaves missing details for review', () => {
     const multiple = parsePurchaseText('Compraste COP 50.000. Saldo COP 100.000');
-    expect(multiple.amount).toBe('');
+    expect(multiple.amount).toBe('50000');
     expect(multiple.effectiveDate).toBe('');
     expect(parsePurchaseText('Compra $ 45.000 en Café').currency).toBe('');
     expect(parsePurchaseText('Compra USD 1.234 en Café').amount).toBe('');
