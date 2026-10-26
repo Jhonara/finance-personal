@@ -32,7 +32,7 @@ export default function InboxScreen() {
       />
       <Button onPress={() => openForm('/(app)/purchase-review')}>Pegar aviso de compra</Button>
       <Button variant="ghost" onPress={() => router.push('/(app)/shortcuts')}>
-        Usar Atajos en iPhone
+        Atajos y tarjetas
       </Button>
       {query.isPending ? (
         <SkeletonRow />

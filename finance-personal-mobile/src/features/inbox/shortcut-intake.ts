@@ -15,11 +15,12 @@ export function parseShortcutIntake(params: Record<string, string | string[] | u
   const invalid = (message: string): Result => ({ ok: false, message });
   const entries = Object.entries(params).filter(([, value]) => value !== undefined);
   if (entries.some(([key, value]) => !acceptedKeys.has(key) || typeof value !== 'string'))
-    return invalid('El enlace contiene datos que no admitimos. Vuelve a crear el atajo con la guía.');
+    return invalid('El enlace contiene datos que no admitimos. Revisa los campos del atajo.');
   if (entries.reduce((length, [key, value]) => length + key.length + String(value).length, 0) > 1500)
     return invalid('El enlace es demasiado largo. Comparte solo los datos de una compra.');
   const values = Object.fromEntries(entries) as Record<string, string>;
-  if (values.v !== '1') return invalid('Actualiza el enlace usando la guía de Atajos.');
+  if (values.v !== '1')
+    return invalid('Este formato de enlace no es compatible. Usa las acciones nativas de Finance Personal.');
   if (values.demo !== undefined && !['0', '1'].includes(values.demo))
     return invalid('Revisa el enlace de prueba.');
   if (values.kind && !['EXPENSE', 'OTHER'].includes(values.kind))
@@ -64,4 +65,10 @@ export function parseShortcutIntake(params: Record<string, string | string[] | u
 }
 
 export const purchaseSourceLabel = (source?: string) =>
-  source === 'SHORTCUT' ? 'Atajo · datos recibidos' : 'Texto pegado';
+  source === 'WALLET'
+    ? 'Wallet · compra detectada'
+    : source === 'APP_INTENT'
+      ? 'Atajo nativo · por revisar'
+      : source === 'SHORTCUT'
+        ? 'Atajo · datos recibidos'
+        : 'Texto pegado';

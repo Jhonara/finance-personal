@@ -39,7 +39,7 @@ function AuthenticatedShortcut({ params }: { params: Record<string, string | str
       <Screen>
         <EmptyState title="No pudimos abrir esta compra" description={accepted.message} />
         {different && <Button onPress={() => setAccepted(incoming)}>Revisar el nuevo enlace</Button>}
-        <Button onPress={() => router.replace('/(app)/shortcuts')}>Ver guía de Atajos</Button>
+        <Button onPress={() => router.replace('/(app)/shortcuts')}>Atajos y tarjetas</Button>
       </Screen>
     );
   return (

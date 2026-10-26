@@ -1,5 +1,7 @@
 # iPhone y Atajos: guía de la primera prueba
 
+> Registro histórico de la prueba por enlaces. La guía dentro de la app fue reemplazada por ajustes de tarjetas. La implementación nativa y su validación pendiente se documentan en [App Intents y EAS](apple-intents-eas-2026-10-24.md).
+
 Un atajo es una secuencia de acciones del iPhone. En nuestra primera prueba solo abrirá una compra ficticia para revisar. No cobrará dinero, no consultará el banco y no registrará ningún gasto.
 
 El emulador Android sigue sirviendo para revisar pantallas y cálculos compartidos. Atajos, Wallet, permisos y apertura desde iOS deben validarse en el iPhone real. La exportación de código iOS no sustituye esa prueba.

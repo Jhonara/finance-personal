@@ -23,6 +23,7 @@ import { useAppTheme, type AppearanceMode } from '@/theme/theme-provider';
 import { MotionPressable } from '@/ui/motion';
 import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
 import { HomeUpcomingSettings } from '@/features/dashboard/home-upcoming';
+import { homeWidgetBridge } from '@/features/widget/home-widget-bridge';
 
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   const { palette } = useAppTheme();
@@ -46,6 +47,7 @@ export default function MoreScreen() {
   const lock = useRef(false);
   const privacyLock = useRef(false);
   const [privacyBusy, setPrivacyBusy] = useState(false);
+  const [widgetVisible, setWidgetVisible] = useState(() => homeWidgetBridge.getVisible());
   const closeSession = (all: boolean) => {
     if (lock.current) return;
     lock.current = true;
@@ -216,6 +218,31 @@ export default function MoreScreen() {
             />
           }
         />
+        {homeWidgetBridge.available ? (
+          <SettingsRow
+            icon="phone-portrait-outline"
+            title="Mostrar montos en el widget"
+            subtitle="Desactivado por defecto. También se ocultan si activas «Ocultar importes» en la app."
+            control={
+              <Switch
+                accessibilityRole="switch"
+                accessibilityLabel="Mostrar montos en el widget"
+                accessibilityHint="Permite ver saldos, ingresos y gastos en el widget de Android."
+                accessibilityState={{ checked: widgetVisible }}
+                value={widgetVisible}
+                onValueChange={(next) => {
+                  try {
+                    homeWidgetBridge.setVisible(next);
+                    setWidgetVisible(next);
+                  } catch {
+                    feedback.show('No pudimos cambiar la privacidad del widget.', 'error');
+                  }
+                }}
+                trackColor={{ true: palette.primaryStrong, false: palette.border }}
+              />
+            }
+          />
+        ) : null}
         <TourTarget id="profile-guide">
           <SettingsRow
             icon="navigate-circle-outline"

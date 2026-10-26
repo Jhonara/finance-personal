@@ -40,6 +40,7 @@ class InboxIntegrationTest {
     @Autowired RecurringOccurrenceRepository occurrences;
     @Autowired MockMvc mvc;
     @Autowired JwtService jwt;
+    @Autowired WalletCardService cardLinks;
     User owner; Account account; Category category;
     final LocalDate date = LocalDate.of(2026, 10, 20);
 
@@ -152,6 +153,104 @@ class InboxIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.fields.amount").value(50)).andExpect(jsonPath("$.source").value("PASTED_TEXT"));
         var schema = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         Files.writeString(Path.of("target/inbox-openapi.json"), schema);
+    }
+    @Test void nativeExpenseReplaySurvivesEditsConfirmationAndDiscard() {
+        var request = nativeRequest("registerExpense", null, null);
+        var saved = inbox.nativeIntake(owner.getId(), request);
+        assertThat(saved.source()).isEqualTo("APP_INTENT");
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("1000");
+        var edited = inbox.update(owner.getId(), saved.id(), new Update(saved.version(), fields("50")));
+        var posted = inbox.confirm(owner.getId(), edited.id(), new Confirm(edited.version(), edited.reviewToken(), false));
+        assertThat(inbox.nativeIntake(owner.getId(), request).transactionId()).isEqualTo(posted.transactionId());
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("950");
+        var discardedRequest = nativeRequest("registerExpense", null, null);
+        var discarded = inbox.nativeIntake(owner.getId(), discardedRequest);
+        inbox.discard(owner.getId(), discarded.id(), discarded.version());
+        assertThat(inbox.nativeIntake(owner.getId(), discardedRequest).status()).isEqualTo("DISCARDED");
+    }
+    @Test void walletDeliveryIsIdempotentConcurrentAndKeepsLedgerUnchanged() throws Exception {
+        bankCard("DEBIT");
+        var request = nativeRequest("importWallet", "visa-principal", "bank-event-001");
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var gate = new CyclicBarrier(2);
+            Callable<Long> task = () -> { gate.await(5, TimeUnit.SECONDS); return inbox.nativeIntake(owner.getId(), request).id(); };
+            var first = executor.submit(task); var second = executor.submit(task);
+            assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(second.get(10, TimeUnit.SECONDS));
+        }
+        var saved = inbox.nativeIntake(owner.getId(), request);
+        assertThat(inbox.nativeIntake(owner.getId(), nativeRequest("importWallet", "visa-principal", "bank-event-001")).id()).isEqualTo(saved.id());
+        assertThat(saved.fields().accountId()).isEqualTo(account.getId());
+        assertThat(saved.capture().occurredAt()).isEqualTo(date.atTime(12, 30).atOffset(ZoneOffset.ofHours(-5)));
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("1000");
+        assertThat(reports.month(owner.getId(), 2026, 10)).isEmpty();
+        var edited = inbox.update(owner.getId(), saved.id(), new Update(saved.version(), fields("50")));
+        var confirm = new Confirm(edited.version(), edited.reviewToken(), false);
+        var posted = inbox.confirm(owner.getId(), edited.id(), confirm);
+        assertThat(inbox.confirm(owner.getId(), edited.id(), confirm).transactionId()).isEqualTo(posted.transactionId());
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("950");
+    }
+    @Test void creditAndUnknownCardsCannotBePostedAsBankExpensesEvenAfterEditing() {
+        bankCard("CREDIT");
+        var saved = inbox.nativeIntake(owner.getId(), nativeRequest("importWallet", "visa-principal", null));
+        assertThat(saved.capture().cardKind()).isEqualTo("CREDIT");
+        assertThat(saved.fields().accountId()).isNull();
+        var edited = inbox.update(owner.getId(), saved.id(), new Update(saved.version(), fields("50")));
+        assertThatThrownBy(() -> inbox.confirm(owner.getId(), edited.id(), new Confirm(edited.version(), edited.reviewToken(), true)))
+            .isInstanceOf(BadRequestException.class).hasMessageContaining("tarjeta de crédito");
+        var unknown = inbox.nativeIntake(owner.getId(), nativeRequest("importWallet", null, null));
+        var completed = inbox.update(owner.getId(), unknown.id(), new Update(unknown.version(), fields("50")));
+        assertThatThrownBy(() -> inbox.confirm(owner.getId(), completed.id(), new Confirm(completed.version(), completed.reviewToken(), true)))
+            .isInstanceOf(BadRequestException.class).hasMessageContaining("Vincula");
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("1000");
+    }
+    @Test void changedMappingDoesNotBreakReplayAndOwnersCannotShareInvocationsOrCards() {
+        var request = nativeRequest("importWallet", "visa-principal", "same-upstream-event");
+        var saved = inbox.nativeIntake(owner.getId(), request);
+        bankCard("DEBIT");
+        assertThat(inbox.nativeIntake(owner.getId(), request).id()).isEqualTo(saved.id());
+        var other = user();
+        assertThatThrownBy(() -> inbox.nativeIntake(other.getId(), request)).isInstanceOf(ConflictException.class);
+        assertThat(cardLinks.list(other.getId())).isEmpty();
+        assertThatThrownBy(() -> cardLinks.save(other.getId(), new WalletCardService.Input("alias", "Visa", WalletCardService.Kind.DEBIT, account.getId())))
+            .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> cardLinks.save(owner.getId(), new WalletCardService.Input("4111 1111 1111 1111", "Visa", WalletCardService.Kind.DEBIT, account.getId())))
+            .isInstanceOf(BadRequestException.class);
+        var changed = new NativeIntake(owner.getId(), request.invocationId(), request.action(), "Otra compra", request.amount(), "COP", date,
+                request.occurredAt(), request.cardReference(), request.eventReference());
+        assertThatThrownBy(() -> inbox.nativeIntake(owner.getId(), changed)).isInstanceOf(ConflictException.class);
+    }
+    @Test void nativeEndpointRequiresJwtAndAcceptsMissingWalletFields() throws Exception {
+        mvc.perform(post("/api/v1/inbox/native").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/inbox/native").header("Authorization", "Bearer expired.invalid.token").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/inbox/native").header("Authorization", bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ownerId\":" + owner.getId() + ",\"invocationId\":\"11111111-1111-1111-1111-111111111111\",\"action\":\"importWallet\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.capture.cardKind").value("UNKNOWN"));
+    }
+    @Test void unknownWalletCanBeExplicitlyAssignedAndCreditCannotBecomeDebit() {
+        bankCard("DEBIT");
+        var card = cardLinks.list(owner.getId()).getFirst();
+        var request = nativeRequest("importWallet", null, null);
+        var initial = inbox.nativeIntake(owner.getId(), request);
+        var assigned = inbox.assignCard(owner.getId(), initial.id(), new AssignCard(initial.version(), card.id()));
+        assertThat(assigned.capture().cardKind()).isEqualTo("DEBIT");
+        assertThat(assigned.fields().accountId()).isEqualTo(account.getId());
+        assertThat(inbox.nativeIntake(owner.getId(), request).id()).isEqualTo(initial.id());
+        bankCard("CREDIT");
+        var credit = inbox.nativeIntake(owner.getId(), nativeRequest("importWallet", "visa-principal", null));
+        bankCard("DEBIT");
+        assertThatThrownBy(() -> inbox.assignCard(owner.getId(), credit.id(), new AssignCard(credit.version(), card.id())))
+            .isInstanceOf(BadRequestException.class);
+    }
+    private NativeIntake nativeRequest(String action, String card, String event) {
+        return new NativeIntake(owner.getId(), UUID.randomUUID().toString(), action, "Mercado", new BigDecimal("50.00"), "COP", date,
+            date.atTime(12, 30).atOffset(ZoneOffset.ofHours(-5)), card, event);
+    }
+    private void bankCard(String kind) {
+        account.setType(AccountType.BANK); account = accounts.saveAndFlush(account);
+        cardLinks.save(owner.getId(), new WalletCardService.Input("visa-principal", "Visa", WalletCardService.Kind.valueOf(kind), account.getId()));
     }
     private Fields fields(String amount) { return new Fields(Kind.EXPENSE, "Mercado", new BigDecimal(amount), "COP", date, account.getId(), category.getId()); }
     private Create create(Fields fields) { return new Create(UUID.randomUUID().toString(), fields); }

@@ -1,0 +1,35 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.jr.financewidget" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+5-->INJECTED
+5-->INJECTED
+6
+7    <application>
+7-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:2:3-14:17
+8        <receiver
+8-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:3:5-13:16
+9            android:name="com.jr.financewidget.FinanceHomeWidgetProvider"
+9-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:4:7-68
+10            android:exported="true"
+10-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:5:7-30
+11            android:label="Resumen de finanzas" >
+11-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:6:7-42
+12            <intent-filter>
+12-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:7:7-9:23
+13                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+13-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:8:9-76
+13-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:8:17-73
+14            </intent-filter>
+15
+16            <meta-data
+16-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:10:7-12:60
+17                android:name="android.appwidget.provider"
+17-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:11:9-50
+18                android:resource="@xml/finance_home_widget_info" />
+18-->C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\AndroidManifest.xml:12:9-57
+19        </receiver>
+20    </application>
+21
+22</manifest>

@@ -23,6 +23,7 @@ import { financialErrorMessage, unavailableResource } from '@/features/transacti
 import { accountKeys } from '@/features/accounts/use-accounts';
 import { ModalSelector } from '@/ui/modal-selector';
 import { colors, radius, spacing, typography } from '@/theme';
+const leaveForm = () => (router.canGoBack() ? router.back() : router.replace('/(app)'));
 function NewTransferScreen() {
   const activeSession = useFormSessionActive();
   const [amount, setAmount] = useState('');
@@ -74,7 +75,7 @@ function NewTransferScreen() {
           setSelector(null);
           mutation.reset();
           feedback.show('Transferencia realizada.', 'success');
-          router.back();
+          leaveForm();
         },
         onError: (error) => {
           if (!activeSession()) return;
@@ -96,7 +97,7 @@ function NewTransferScreen() {
   };
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nueva transferencia" onBack={() => guard.request(() => router.back())} />
+      <MovementFormHeader title="Nueva transferencia" onBack={() => guard.request(leaveForm)} />
       <View style={styles.form}>
         <MovementFormIntro
           kind="transfer"

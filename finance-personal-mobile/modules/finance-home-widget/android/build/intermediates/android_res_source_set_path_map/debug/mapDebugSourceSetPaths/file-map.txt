@@ -1,0 +1,9 @@
+com.jr.financewidget.finance-home-widget-pngs-0 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\build\generated\res\pngs\debug
+com.jr.financewidget.finance-home-widget-updated_navigation_xml-1 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\build\generated\updated_navigation_xml\debug
+com.jr.financewidget.finance-home-widget-mergeDebugResources-2 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\build\intermediates\incremental\debug\mergeDebugResources\merged.dir
+com.jr.financewidget.finance-home-widget-mergeDebugResources-3 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\build\intermediates\incremental\debug\mergeDebugResources\stripped.dir
+com.jr.financewidget.finance-home-widget-debug-4 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\build\intermediates\merged_res\debug\mergeDebugResources
+com.jr.financewidget.finance-home-widget-debug-5 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\build\intermediates\packaged_res\debug\packageDebugResources
+com.jr.financewidget.finance-home-widget-debug-6 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\debug\res
+com.jr.financewidget.finance-home-widget-main-7 C:\Users\JR\Desktop\finance-personal\finance-personal-mobile\modules\finance-home-widget\android\src\main\res
+gradleHome-0 C:\Users\JR\.gradle

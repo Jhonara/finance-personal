@@ -11,6 +11,8 @@ import { FeedbackProvider } from '@/feedback/feedback-provider';
 import { ConfirmationProvider } from '@/feedback/confirmation-provider';
 import { AppThemeProvider } from '@/theme/theme-provider';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { NativeIntentsProvider } from '@/features/shortcuts/native-intents-provider';
+import { HomeWidgetProvider } from '@/features/widget/home-widget-provider';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -35,7 +37,11 @@ export default function RootLayout() {
             <PrivacyProvider>
               <FeedbackProvider>
                 <ConfirmationProvider>
-                  <Slot />
+                  <NativeIntentsProvider>
+                    <HomeWidgetProvider>
+                      <Slot />
+                    </HomeWidgetProvider>
+                  </NativeIntentsProvider>
                 </ConfirmationProvider>
               </FeedbackProvider>
             </PrivacyProvider>

@@ -36,6 +36,7 @@ type Form = {
   expenseDate: string;
   description: string;
 };
+const leaveForm = () => (router.canGoBack() ? router.back() : router.replace('/(app)'));
 function NewExpenseScreen() {
   const activeSession = useFormSessionActive();
   const form = useForm<Form>({
@@ -85,7 +86,7 @@ function NewExpenseScreen() {
           setSelector(null);
           feedback.show('Gasto registrado.', 'success');
           tour?.completeStep?.('new-movement');
-          router.back();
+          leaveForm();
         },
         onError: (error) => {
           if (!activeSession()) return;
@@ -111,7 +112,7 @@ function NewExpenseScreen() {
   const selectedCategory = categories.data?.find((item) => item.id === form.watch('categoryId'));
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nuevo gasto" onBack={() => guard.request(() => router.back())} />
+      <MovementFormHeader title="Nuevo gasto" onBack={() => guard.request(leaveForm)} />
       <View style={styles.form}>
         <MovementFormIntro
           kind="expense"

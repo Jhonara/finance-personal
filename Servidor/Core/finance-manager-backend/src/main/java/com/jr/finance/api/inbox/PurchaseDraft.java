@@ -24,5 +24,9 @@ public class PurchaseDraft {
     private Long accountId;
     private Long categoryId;
     private Long transactionId;
+    @Column(length = 64) private String nativeFingerprint;
+    @Column(length = 80) private String cardReference;
+    @Column(length = 16) private String cardKind;
+    private OffsetDateTime occurredAt;
     @Column(nullable = false) private Instant createdAt;
 }

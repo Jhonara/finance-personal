@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <receiver
+      android:name="com.jr.financewidget.FinanceHomeWidgetProvider"
+      android:exported="true"
+      android:label="Resumen de finanzas">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/finance_home_widget_info" />
+    </receiver>
+  </application>
+</manifest>

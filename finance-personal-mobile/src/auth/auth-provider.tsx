@@ -9,6 +9,8 @@ import { SessionManager } from './session-manager';
 import type { SessionState } from './session-types';
 import { secureSessionStorage } from '@/storage/secure-session-storage';
 import { clearSessionCache } from './session-cache';
+import { nativeIntentBridge } from '@/features/shortcuts/native-bridge';
+import { homeWidgetBridge } from '@/features/widget/home-widget-bridge';
 
 type AuthContextValue = {
   state: SessionState;
@@ -37,14 +39,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       state,
       async login(input) {
+        homeWidgetBridge.clear();
+        await nativeIntentBridge.setOwner(null);
         await clearSessionCache(queryClient);
         setState(await sessionManager.login(input));
       },
       async register(input) {
+        homeWidgetBridge.clear();
+        await nativeIntentBridge.setOwner(null);
         await clearSessionCache(queryClient);
         setState(await sessionManager.register(input));
       },
       async logout() {
+        homeWidgetBridge.clear();
+        await nativeIntentBridge.setOwner(null);
         setState({ status: 'bootstrapping' });
         await clearSessionCache(queryClient);
         try {
@@ -55,6 +63,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
       },
       async logoutAll() {
+        homeWidgetBridge.clear();
+        await nativeIntentBridge.setOwner(null);
         setState({ status: 'bootstrapping' });
         await clearSessionCache(queryClient);
         try {

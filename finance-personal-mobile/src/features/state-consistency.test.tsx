@@ -106,7 +106,7 @@ vi.mock('expo-linear-gradient', () => ({
 vi.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void | (() => void)) =>
     React.useEffect(effect, [effect, mocks.focusVersion]),
-  router: { push: mocks.push, replace: mocks.replace, back: vi.fn() },
+  router: { push: mocks.push, replace: mocks.replace, back: vi.fn(), canGoBack: () => true },
   useLocalSearchParams: () => mocks.params,
 }));
 vi.mock('expo-secure-store', () => ({ getItemAsync: mocks.read, setItemAsync: mocks.write }));

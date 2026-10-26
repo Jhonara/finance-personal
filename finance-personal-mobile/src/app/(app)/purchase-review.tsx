@@ -28,6 +28,7 @@ import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
 import { Disclosure } from '@/ui/disclosure';
 import { colors, spacing, typography } from '@/theme';
+import { WalletCaptureCard } from '@/features/shortcuts/wallet-capture-card';
 
 const asForm = (draft?: Draft): PurchaseForm =>
   draft?.fields
@@ -92,7 +93,7 @@ export function PurchaseEditor({
   });
   const values = form.watch();
   const dirty = hasFormChanges(values, form.formState.defaultValues) || Boolean(text);
-  const closed = saved?.status === 'POSTED' || saved?.status === 'LINKED';
+  const closed = saved?.status === 'POSTED' || saved?.status === 'LINKED' || saved?.status === 'DISCARDED';
   const previewOnly = imported?.demo === true;
   const guard = useUnsavedForm({
     dirty: !previewOnly && !closed && (dirty || Boolean(imported && !saved)),
@@ -295,14 +296,22 @@ export function PurchaseEditor({
         <>
           <EmptyState
             tone="success"
-            title={saved.status === 'POSTED' ? 'Gasto registrado' : 'Vinculado al movimiento existente'}
+            title={
+              saved.status === 'DISCARDED'
+                ? 'Borrador descartado'
+                : saved.status === 'POSTED'
+                  ? 'Gasto registrado'
+                  : 'Vinculado al movimiento existente'
+            }
             description={
               saved.status === 'POSTED'
                 ? 'Ya se refleja en tu cuenta y tus reportes.'
                 : 'No se creó otro gasto.'
             }
           />
-          <Button onPress={() => setTransaction(saved.transactionId)}>Ver movimiento</Button>
+          {saved.transactionId && (
+            <Button onPress={() => setTransaction(saved.transactionId)}>Ver movimiento</Button>
+          )}
           <Button variant="secondary" onPress={() => router.replace('/(app)/inbox')}>
             Volver a Por revisar
           </Button>
@@ -472,6 +481,9 @@ export function PurchaseEditor({
               Editar datos
             </Button>
           </Card>
+          {saved?.source === 'WALLET' && (
+            <WalletCaptureCard draft={saved} onChange={accept} disabled={busy} />
+          )}
           {matches.length ? (
             <>
               <Text style={typography.sectionTitle}>Puede que ya esté anotado</Text>
@@ -580,7 +592,12 @@ export function PurchaseEditor({
               )}
               <Button
                 loading={busy}
-                disabled={busy || !complete || Boolean(error)}
+                disabled={
+                  busy ||
+                  !complete ||
+                  Boolean(error) ||
+                  (saved?.source === 'WALLET' && saved.capture?.cardKind !== 'DEBIT')
+                }
                 onPress={() =>
                   matches.length
                     ? AppAlert.alert(

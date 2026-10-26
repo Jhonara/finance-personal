@@ -1,4 +1,7 @@
 node_modules/
+/android/
+/ios/
+/modules/**/android/build/
 .expo/
 assets/
 scripts/

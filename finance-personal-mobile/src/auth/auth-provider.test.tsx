@@ -2,7 +2,12 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ clear: vi.fn(), remoteLogout: vi.fn(), remoteAll: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  clear: vi.fn(),
+  widgetClear: vi.fn(),
+  remoteLogout: vi.fn(),
+  remoteAll: vi.fn(),
+}));
 vi.mock('axios', () => ({ default: { create: () => ({}) } }));
 vi.mock('@/config/environment', () => ({
   environment: { apiBaseUrl: 'http://fixture.invalid', requestTimeoutMs: 1000 },
@@ -17,6 +22,9 @@ vi.mock('./auth-api', () => ({
     logout: mocks.remoteLogout,
     logoutAll: mocks.remoteAll,
   }),
+}));
+vi.mock('@/features/widget/home-widget-bridge', () => ({
+  homeWidgetBridge: { clear: mocks.widgetClear },
 }));
 import { AuthProvider, useAuth } from './auth-provider';
 
@@ -44,6 +52,7 @@ describe('AuthProvider session cache wiring', () => {
       await act(async () => {
         await auth.login({ email: 'fixture@example.com', password: 'fixture' });
       });
+      const clearCountAfterLogin = mocks.widgetClear.mock.calls.length;
       for (const key of ['current-user', 'accounts', 'credits', 'alerts', 'dashboard'])
         client.setQueryData([key], { secret: 'old user' });
       let reject!: (reason: Error) => void;
@@ -58,6 +67,7 @@ describe('AuthProvider session cache wiring', () => {
         pending = auth[method]().catch(() => undefined);
       });
       expect(auth.state.status).toBe('bootstrapping');
+      expect(mocks.widgetClear.mock.calls.length).toBeGreaterThan(clearCountAfterLogin);
       expect(client.getQueryCache().getAll()).toHaveLength(0);
       await act(async () => {
         reject(Error('offline'));

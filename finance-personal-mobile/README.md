@@ -61,3 +61,5 @@ npx expo-doctor
 ```
 
 Las pruebas cubren almacenamiento seguro, ciclo de sesión, refresh single-flight, contratos de error, filtros, fechas y reglas de presentación financiera. En Windows, la validación iOS requiere un dispositivo físico, Mac o EAS; Android puede iniciarse mediante Expo Go o un emulador configurado.
+
+La implementación de acciones nativas de Atajos, los límites actuales de Wallet y los pasos para compilar desde Windows están en [App Intents y EAS](docs/apple-intents-eas-2026-10-24.md). Requieren un binario iOS propio; Expo Go sigue disponible con `npx expo start --go`.

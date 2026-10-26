@@ -18,6 +18,8 @@ public class InboxController {
     @GetMapping("/{id}") public Draft get(Authentication auth, @PathVariable Long id) { return service.get(user(auth), id); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public Draft create(Authentication auth, @Valid @RequestBody Create request) { return service.create(user(auth), request); }
+    @PostMapping("/native") public Draft nativeIntake(Authentication auth, @Valid @RequestBody NativeIntake request) { return service.nativeIntake(user(auth), request); }
+    @PostMapping("/{id}/card") public Draft assignCard(Authentication auth, @PathVariable Long id, @Valid @RequestBody AssignCard request) { return service.assignCard(user(auth), id, request); }
     @PutMapping("/{id}") public Draft update(Authentication auth, @PathVariable Long id, @Valid @RequestBody Update request) { return service.update(user(auth), id, request); }
     @PostMapping("/{id}/confirm") public Draft confirm(Authentication auth, @PathVariable Long id, @Valid @RequestBody Confirm request) { return service.confirm(user(auth), id, request); }
     @PostMapping("/{id}/link") public Draft link(Authentication auth, @PathVariable Long id, @Valid @RequestBody Link request) { return service.link(user(auth), id, request); }

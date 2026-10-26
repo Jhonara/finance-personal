@@ -35,6 +35,7 @@ type Form = {
   incomeDate: string;
   description: string;
 };
+const leaveForm = () => (router.canGoBack() ? router.back() : router.replace('/(app)'));
 function NewIncomeScreen() {
   const activeSession = useFormSessionActive();
   const form = useForm<Form>({
@@ -83,7 +84,7 @@ function NewIncomeScreen() {
           setSelector(null);
           feedback.show('Ingreso registrado.', 'success');
           tour?.completeStep?.('new-movement');
-          router.back();
+          leaveForm();
         },
         onError: (error) => {
           if (!activeSession()) return;
@@ -109,7 +110,7 @@ function NewIncomeScreen() {
   const category = categories.data?.find((x) => x.id === form.watch('categoryId'));
   return (
     <Screen entry scroll keyboard>
-      <MovementFormHeader title="Nuevo ingreso" onBack={() => guard.request(() => router.back())} />
+      <MovementFormHeader title="Nuevo ingreso" onBack={() => guard.request(leaveForm)} />
       <View style={styles.form}>
         <MovementFormIntro
           kind="income"

@@ -1,0 +1,39 @@
+# EAS archives this Git repository. Only the mobile app is needed by the build.
+/*
+!/finance-personal-mobile
+!/.easignore
+
+# Keep the mobile app's Git exclusions when using this EAS-specific manifest.
+node_modules/
+.expo/
+.expo-*/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env
+.env.*
+*.tsbuildinfo
+example/
+/finance-personal-mobile/ios/
+/finance-personal-mobile/android/
+
+# Local tooling, documentation and test output are not needed in the cloud.
+.claude/
+.vscode/
+.idea/
+coverage/
+*.log
+/finance-personal-mobile/docs/

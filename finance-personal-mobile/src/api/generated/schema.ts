@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put: operations["save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/credits/{id}": {
         parameters: {
             query?: never;
@@ -228,7 +244,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         post: operations["create_2"];
         delete?: never;
@@ -269,6 +285,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox/{id}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["assignCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/native": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["nativeIntake"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expenses": {
         parameters: {
             query?: never;
@@ -300,7 +348,7 @@ export interface paths {
          * Listar créditos
          * @description Obtiene todos los créditos registrados por el usuario autenticado.
          */
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         /**
          * Registrar crédito
@@ -444,7 +492,7 @@ export interface paths {
          * Listar categorías
          * @description Obtiene todas las categorías registradas por el usuario autenticado.
          */
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         /**
          * Crear una categoría
@@ -468,7 +516,7 @@ export interface paths {
          * Listar presupuestos
          * @description Permite filtrar por año y mes. spent, remaining, percentage y status se calculan al consultar.
          */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /**
          * Crear presupuesto
@@ -626,7 +674,7 @@ export interface paths {
             cookie?: never;
         };
         /** Listar las cuentas propias */
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         /** Crear una cuenta financiera */
         post: operations["create_7"];
@@ -783,7 +831,7 @@ export interface paths {
          * Historial financiero unificado
          * @description Vista paginada de operaciones lógicas. Use from/to o year/month, no ambos grupos de filtros; size tiene máximo 100.
          */
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1130,6 +1178,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox/cards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete_2"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expenses/{id}": {
         parameters: {
             query?: never;
@@ -1144,7 +1208,7 @@ export interface paths {
          * Eliminar un gasto
          * @description Elimina físicamente un gasto legacy; para un gasto ledger crea una reversión contable.
          */
-        delete: operations["delete_2"];
+        delete: operations["delete_3"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1232,6 +1296,12 @@ export interface components {
             version: number;
             fields: components["schemas"]["PurchaseDraftFields"];
         };
+        PurchaseCapture: {
+            cardReference?: string;
+            cardKind?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
         PurchaseCategorySuggestion: {
             /** Format: int64 */
             id?: number;
@@ -1252,6 +1322,7 @@ export interface components {
             matches?: components["schemas"]["PurchaseMatch"][];
             reviewToken?: string;
             categorySuggestion?: components["schemas"]["PurchaseCategorySuggestion"];
+            capture?: components["schemas"]["PurchaseCapture"];
         };
         PurchaseMatch: {
             /** Format: int64 */
@@ -1264,6 +1335,24 @@ export interface components {
             currency?: string;
             accountName?: string;
             transactionType?: string;
+        };
+        WalletCardInput: {
+            reference: string;
+            name: string;
+            /** @enum {string} */
+            kind: "DEBIT" | "CREDIT";
+            /** Format: int64 */
+            accountId: number;
+        };
+        WalletCardResponse: {
+            /** Format: int64 */
+            id?: number;
+            reference?: string;
+            name?: string;
+            /** @enum {string} */
+            kind?: "DEBIT" | "CREDIT";
+            /** Format: int64 */
+            accountId?: number;
         };
         UpdateCreditRequest: {
             /**
@@ -1624,7 +1713,7 @@ export interface components {
             requestKey: string;
             fields: components["schemas"]["PurchaseDraftFields"];
             /** @enum {string} */
-            source?: "PASTED_TEXT" | "SHORTCUT";
+            source?: "PASTED_TEXT" | "SHORTCUT" | "APP_INTENT" | "WALLET";
         };
         LinkPurchaseDraft: {
             /** Format: int64 */
@@ -1637,6 +1726,27 @@ export interface components {
             version: number;
             reviewToken: string;
             distinctPurchase?: boolean;
+        };
+        AssignPurchaseCard: {
+            /** Format: int64 */
+            version: number;
+            /** Format: int64 */
+            cardId: number;
+        };
+        NativePurchaseIntake: {
+            /** Format: int64 */
+            ownerId: number;
+            invocationId: string;
+            action: string;
+            merchant?: string;
+            amount?: number;
+            currency?: string;
+            /** Format: date */
+            effectiveDate?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            cardReference?: string;
+            eventReference?: string;
         };
         /** @description Información necesaria para registrar un nuevo gasto. */
         CreateExpenseRequest: {
@@ -3099,6 +3209,50 @@ export interface operations {
             };
         };
     };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WalletCardResponse"][];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalletCardInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WalletCardResponse"];
+                };
+            };
+        };
+    };
     findById: {
         parameters: {
             query?: never;
@@ -3541,7 +3695,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: {
                 page?: number;
@@ -3639,6 +3793,56 @@ export interface operations {
             };
         };
     };
+    assignCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignPurchaseCard"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
+    nativeIntake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativePurchaseIntake"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PurchaseDraftResponse"];
+                };
+            };
+        };
+    };
     create_3: {
         parameters: {
             query?: never;
@@ -3681,7 +3885,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3982,7 +4186,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query?: {
                 type?: "EXPENSE" | "INCOME";
@@ -4065,7 +4269,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query?: {
                 year?: number;
@@ -4367,7 +4571,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: {
                 active?: boolean;
@@ -4828,7 +5032,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: {
                 from?: string;
@@ -5467,6 +5671,26 @@ export interface operations {
         };
     };
     delete_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_3: {
         parameters: {
             query?: never;
             header?: never;

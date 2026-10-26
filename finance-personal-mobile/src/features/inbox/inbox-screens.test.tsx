@@ -140,6 +140,32 @@ afterEach(async () => {
 });
 
 describe('Purchase review flow', () => {
+  it.each(['CREDIT', 'UNKNOWN', 'DEBIT'])(
+    'Wallet review distinguishes %s before enabling confirmation',
+    async (kind) => {
+      draft = { ...draft, source: 'WALLET', capture: { cardKind: kind, cardReference: 'visa-personal' } };
+      mocks.get.mockImplementation(async (url: string) => ({ data: url === '/inbox/cards' ? [] : draft }));
+      await mount(<PurchaseEditor initial={draft} />);
+      expect(find('Button', 'children', 'Confirmar y registrar gasto').props.disabled).toBe(kind !== 'DEBIT');
+      expect(JSON.stringify(renderer.toJSON())).toContain(
+        kind === 'CREDIT' ? 'Compra con tarjeta de crédito' : 'Compra detectada en Wallet',
+      );
+      expect(mocks.post).not.toHaveBeenCalled();
+    },
+  );
+  it('shows a discarded receipt without allowing it to be confirmed or edited', async () => {
+    draft = { ...draft, status: 'DISCARDED' };
+    await mount(<PurchaseEditor initial={draft} />);
+    expect(find('EmptyState', 'title', 'Borrador descartado')).toBeTruthy();
+    expect(
+      renderer.root.findAll(
+        (node) =>
+          String(node.type) === 'Button' &&
+          /Confirmar|Editar|Ver movimiento/.test(String(node.props.children)),
+      ),
+    ).toHaveLength(0);
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
   it('opens an external preview without exposing any save action or making a write', async () => {
     mocks.params = {
       v: '1',
