@@ -109,8 +109,17 @@ vi.mock('expo-router', () => ({
   router: { push: mocks.push, replace: mocks.replace, back: vi.fn(), canGoBack: () => true },
   useLocalSearchParams: () => mocks.params,
 }));
-vi.mock('expo-secure-store', () => ({ getItemAsync: mocks.read, setItemAsync: mocks.write }));
-vi.mock('@/auth/auth-provider', () => ({ api: { get: mocks.get, post: mocks.post, patch: mocks.patch } }));
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: mocks.read,
+  setItemAsync: mocks.write,
+  deleteItemAsync: async (key: string) => {
+    stored.delete(key);
+  },
+}));
+vi.mock('@/auth/auth-provider', () => ({
+  api: { get: mocks.get, post: mocks.post, patch: mocks.patch },
+  useAuth: () => ({ state: { status: 'authenticated' }, logout: vi.fn() }),
+}));
 vi.mock('@/privacy/privacy-provider', () => ({
   usePrivacy: () => ({ hidden: mocks.hidden, toggle: vi.fn() }),
 }));
@@ -853,6 +862,7 @@ it.each([
   'requires a category before registering a %s',
   async (_kind, Screen, amountLabel, submitLabel, endpoint) => {
     mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
       if (url === '/accounts') return { data: [account] };
       if (url === '/categories') return { data: [{ id: 7, name: 'Prueba', active: true }] };
       throw new Error(`Unexpected GET ${url}`);
@@ -876,6 +886,8 @@ it.each([
         .find((node) => node.props.label === 'Categoría')!
         .props.onSelect(7),
     );
+    const kind = endpoint === '/expenses' ? 'expense' : 'income';
+    await settled(() => expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(true));
     await act(async () => press(tree, submitLabel));
     await settled(() =>
       expect(mocks.post).toHaveBeenCalledWith(
@@ -883,6 +895,42 @@ it.each([
         expect.objectContaining({ accountId: 1, categoryId: 7, amount: 10000 }),
       ),
     );
+    await settled(() => expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(false));
+  },
+);
+
+it.each([
+  ['gasto', NewExpenseScreen, 'Monto gastado', 'Registrar gasto', 'expense'],
+  ['ingreso', NewIncomeScreen, 'Monto recibido', 'Registrar ingreso', 'income'],
+] as const)(
+  'keeps a %s draft after a failed confirmation',
+  async (_label, Screen, amountLabel, submitLabel, kind) => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/categories') return { data: [{ id: 7, name: 'Prueba', active: true }] };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    mocks.post.mockRejectedValue(new Error('offline'));
+    const tree = await render(<Screen />);
+    await settled(() => expect(tree.root.findAllByType(ModalSelector)).toHaveLength(2));
+    await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Cuenta')!
+        .props.onSelect(1),
+    );
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Categoría')!
+        .props.onSelect(7),
+    );
+    await act(async () => press(tree, submitLabel));
+    await settled(() => expect(mocks.post).toHaveBeenCalledTimes(1));
+    expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(true);
+    expect(input(tree, amountLabel).props.value).toBe('10000');
   },
 );
 

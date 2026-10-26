@@ -63,6 +63,27 @@ it('keeps editing on cancel and leaves only after discarding', async () => {
   mocks.alert.mock.calls[1]![2][1].onPress();
   expect(leave).toHaveBeenCalledTimes(1);
 });
+it('waits for an encrypted draft save before leaving, and stays when storage fails', async () => {
+  const leave = vi.fn();
+  const beforeLeave = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  await render({
+    dirty: true,
+    onBack: leave,
+    leaveTitle: '¿Salir del gasto?',
+    leaveMessage: 'Este gasto quedará como borrador en este dispositivo.',
+    leaveLabel: 'Guardar borrador y salir',
+    beforeLeave,
+  });
+  hardware();
+  expect(mocks.alert.mock.calls[0]![0]).toBe('¿Salir del gasto?');
+  expect(mocks.alert.mock.calls[0]![2][1].text).toBe('Guardar borrador y salir');
+  await act(async () => mocks.alert.mock.calls[0]![2][1].onPress());
+  expect(leave).not.toHaveBeenCalled();
+  hardware();
+  await act(async () => mocks.alert.mock.calls[1]![2][1].onPress());
+  expect(beforeLeave).toHaveBeenCalledTimes(2);
+  expect(leave).toHaveBeenCalledTimes(1);
+});
 it('lets a selector consume Android Back and blocks leaving during submission', async () => {
   const leave = vi.fn();
   await render({ dirty: true, suspended: true });

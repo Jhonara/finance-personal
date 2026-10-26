@@ -30,6 +30,10 @@ export function useUnsavedForm({
   enabled = true,
   onBack = () => router.back(),
   onStepBack,
+  leaveTitle = '¿Salir sin guardar?',
+  leaveMessage = 'Los cambios de este formulario todavía no se han guardado.',
+  leaveLabel = 'Descartar',
+  beforeLeave,
 }: {
   dirty: boolean;
   busy?: boolean;
@@ -37,9 +41,35 @@ export function useUnsavedForm({
   enabled?: boolean;
   onBack?: () => void;
   onStepBack?: () => void;
+  leaveTitle?: string;
+  leaveMessage?: string;
+  leaveLabel?: string;
+  beforeLeave?: () => Promise<boolean>;
 }) {
-  const latest = useRef({ dirty, busy, suspended, enabled, onBack, onStepBack });
-  latest.current = { dirty, busy, suspended, enabled, onBack, onStepBack };
+  const latest = useRef({
+    dirty,
+    busy,
+    suspended,
+    enabled,
+    onBack,
+    onStepBack,
+    leaveTitle,
+    leaveMessage,
+    leaveLabel,
+    beforeLeave,
+  });
+  latest.current = {
+    dirty,
+    busy,
+    suspended,
+    enabled,
+    onBack,
+    onStepBack,
+    leaveTitle,
+    leaveMessage,
+    leaveLabel,
+    beforeLeave,
+  };
   const focused = useRef(false);
   const showing = useRef(false);
   const request = useCallback((leave: () => void) => {
@@ -50,8 +80,8 @@ export function useUnsavedForm({
     }
     showing.current = true;
     Alert.alert(
-      '¿Salir sin guardar?',
-      'Los cambios de este formulario todavía no se han guardado.',
+      latest.current.leaveTitle,
+      latest.current.leaveMessage,
       [
         {
           text: 'Seguir editando',
@@ -61,11 +91,15 @@ export function useUnsavedForm({
           },
         },
         {
-          text: 'Descartar',
-          style: 'destructive',
-          onPress: () => {
+          text: latest.current.leaveLabel,
+          style: beforeLeave ? 'default' : 'destructive',
+          onPress: async () => {
+            if (focused.current && !latest.current.busy) {
+              const before = latest.current.beforeLeave;
+              if (!before) leave();
+              else if ((await before()) && focused.current && !latest.current.busy) leave();
+            }
             showing.current = false;
-            if (focused.current && !latest.current.busy) leave();
           },
         },
       ],

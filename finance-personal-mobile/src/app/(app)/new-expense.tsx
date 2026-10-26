@@ -3,6 +3,11 @@ import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-for
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import {
+  MovementDraftGate,
+  MovementDraftStatus,
+  useMovementDraft,
+} from '@/features/forms/use-movement-draft';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -37,14 +42,17 @@ type Form = {
   description: string;
 };
 const leaveForm = () => (router.canGoBack() ? router.back() : router.replace('/(app)'));
-function NewExpenseScreen() {
+function NewExpenseScreen({ userId }: { userId: number }) {
   const activeSession = useFormSessionActive();
+  const [initialDate] = useState(() => localDateFromNative(new Date()));
   const form = useForm<Form>({
-    defaultValues: { amount: '', expenseDate: localDateFromNative(new Date()), description: '' },
+    defaultValues: { amount: '', expenseDate: initialDate, description: '' },
   });
+  const draft = useMovementDraft(form, userId, 'expense', 'expenseDate', initialDate);
   const [selector, setSelector] = useState<'account' | 'category' | 'quickCategory' | null>(null);
   const [createdCategoryId, setCreatedCategoryId] = useState<number>();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const accounts = useAccounts();
   const categories = useCategories('EXPENSE');
   const mutation = useExpenseMutation();
@@ -53,10 +61,17 @@ function NewExpenseScreen() {
   const client = useQueryClient();
   const guard = useUnsavedForm({
     dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
-    busy: mutation.isPending,
+    busy: mutation.isPending || completing,
     suspended: selector !== null,
+    enabled: draft.mode === 'editing',
+    onBack: leaveForm,
+    leaveTitle: '¿Salir del gasto?',
+    leaveMessage: 'Este gasto quedará como borrador en este dispositivo.',
+    leaveLabel: 'Guardar borrador y salir',
+    beforeLeave: draft.flush,
   });
   const submit = form.handleSubmit((data) => {
+    if (mutation.isPending || completing) return;
     const parsedAmount = Number(data.amount);
     const validAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
     const validCategory =
@@ -79,12 +94,24 @@ function NewExpenseScreen() {
         description: data.description || undefined,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          setCompleting(true);
+          let draftCleared = true;
+          try {
+            await draft.finish();
+          } catch {
+            draftCleared = false;
+          }
           if (!activeSession()) return;
           form.reset({ amount: '', expenseDate: localDateFromNative(new Date()), description: '' });
           mutation.reset();
           setSelector(null);
-          feedback.show('Gasto registrado.', 'success');
+          feedback.show(
+            draftCleared
+              ? 'Gasto registrado.'
+              : 'Gasto registrado. No pudimos borrar el borrador: no lo registres otra vez.',
+            draftCleared ? 'success' : 'error',
+          );
           tour?.completeStep?.('new-movement');
           leaveForm();
         },
@@ -110,6 +137,16 @@ function NewExpenseScreen() {
   });
   const selectedAccount = accounts.data?.find((item) => item.id === form.watch('accountId'));
   const selectedCategory = categories.data?.find((item) => item.id === form.watch('categoryId'));
+  if (draft.mode !== 'editing')
+    return (
+      <MovementDraftStatus
+        kind="expense"
+        mode={draft.mode}
+        onContinue={draft.continueDraft}
+        onNew={() => void draft.createNew()}
+        onRetry={() => void draft.retry()}
+      />
+    );
   return (
     <Screen entry scroll keyboard>
       <MovementFormHeader title="Nuevo gasto" onBack={() => guard.request(leaveForm)} />
@@ -213,9 +250,18 @@ function NewExpenseScreen() {
             />
           </MovementFormSection>
         </MovementOptionalDetails>
-        <Button loading={mutation.isPending} disabled={mutation.isPending} onPress={submit}>
+        <Button
+          loading={mutation.isPending || completing}
+          disabled={mutation.isPending || completing}
+          onPress={submit}
+        >
           Registrar gasto
         </Button>
+        {draft.saveError ? (
+          <Text style={styles.error}>
+            No pudimos guardar los cambios en este dispositivo. Revisa el espacio disponible.
+          </Text>
+        ) : null}
       </View>
       <ModalSelector
         visible={selector === 'account'}
@@ -282,4 +328,8 @@ const styles = themedStyleSheet(() => ({
   error: { ...typography.caption, color: colors.danger },
 }));
 
-export default withFormSession(NewExpenseScreen);
+export default withFormSession(function ExpenseDraftRoute() {
+  return (
+    <MovementDraftGate kind="expense">{(userId) => <NewExpenseScreen userId={userId} />}</MovementDraftGate>
+  );
+});

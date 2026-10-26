@@ -10,7 +10,9 @@
     "ios": {
       "bundleIdentifier": "com.jr.financepersonal",
       "infoPlist": {
-        "CFBundleLocalizations": ["es"],
+        "CFBundleLocalizations": [
+          "es"
+        ],
         "NSLocalNetworkUsageDescription": "Conectar con tu servidor de Finance Personal durante las pruebas en la misma red."
       }
     },
@@ -41,13 +43,16 @@
       "@react-native-community/datetimepicker",
       "expo-app-intents",
       "./plugins/with-android-launcher-shortcuts.cjs",
-      "./plugins/with-android-widget-qa-network.cjs"
+      "./plugins/with-android-widget-qa-network.cjs",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true,
       "inlineModules": {
-        "watchedDirectories": ["app-intents"]
+        "watchedDirectories": [
+          "app-intents"
+        ]
       }
     },
     "extra": {

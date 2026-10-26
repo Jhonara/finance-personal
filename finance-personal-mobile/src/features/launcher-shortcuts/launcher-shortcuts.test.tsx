@@ -23,6 +23,10 @@ vi.mock('react-native', () => ({
 }));
 vi.mock('expo-router', () => ({
   router: { push: mocks.push, replace: mocks.replace },
+  Redirect: ({ href }: { href: unknown }) => {
+    mocks.replace(href);
+    return null;
+  },
   useLocalSearchParams: () => ({ action: mocks.action }),
 }));
 vi.mock('@/auth/auth-provider', () => ({ useAuth: () => ({ state: mocks.state, logout: mocks.logout }) }));

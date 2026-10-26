@@ -3,6 +3,11 @@ import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-for
 import { accountTypeLabel } from '@/features/accounts/account-presentation';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
+import {
+  MovementDraftGate,
+  MovementDraftStatus,
+  useMovementDraft,
+} from '@/features/forms/use-movement-draft';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -36,14 +41,17 @@ type Form = {
   description: string;
 };
 const leaveForm = () => (router.canGoBack() ? router.back() : router.replace('/(app)'));
-function NewIncomeScreen() {
+function NewIncomeScreen({ userId }: { userId: number }) {
   const activeSession = useFormSessionActive();
+  const [initialDate] = useState(() => localDateFromNative(new Date()));
   const form = useForm<Form>({
-    defaultValues: { amount: '', incomeDate: localDateFromNative(new Date()), description: '' },
+    defaultValues: { amount: '', incomeDate: initialDate, description: '' },
   });
+  const draft = useMovementDraft(form, userId, 'income', 'incomeDate', initialDate);
   const [selector, setSelector] = useState<'account' | 'category' | 'quickCategory' | null>(null);
   const [createdCategoryId, setCreatedCategoryId] = useState<number>();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const accounts = useAccounts();
   const categories = useCategories('INCOME');
   const mutation = useIncomeMutation();
@@ -52,10 +60,17 @@ function NewIncomeScreen() {
   const client = useQueryClient();
   const guard = useUnsavedForm({
     dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
-    busy: mutation.isPending,
+    busy: mutation.isPending || completing,
     suspended: selector !== null,
+    enabled: draft.mode === 'editing',
+    onBack: leaveForm,
+    leaveTitle: '¿Salir del ingreso?',
+    leaveMessage: 'Este ingreso quedará como borrador en este dispositivo.',
+    leaveLabel: 'Guardar borrador y salir',
+    beforeLeave: draft.flush,
   });
   const submit = form.handleSubmit((data) => {
+    if (mutation.isPending || completing) return;
     const parsedAmount = Number(data.amount);
     const validAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
     const validCategory =
@@ -77,12 +92,24 @@ function NewIncomeScreen() {
         description: data.description || undefined,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          setCompleting(true);
+          let draftCleared = true;
+          try {
+            await draft.finish();
+          } catch {
+            draftCleared = false;
+          }
           if (!activeSession()) return;
           form.reset({ amount: '', incomeDate: localDateFromNative(new Date()), description: '' });
           mutation.reset();
           setSelector(null);
-          feedback.show('Ingreso registrado.', 'success');
+          feedback.show(
+            draftCleared
+              ? 'Ingreso registrado.'
+              : 'Ingreso registrado. No pudimos borrar el borrador: no lo registres otra vez.',
+            draftCleared ? 'success' : 'error',
+          );
           tour?.completeStep?.('new-movement');
           leaveForm();
         },
@@ -108,6 +135,16 @@ function NewIncomeScreen() {
   });
   const account = accounts.data?.find((x) => x.id === form.watch('accountId'));
   const category = categories.data?.find((x) => x.id === form.watch('categoryId'));
+  if (draft.mode !== 'editing')
+    return (
+      <MovementDraftStatus
+        kind="income"
+        mode={draft.mode}
+        onContinue={draft.continueDraft}
+        onNew={() => void draft.createNew()}
+        onRetry={() => void draft.retry()}
+      />
+    );
   return (
     <Screen entry scroll keyboard>
       <MovementFormHeader title="Nuevo ingreso" onBack={() => guard.request(leaveForm)} />
@@ -211,9 +248,18 @@ function NewIncomeScreen() {
             />
           </MovementFormSection>
         </MovementOptionalDetails>
-        <Button loading={mutation.isPending} disabled={mutation.isPending} onPress={submit}>
+        <Button
+          loading={mutation.isPending || completing}
+          disabled={mutation.isPending || completing}
+          onPress={submit}
+        >
           Registrar ingreso
         </Button>
+        {draft.saveError ? (
+          <Text style={styles.error}>
+            No pudimos guardar los cambios en este dispositivo. Revisa el espacio disponible.
+          </Text>
+        ) : null}
       </View>
       <ModalSelector
         visible={selector === 'account'}
@@ -281,4 +327,8 @@ const styles = themedStyleSheet(() => ({
   error: { ...typography.caption, color: colors.danger },
 }));
 
-export default withFormSession(NewIncomeScreen);
+export default withFormSession(function IncomeDraftRoute() {
+  return (
+    <MovementDraftGate kind="income">{(userId) => <NewIncomeScreen userId={userId} />}</MovementDraftGate>
+  );
+});

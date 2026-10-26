@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/auth/auth-provider';
 import { toApiError } from '@/api/errors';
@@ -18,6 +18,11 @@ export default function AndroidShortcutScreen() {
   const client = useQueryClient();
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [verified, setVerified] = useState<{
+    href: Href;
+    destination: typeof destination;
+    session: typeof state;
+  } | null>(null);
 
   useEffect(() => {
     if (!destination || state.status !== 'authenticated') return;
@@ -32,13 +37,16 @@ export default function AndroidShortcutScreen() {
             client.invalidateQueries({ queryKey: ['accounts'], refetchType: 'none' }),
             client.invalidateQueries({ queryKey: ['dashboard'], refetchType: 'none' }),
           ]);
-          if (active) router.replace(destination);
-        } else {
-          // One navigation operation is essential on a cold Android launch. A replace
-          // followed immediately by push can race while the tab navigator mounts and
-          // leave the user on Home instead of the requested form.
-          router.replace({ pathname: destination, params: { formSession: `launcher-${Date.now()}` } });
         }
+        if (active)
+          setVerified({
+            href:
+              destination === '/(app)/accounts'
+                ? destination
+                : { pathname: destination, params: { formSession: `launcher-${Date.now()}` } },
+            destination,
+            session: state,
+          });
       } catch (failure) {
         if (!active) return;
         if (toApiError(failure).status === 401) {
@@ -62,6 +70,8 @@ export default function AndroidShortcutScreen() {
       </Screen>
     );
   if (state.status === 'unauthenticated') return <LoginScreen />;
+  if (verified?.session === state && verified.destination === destination && state.status === 'authenticated')
+    return <Redirect href={verified.href} />;
   if (error)
     return (
       <Screen>
