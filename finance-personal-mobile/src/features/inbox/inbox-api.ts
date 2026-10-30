@@ -10,12 +10,12 @@ export const inboxKeys = {
   detail: (id: number) => ['inbox', 'detail', id] as const,
 };
 export const getDraft = async (id: number) => (await api.get<Draft>(`/inbox/${id}`)).data;
-export const useInbox = () =>
+export const useInbox = (history = false) =>
   useInfiniteQuery({
-    queryKey: [...inboxKeys.all, 'list'],
+    queryKey: [...inboxKeys.all, 'list', history],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) =>
-      (await api.get<Schemas['PurchaseDraftPage']>('/inbox', { params: { page: pageParam } })).data,
+      (await api.get<Schemas['PurchaseDraftPage']>('/inbox', { params: { page: pageParam, history } })).data,
     getNextPageParam: (page, _pages, last) => (page.hasNext ? last + 1 : undefined),
   });
 export const useDraft = (id?: number) =>

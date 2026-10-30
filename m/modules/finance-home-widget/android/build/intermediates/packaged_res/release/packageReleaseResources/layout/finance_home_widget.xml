@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:layout_margin="6dp"
+  android:padding="16dp"
+  android:orientation="vertical"
+  android:background="@drawable/finance_widget_background">
+
+  <TextView
+    android:id="@+id/widget_title"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="FINANCE PERSONAL"
+    android:textColor="#59E6BC"
+    android:textSize="12sp"
+    android:textStyle="bold" />
+
+  <TextView
+    android:id="@+id/widget_balance_label"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:text="Saldo en cuentas"
+    android:textColor="#BAD0D1"
+    android:textSize="12sp" />
+
+  <TextView
+    android:id="@+id/widget_balance"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:text="••••"
+    android:textColor="#FFFFFF"
+    android:textSize="26sp"
+    android:textStyle="bold" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:orientation="horizontal">
+    <TextView
+      android:id="@+id/widget_income"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:maxLines="2"
+      android:text="Ingresos del mes\n••••"
+      android:textColor="#E4F5F2"
+      android:textSize="12sp" />
+    <TextView
+      android:id="@+id/widget_expense"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:maxLines="2"
+      android:text="Gastos del mes\n••••"
+      android:textColor="#E4F5F2"
+      android:textSize="12sp" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/widget_status"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:maxLines="2"
+    android:text="Abre la app para actualizar"
+    android:textColor="#A9C0C2"
+    android:textSize="11sp" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:orientation="horizontal">
+    <TextView
+      android:id="@+id/widget_new_expense"
+      android:layout_width="0dp"
+      android:layout_height="42dp"
+      android:layout_weight="1"
+      android:layout_marginEnd="5dp"
+      android:background="@drawable/finance_widget_button"
+      android:gravity="center"
+      android:text="+ Gasto"
+      android:textColor="#073940"
+      android:textSize="13sp"
+      android:textStyle="bold" />
+    <TextView
+      android:id="@+id/widget_new_income"
+      android:layout_width="0dp"
+      android:layout_height="42dp"
+      android:layout_weight="1"
+      android:layout_marginStart="5dp"
+      android:background="@drawable/finance_widget_button"
+      android:gravity="center"
+      android:text="+ Ingreso"
+      android:textColor="#073940"
+      android:textSize="13sp"
+      android:textStyle="bold" />
+  </LinearLayout>
+</LinearLayout>

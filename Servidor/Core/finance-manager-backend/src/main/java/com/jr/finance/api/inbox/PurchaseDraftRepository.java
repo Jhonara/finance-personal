@@ -10,6 +10,7 @@ public interface PurchaseDraftRepository extends JpaRepository<PurchaseDraft, Lo
     Optional<PurchaseDraft> findByIdAndUserId(Long id, Long userId);
     Optional<PurchaseDraft> findByUserIdAndRequestKey(Long userId, String requestKey);
     Page<PurchaseDraft> findByUserIdAndStatusOrderByIdDesc(Long userId, String status, Pageable page);
+    Page<PurchaseDraft> findByUserIdAndStatusNotOrderByIdDesc(Long userId, String status, Pageable page);
     List<PurchaseDraft> findByUserIdAndStatusAndAmountAndCurrencyAndEffectiveDateBetween(
             Long userId, String status, BigDecimal amount, String currency, LocalDate from, LocalDate to);
 }

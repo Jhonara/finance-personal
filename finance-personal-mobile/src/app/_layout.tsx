@@ -13,6 +13,7 @@ import { AppThemeProvider } from '@/theme/theme-provider';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { NativeIntentsProvider } from '@/features/shortcuts/native-intents-provider';
 import { HomeWidgetProvider } from '@/features/widget/home-widget-provider';
+import { DetectedNoticeProvider } from '@/features/capture/detected-notice-provider';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -39,7 +40,9 @@ export default function RootLayout() {
                 <ConfirmationProvider>
                   <NativeIntentsProvider>
                     <HomeWidgetProvider>
-                      <Slot />
+                      <DetectedNoticeProvider>
+                        <Slot />
+                      </DetectedNoticeProvider>
                     </HomeWidgetProvider>
                   </NativeIntentsProvider>
                 </ConfirmationProvider>

@@ -1,0 +1,50 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
+import { Text, View } from 'react-native';
+
+import { colors, radius, spacing, typography } from '@/theme';
+
+export function Chip({
+  children,
+  tone = 'neutral',
+}: {
+  children: string;
+  tone?: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'coral';
+}) {
+  return (
+    <View accessibilityRole="text" style={[styles.chip, toneStyles[tone]]}>
+      <Text style={[styles.text, toneTextStyles[tone]]}>{children}</Text>
+    </View>
+  );
+}
+
+const styles = themedStyleSheet(() => ({
+  chip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+  },
+  text: { ...typography.caption, fontWeight: '600' },
+}));
+
+const toneStyles = themedStyleSheet(() => ({
+  neutral: { backgroundColor: colors.surfaceSecondary },
+  primary: { backgroundColor: colors.primarySoft },
+  success: { backgroundColor: colors.successSoft },
+  warning: { backgroundColor: colors.warningSoft },
+  danger: { backgroundColor: colors.dangerSoft },
+  info: { backgroundColor: colors.infoSoft },
+  accent: { backgroundColor: colors.accentSoft },
+  coral: { backgroundColor: colors.coralSoft },
+}));
+
+const toneTextStyles = themedStyleSheet(() => ({
+  neutral: { color: colors.textSecondary },
+  primary: { color: colors.primary },
+  success: { color: colors.success },
+  warning: { color: colors.warning },
+  danger: { color: colors.danger },
+  info: { color: colors.info },
+  accent: { color: colors.accent },
+  coral: { color: colors.coralStrong },
+}));

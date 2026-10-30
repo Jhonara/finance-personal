@@ -1,0 +1,70 @@
+import { themedStyleSheet } from '@/theme/themed-styles';
+import { useReducedMotion } from './use-reduced-motion';
+import { useEffect, useRef } from 'react';
+import { Animated, View } from 'react-native';
+import { colors, motion, radius } from '@/theme';
+
+export function Progress({
+  value,
+  color = colors.primary,
+  label = 'Progreso',
+  animated = true,
+}: {
+  value: number;
+  color?: string;
+  label?: string;
+  animated?: boolean;
+}) {
+  const reduced = useReducedMotion();
+  const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+  const progress = useRef(new Animated.Value(clamped)).current;
+  const entered = useRef(false);
+  useEffect(() => {
+    if (reduced || !animated) {
+      progress.setValue(clamped);
+      return;
+    }
+    const entering = !entered.current;
+    if (entering) {
+      progress.setValue(0);
+      entered.current = true;
+    }
+    const animation = Animated.timing(progress, {
+      toValue: clamped,
+      duration: entering ? 600 : motion.slow,
+      easing: motion.ease,
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [clamped, progress, animated, reduced]);
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityValue={{ min: 0, max: 100, now: clamped }}
+      style={styles.track}
+    >
+      <Animated.View
+        style={[
+          styles.fill,
+          {
+            backgroundColor: color,
+            width: progress.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+          },
+        ]}
+      />
+    </View>
+  );
+}
+const styles = themedStyleSheet(() => ({
+  track: {
+    height: 9,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSecondary,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  fill: { height: '100%', borderRadius: radius.pill },
+}));

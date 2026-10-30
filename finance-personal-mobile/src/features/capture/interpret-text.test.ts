@@ -43,7 +43,9 @@ describe('common financial text interpreter', () => {
 
   it('rejects authentication content and unrelated messages', () => {
     expect(interpretFinancialText('Tu código OTP 123456 para compra COP 50.000', 'SHARED_TEXT')).toBeNull();
-    expect(interpretFinancialText('Inicia sesión en https://banco.co para verificar pago', 'NOTIFICATION')).toBeNull();
+    expect(
+      interpretFinancialText('Inicia sesión en https://banco.co para verificar pago', 'NOTIFICATION'),
+    ).toBeNull();
     expect(interpretFinancialText('Oferta de ahorro esta semana', 'SHARED_TEXT')).toBeNull();
   });
 
@@ -55,7 +57,27 @@ describe('common financial text interpreter', () => {
   });
 
   it('warns about possible self-transfers and reversals', () => {
-    expect(interpretFinancialText('Transferencia COP 10.000', 'PASTED_TEXT')?.warnings.join(' ')).toContain('propias cuentas');
-    expect(interpretFinancialText('Reverso COP 10.000', 'PASTED_TEXT')?.warnings.join(' ')).toContain('original');
+    expect(interpretFinancialText('Transferencia COP 10.000', 'PASTED_TEXT')?.warnings.join(' ')).toContain(
+      'propias cuentas',
+    );
+    expect(interpretFinancialText('Reverso COP 10.000', 'PASTED_TEXT')?.warnings.join(' ')).toContain(
+      'original',
+    );
+  });
+
+  it('normalizes optional evidence and groups the same possible movement across sources', () => {
+    const message =
+      'Bancolombia: Compraste COP 55.000 en Café el 25/10/2026 a las 09:45 con tarjeta ****1234. Ref: ABC12345';
+    const sms = interpretFinancialText(message, 'SHARED_TEXT');
+    const image = interpretFinancialText(message, 'IMAGE');
+    expect(sms).toMatchObject({
+      institution: 'Bancolombia',
+      accountHint: '1234',
+      reference: 'ABC12345',
+      occurredAt: '2026-10-25T09:45:00',
+      counterparty: 'Café',
+    });
+    expect(sms?.dedupId).toBe(image?.dedupId);
+    expect(sms?.dedupId).toMatch(/^possible-[0-9a-f]{8}$/);
   });
 });

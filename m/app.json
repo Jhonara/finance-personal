@@ -1,0 +1,83 @@
+{
+  "expo": {
+    "name": "Finance Personal",
+    "slug": "finance-personal-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/brand/icon.png",
+    "scheme": "financepersonalmobile",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.jr.financepersonal",
+      "infoPlist": {
+        "CFBundleLocalizations": ["es"],
+        "NSLocalNetworkUsageDescription": "Conectar con tu servidor de Finance Personal durante las pruebas en la misma red."
+      }
+    },
+    "android": {
+      "package": "com.jr.financepersonal",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D282E",
+        "foregroundImage": "./assets/brand/android-foreground.png",
+        "monochromeImage": "./assets/brand/android-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/brand/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0D282E",
+          "image": "./assets/brand/splash.png",
+          "imageWidth": 130
+        }
+      ],
+      "expo-secure-store",
+      ["expo-notifications", { "enableRemoteNotifications": false, "color": "#0D282E" }],
+      "@react-native-community/datetimepicker",
+      "expo-app-intents",
+      "./plugins/with-android-launcher-shortcuts.cjs",
+      "./plugins/with-android-widget-qa-network.cjs",
+      [
+        "expo-sharing",
+        {
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["text/plain", "image/*", "application/pdf"]
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Seleccionar un comprobante para leerlo en tu dispositivo.",
+          "cameraPermission": "Tomar una foto del comprobante cuando lo solicites.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true,
+      "inlineModules": {
+        "watchedDirectories": ["app-intents"]
+      }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "a2a2d5ce-44fa-4c34-bd90-027c2e0180c0"
+      }
+    },
+    "owner": "jhonara"
+  }
+}

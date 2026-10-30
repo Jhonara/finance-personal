@@ -30,6 +30,9 @@ import { ModalSelector } from '@/ui/modal-selector';
 import { Disclosure } from '@/ui/disclosure';
 import { colors, spacing, typography } from '@/theme';
 import { WalletCaptureCard } from '@/features/shortcuts/wallet-capture-card';
+import { getCurrentUser } from '@/features/profile/profile-api';
+import { dismissDetectedDraft } from '@/features/capture/detected-notices';
+import { captureDiagnosticSource, recordCaptureDiagnostic } from '@/features/capture/capture-diagnostics';
 
 const asForm = (draft?: Draft): PurchaseForm =>
   draft?.fields
@@ -68,11 +71,13 @@ export function PurchaseEditor({
   imported,
   onNewIntake,
   onSavedImport,
+  onBack,
 }: {
   initial?: Draft;
   imported?: ShortcutIntake;
   onNewIntake?: () => void;
   onSavedImport?: () => void;
+  onBack?: () => void;
 }) {
   const [saved, setSaved] = useState(initial);
   const [stage, setStage] = useState<'edit' | 'review'>(initial ? 'review' : 'edit');
@@ -84,9 +89,14 @@ export function PurchaseEditor({
   const [transaction, setTransaction] = useState<number>();
   const lock = useRef(false);
   const operationEpoch = useRef(0);
-  const createRequest = useRef<{ requestKey: string; fields: DraftFields; source?: 'SHORTCUT' | 'SHARED_TEXT' } | undefined>(
-    undefined,
-  );
+  const createRequest = useRef<
+    | {
+        requestKey: string;
+        fields: DraftFields;
+        source?: 'SHORTCUT' | 'SHARED_TEXT' | 'IMAGE' | 'PDF' | 'NOTIFICATION';
+      }
+    | undefined
+  >(undefined);
   const actions = useInboxActions();
   const accounts = useAccounts();
   const categories = useCategories('EXPENSE');
@@ -225,9 +235,16 @@ export function PurchaseEditor({
           if (saved?.id) accept(await getDraft(saved.id));
         }),
     );
+  const dismissNotice = (id: number) => {
+    void getCurrentUser()
+      .then((user) => {
+        if (user.id) return dismissDetectedDraft(String(user.id), id);
+      })
+      .catch(() => undefined);
+  };
   const confirm = (distinctPurchase = false) =>
     void run(async () => {
-      if (saved?.id)
+      if (saved?.id) {
         accept(
           await actions.confirm.mutateAsync({
             id: saved.id,
@@ -236,6 +253,8 @@ export function PurchaseEditor({
             distinctPurchase,
           }),
         );
+        dismissNotice(saved.id);
+      }
     });
   const complete =
     saved?.fields?.kind === 'EXPENSE' &&
@@ -259,20 +278,40 @@ export function PurchaseEditor({
             : previewOnly
               ? 'Prueba de Atajos'
               : imported
-                ? imported.source === 'SHARED_TEXT' ? 'Mensaje compartido' : 'Compra desde Atajos'
+                ? imported.source === 'SHARED_TEXT'
+                  ? 'Mensaje compartido'
+                  : imported.source === 'IMAGE'
+                    ? 'Comprobante en imagen'
+                    : imported.source === 'PDF'
+                      ? 'Comprobante PDF'
+                      : imported.source === 'NOTIFICATION'
+                        ? 'Aviso bancario'
+                        : 'Compra desde Atajos'
                 : saved || analyzed
-                  ? 'Revisar compra'
-                  : 'Pegar aviso de compra'
+                  ? saved?.fields?.kind === 'OTHER' || values.kind === 'OTHER'
+                    ? 'Revisar movimiento'
+                    : 'Revisar compra'
+                  : 'Pegar aviso financiero'
         }
         subtitle={closed ? 'Puedes consultar el movimiento.' : 'Revisa los datos antes de registrar.'}
         back
-        onBack={() => guard.request(() => router.back())}
+        onBack={() => guard.request(() => (onBack ? onBack() : router.back()))}
       />
       {onNewIntake && (
         <Card style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={typography.body}>Llegó otro {imported?.source === 'SHARED_TEXT' ? 'mensaje' : 'enlace'}. Tus cambios actuales siguen aquí.</Text>
+          <Text style={typography.body}>
+            Llegó otro{' '}
+            {imported?.source === 'SHARED_TEXT'
+              ? 'mensaje'
+              : imported?.source === 'IMAGE'
+                ? 'comprobante'
+                : imported?.source === 'PDF'
+                  ? 'PDF'
+                  : 'enlace'}
+            . Tus cambios actuales siguen aquí.
+          </Text>
           <Button variant="secondary" disabled={busy} onPress={() => guard.request(onNewIntake)}>
-            Revisar el nuevo {imported?.source === 'SHARED_TEXT' ? 'mensaje' : 'enlace'}
+            {`Revisar el nuevo ${imported?.source === 'SHARED_TEXT' ? 'mensaje' : imported?.source === 'IMAGE' ? 'comprobante' : imported?.source === 'PDF' ? 'PDF' : 'enlace'}`}
           </Button>
         </Card>
       )}
@@ -343,7 +382,9 @@ export function PurchaseEditor({
                   Keyboard.dismiss();
                   if (!interpretFinancialText(text, 'PASTED_TEXT')) {
                     setText('');
-                    setError('No identificamos un movimiento financiero. No pegues claves ni códigos de verificación.');
+                    setError(
+                      'No identificamos un movimiento financiero. No pegues claves ni códigos de verificación.',
+                    );
                     return;
                   }
                   form.reset(parsePurchaseText(text));
@@ -547,6 +588,7 @@ export function PurchaseEditor({
                                         transactionId: match.id!,
                                       }),
                                     );
+                                    dismissNotice(saved!.id!);
                                   }),
                               },
                             ],
@@ -645,7 +687,17 @@ export function PurchaseEditor({
                   style: 'destructive',
                   onPress: () =>
                     void run(async () => {
+                      const owner = await getCurrentUser().catch(() => null);
                       await actions.discard.mutateAsync({ id: saved.id!, version: saved.version! });
+                      const source = captureDiagnosticSource(saved.source);
+                      if (owner?.id && source)
+                        void recordCaptureDiagnostic(
+                          String(owner.id),
+                          source,
+                          'DISCARDED',
+                          'USER_DISCARDED',
+                        ).catch(() => undefined);
+                      dismissNotice(saved.id!);
                       router.replace('/(app)/inbox');
                     }),
                 },

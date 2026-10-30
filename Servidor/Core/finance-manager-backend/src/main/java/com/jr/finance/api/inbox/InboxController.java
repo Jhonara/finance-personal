@@ -14,7 +14,10 @@ import static com.jr.finance.api.inbox.InboxDtos.*;
 public class InboxController {
     private final InboxService service;
     private Long user(Authentication auth) { return ((UserPrincipal) auth.getPrincipal()).getUser().getId(); }
-    @GetMapping public DraftPage list(Authentication auth, @RequestParam(defaultValue = "0") int page) { return service.list(user(auth), page); }
+    @GetMapping public DraftPage list(Authentication auth, @RequestParam(defaultValue = "0") int page,
+                                   @RequestParam(defaultValue = "false") boolean history) {
+        return service.list(user(auth), page, history);
+    }
     @GetMapping("/{id}") public Draft get(Authentication auth, @PathVariable Long id) { return service.get(user(auth), id); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public Draft create(Authentication auth, @Valid @RequestBody Create request) { return service.create(user(auth), request); }

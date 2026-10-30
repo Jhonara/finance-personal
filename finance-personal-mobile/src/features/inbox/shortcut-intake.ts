@@ -6,7 +6,7 @@ export type ShortcutIntake = {
   requestKey?: string;
   demo: boolean;
   identity: string;
-  source?: 'SHORTCUT' | 'SHARED_TEXT';
+  source?: 'SHORTCUT' | 'SHARED_TEXT' | 'IMAGE' | 'PDF' | 'NOTIFICATION';
 };
 type Result = { ok: true; intake: ShortcutIntake } | { ok: false; message: string };
 const acceptedKeys = new Set(['v', 'kind', 'description', 'amount', 'currency', 'date', 'id', 'demo']);
@@ -70,8 +70,14 @@ export const purchaseSourceLabel = (source?: string) =>
     ? 'Wallet · compra detectada'
     : source === 'SHARED_TEXT'
       ? 'Mensaje compartido · por revisar'
-    : source === 'APP_INTENT'
-      ? 'Atajo nativo · por revisar'
-      : source === 'SHORTCUT'
-        ? 'Atajo · datos recibidos'
-        : 'Texto pegado';
+      : source === 'IMAGE'
+        ? 'Imagen · lectura en el teléfono'
+        : source === 'PDF'
+          ? 'PDF · lectura en el teléfono'
+          : source === 'NOTIFICATION'
+            ? 'Notificación · por revisar'
+            : source === 'APP_INTENT'
+              ? 'Atajo nativo · por revisar'
+              : source === 'SHORTCUT'
+                ? 'Atajo · datos recibidos'
+                : 'Texto pegado';

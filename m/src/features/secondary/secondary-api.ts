@@ -1,0 +1,69 @@
+import type { components, operations } from '@/api/generated/schema';
+import { api } from '@/auth/auth-provider';
+
+export type Budget = components['schemas']['BudgetResponse'];
+export type SavingGoal = Omit<components['schemas']['SavingGoalResponse'], 'currency'> & {
+  currency?: string | null;
+};
+export type Credit = components['schemas']['CreditResponse'];
+export type Alert = components['schemas']['AlertResponse'];
+export type CreditPayment = components['schemas']['CreditPaymentResponse'];
+
+export const getBudgets = async (year: number, month: number) =>
+  (await api.get<Budget[]>('/budgets', { params: { year, month } })).data;
+export const createBudget = async (data: components['schemas']['CreateBudgetRequest']) =>
+  (await api.post<Budget>('/budgets', data)).data;
+export const updateBudget = async (id: number, data: components['schemas']['UpdateBudgetRequest']) =>
+  (await api.patch<Budget>(`/budgets/${id}`, data)).data;
+export const getAlerts = async () => (await api.get<Alert[]>('/alerts')).data;
+export const getAlertHistory = async () => (await api.get<Alert[]>('/alerts/history')).data;
+export const updateAlert = async ({
+  id,
+  ...data
+}: components['schemas']['UpdateAlertRequest'] & { id: number }) =>
+  (await api.post<Alert>(`/alerts/${id}/state`, data)).data;
+export type SeenAlert = { code: string; data: components['schemas']['MarkAlertSeenRequest'] };
+export const markAlertSeen = async ({ code, data }: SeenAlert) => {
+  await api.post(`/alerts/${encodeURIComponent(code)}/seen`, data);
+};
+export const getSavingGoals = async () => (await api.get<SavingGoal[]>('/savings/goals')).data;
+export const getSavingProgress = async (id: number) =>
+  (
+    await api.get<operations['progress']['responses'][200]['content']['application/json']>(
+      `/savings/goals/${id}/progress`,
+    )
+  ).data;
+export const createSavingGoal = async (data: components['schemas']['CreateSavingGoalRequest']) =>
+  (await api.post<SavingGoal>('/savings/goals', data)).data;
+export const assignSavingCurrency = async (id: number, currency: string) =>
+  (
+    await api.patch<SavingGoal>(`/savings/goals/${id}/currency`, {
+      currency,
+    } satisfies components['schemas']['AssignSavingCurrencyRequest'])
+  ).data;
+export const addSavingContribution = async (
+  id: number,
+  data: components['schemas']['AddSavingMovementRequest'],
+) => (await api.post<SavingGoal>(`/savings/goals/${id}/movements`, data)).data;
+export const getCredits = async () => (await api.get<Credit[]>('/credits')).data;
+export const getCredit = async (id: number) => (await api.get<Credit>(`/credits/${id}`)).data;
+export const createCredit = async (data: components['schemas']['CreateCreditRequest']) =>
+  (await api.post<Credit>('/credits', data)).data;
+export const updateCredit = async (id: number, data: components['schemas']['UpdateCreditRequest']) =>
+  (await api.put<Credit>(`/credits/${id}`, data)).data;
+export type CreditOpeningPosition = components['schemas']['SetCreditOpeningRequest'];
+export const setCreditOpeningPosition = async (id: number, data: CreditOpeningPosition) =>
+  (await api.put<Credit>(`/credits/${id}/opening-position`, data)).data;
+export const deleteCredit = async (id: number) => {
+  await api.delete(`/credits/${id}`);
+};
+export const payCredit = async (id: number, data: components['schemas']['CreateCreditPaymentRequest']) =>
+  (await api.post<CreditPayment>(`/credits/${id}/payments`, data)).data;
+export const reverseCreditPayment = async (creditId: number, paymentId: number) =>
+  (await api.post<CreditPayment>(`/credits/${creditId}/payments/${paymentId}/reverse`)).data;
+export type CreditPlan = components['schemas']['CreditPlanVsRealResponse'];
+export type CreditSimulation = components['schemas']['CreditSimulationResponse'];
+export const getCreditPlanVsReal = async (id: number) =>
+  (await api.get<CreditPlan>(`/credits/${id}/plan-vs-real`)).data;
+export const simulateCredit = async (id: number, data: components['schemas']['CreditSimulationRequest']) =>
+  (await api.post<CreditSimulation>(`/credits/${id}/simulate`, data)).data;

@@ -61,6 +61,20 @@ class InboxIntegrationTest {
         assertThat(reports.month(owner.getId(), 2026, 10).get("COP").expense()).isEqualByComparingTo("50");
         assertThat(inbox.list(owner.getId(), 0).totalElements()).isZero();
     }
+    @Test void reviewHistoryShowsOnlyOwnedClosedDraftsWithoutChangingTheLedger() throws Exception {
+        var posted = inbox.create(owner.getId(), create(fields("50")));
+        inbox.confirm(owner.getId(), posted.id(), new Confirm(posted.version(), posted.reviewToken(), false));
+        var discarded = inbox.create(owner.getId(), create(fields("20")));
+        inbox.discard(owner.getId(), discarded.id(), discarded.version());
+        var pending = inbox.create(owner.getId(), create(fields("15")));
+        assertThat(inbox.list(owner.getId(), 0).content()).extracting(Draft::id).containsExactly(pending.id());
+        assertThat(inbox.list(owner.getId(), 0, true).content()).extracting(Draft::id)
+            .containsExactly(discarded.id(), posted.id());
+        assertThat(inbox.list(user().getId(), 0, true).totalElements()).isZero();
+        mvc.perform(get("/api/v1/inbox").param("history", "true").header("Authorization", bearer(owner)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("950");
+    }
     @Test void concurrentConfirmationCreatesExactlyOneExpense() throws Exception {
         var saved = inbox.create(owner.getId(), create(fields("50")));
         var request = new Confirm(saved.version(), saved.reviewToken(), false);
@@ -86,9 +100,35 @@ class InboxIntegrationTest {
                 .content("{\"requestKey\":\"abcdefghijklmnop\",\"fields\":{\"kind\":\"EXPENSE\",\"description\":\"Compra\"},\"source\":\"WALLET_VERIFIED\"}"))
                 .andExpect(status().isBadRequest());
     }
+    @Test void sharedMessageCreatesOnlyAnOwnedPendingDraftAndReplayIsSafe() {
+        var request = new Create(UUID.randomUUID().toString(), fields("50"), Source.SHARED_TEXT);
+        var saved = inbox.create(owner.getId(), request);
+        assertThat(saved.source()).isEqualTo("SHARED_TEXT");
+        assertThat(saved.status()).isEqualTo("PENDING");
+        assertThat(inbox.create(owner.getId(), request).id()).isEqualTo(saved.id());
+        assertThatThrownBy(() -> inbox.create(owner.getId(), new Create(request.requestKey(), request.fields(), Source.SHORTCUT)))
+                .isInstanceOf(ConflictException.class);
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("1000");
+        assertThat(reports.month(owner.getId(), 2026, 10)).isEmpty();
+        assertThat(inbox.list(user().getId(), 0).totalElements()).isZero();
+    }
+    @Test void imagePdfAndNotificationImportsRemainOwnedPendingDraftsUntilExplicitConfirmation() {
+        for (var source : new Source[]{Source.IMAGE, Source.PDF, Source.NOTIFICATION}) {
+            var request = new Create(UUID.randomUUID().toString(), fields("50"), source);
+            var saved = inbox.create(owner.getId(), request);
+            assertThat(saved.source()).isEqualTo(source.name());
+            assertThat(saved.status()).isEqualTo("PENDING");
+            assertThat(inbox.create(owner.getId(), request).id()).isEqualTo(saved.id());
+            assertThatThrownBy(() -> inbox.get(user().getId(), saved.id())).isInstanceOf(NotFoundException.class);
+        }
+        assertThat(ledger.getAccountBalance(owner.getId(), account.getId())).isEqualByComparingTo("1000");
+        assertThat(reports.month(owner.getId(), 2026, 10)).isEmpty();
+    }
     @Test void detectsExistingMovementAndLinksWithoutAnotherExpense() {
         var tx = expense("50", "Mercado"); var saved = inbox.create(owner.getId(), create(fields("50")));
         assertThat(saved.matches()).anySatisfy(match -> { assertThat(match.id()).isEqualTo(tx.getId()); assertThat(match.kind()).isEqualTo("TRANSACTION"); });
+        assertThat(inbox.list(owner.getId(), 0).content()).anySatisfy(draft ->
+            assertThat(draft.matches()).extracting(Match::kind).contains("TRANSACTION"));
         assertThatThrownBy(() -> inbox.confirm(owner.getId(), saved.id(), new Confirm(saved.version(), saved.reviewToken(), false))).isInstanceOf(ConflictException.class);
         var result = inbox.link(owner.getId(), saved.id(), new Link(saved.version(), tx.getId()));
         assertThat(result.status()).isEqualTo("LINKED");

@@ -5,14 +5,17 @@ import { describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   widgetClear: vi.fn(),
+  shareClear: vi.fn(),
   remoteLogout: vi.fn(),
   remoteAll: vi.fn(),
 }));
-vi.mock('axios', () => ({ default: { create: () => ({}) } }));
+vi.mock('axios', () => ({ default: { create: () => ({ defaults: {} }) } }));
+vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
+vi.mock('expo-sharing', () => ({ clearSharedPayloads: mocks.shareClear }));
 vi.mock('@/config/environment', () => ({
   environment: { apiBaseUrl: 'http://fixture.invalid', requestTimeoutMs: 1000 },
 }));
-vi.mock('@/api/client', () => ({ createApiClient: () => ({}) }));
+vi.mock('@/api/client', () => ({ createApiClient: () => ({ defaults: {} }) }));
 vi.mock('@/storage/secure-session-storage', () => ({
   secureSessionStorage: { load: async () => null, save: async () => undefined, clear: mocks.clear },
 }));
@@ -68,6 +71,7 @@ describe('AuthProvider session cache wiring', () => {
       });
       expect(auth.state.status).toBe('bootstrapping');
       expect(mocks.widgetClear.mock.calls.length).toBeGreaterThan(clearCountAfterLogin);
+      expect(mocks.shareClear).toHaveBeenCalled();
       expect(client.getQueryCache().getAll()).toHaveLength(0);
       await act(async () => {
         reject(Error('offline'));

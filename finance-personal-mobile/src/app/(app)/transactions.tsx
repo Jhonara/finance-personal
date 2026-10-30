@@ -85,7 +85,7 @@ export default function TransactionsScreen() {
     <Screen entry scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
       {pageHeader}
       <Button variant="secondary" onPress={() => router.push('/(app)/inbox')}>
-        Por revisar · avisos de compra
+        Movimientos detectados
       </Button>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <View style={{ flex: 1 }}>

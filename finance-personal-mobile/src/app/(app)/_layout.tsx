@@ -113,6 +113,22 @@ export default function AppLayout() {
           <Tabs.Screen name="more" options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }} />
           <Tabs.Screen name="reports" options={internalScreenOptions} />
           <Tabs.Screen name="report-transactions" options={internalScreenOptions} />
+          <Tabs.Screen
+            name="capture-image"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen
+            name="capture-pdf"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen
+            name="capture-notifications"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
+          <Tabs.Screen
+            name="capture-diagnostics"
+            options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+          />
           <Tabs.Screen name="guide" options={internalScreenOptions} />
           <Tabs.Screen
             name="new-expense"

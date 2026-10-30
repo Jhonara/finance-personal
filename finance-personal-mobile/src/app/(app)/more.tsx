@@ -24,6 +24,8 @@ import { MotionPressable } from '@/ui/motion';
 import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
 import { HomeUpcomingSettings } from '@/features/dashboard/home-upcoming';
 import { homeWidgetBridge } from '@/features/widget/home-widget-bridge';
+import { DetectedNoticeSettings } from '@/features/capture/detected-notice-settings';
+import { captureQaEnabled } from '@/features/capture/capture-diagnostics';
 
 function Section({ title, children }: PropsWithChildren<{ title: string }>) {
   const { palette } = useAppTheme();
@@ -152,6 +154,15 @@ export default function MoreScreen() {
         />
       </Section>
       <Section title="Preferencias">
+        <DetectedNoticeSettings />
+        {captureQaEnabled && (
+          <SettingsRow
+            icon="pulse-outline"
+            title="Diagnóstico de captura"
+            subtitle="Permisos, sincronización y pruebas ficticias. Solo desarrollo y QA."
+            onPress={() => router.push('/(app)/capture-diagnostics')}
+          />
+        )}
         <HomePrioritySettings userId={profile.data?.id} />
         <HomeUpcomingSettings userId={profile.data?.id} />
         <View style={styles.appearance}>

@@ -1,0 +1,14 @@
+com.jr.financewidget
+drawable finance_widget_background
+drawable finance_widget_button
+id widget_balance
+id widget_balance_label
+id widget_expense
+id widget_income
+id widget_new_expense
+id widget_new_income
+id widget_status
+id widget_title
+layout finance_home_widget
+string finance_widget_description
+xml finance_home_widget_info

@@ -10,9 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.jr.financepersonal",
       "infoPlist": {
-        "CFBundleLocalizations": [
-          "es"
-        ],
+        "CFBundleLocalizations": ["es"],
         "NSLocalNetworkUsageDescription": "Conectar con tu servidor de Finance Personal durante las pruebas en la misma red."
       }
     },
@@ -40,6 +38,7 @@
         }
       ],
       "expo-secure-store",
+      ["expo-notifications", { "enableRemoteNotifications": false, "color": "#0D282E" }],
       "@react-native-community/datetimepicker",
       "expo-app-intents",
       "./plugins/with-android-launcher-shortcuts.cjs",
@@ -49,8 +48,16 @@
         {
           "android": {
             "enabled": true,
-            "singleShareMimeTypes": ["text/plain"]
+            "singleShareMimeTypes": ["text/plain", "image/*", "application/pdf"]
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Seleccionar un comprobante para leerlo en tu dispositivo.",
+          "cameraPermission": "Tomar una foto del comprobante cuando lo solicites.",
+          "microphonePermission": false
         }
       ]
     ],
@@ -58,9 +65,7 @@
       "typedRoutes": true,
       "reactCompiler": true,
       "inlineModules": {
-        "watchedDirectories": [
-          "app-intents"
-        ]
+        "watchedDirectories": ["app-intents"]
       }
     },
     "extra": {

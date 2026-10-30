@@ -31,9 +31,15 @@ public class InboxService {
 
     @Transactional(readOnly = true)
     public DraftPage list(Long userId, int page) {
+        return list(userId, page, false);
+    }
+    @Transactional(readOnly = true)
+    public DraftPage list(Long userId, int page, boolean history) {
         if (page < 0 || page > 10000) throw new BadRequestException("La página no es válida");
-        var result = drafts.findByUserIdAndStatusOrderByIdDesc(userId, "PENDING", PageRequest.of(page, 25));
-        return new DraftPage(result.map(row -> response(row, false)).getContent(), result.getTotalElements(), result.hasNext());
+        var result = history
+                ? drafts.findByUserIdAndStatusNotOrderByIdDesc(userId, "PENDING", PageRequest.of(page, 25))
+                : drafts.findByUserIdAndStatusOrderByIdDesc(userId, "PENDING", PageRequest.of(page, 25));
+        return new DraftPage(result.map(row -> response(row, !history)).getContent(), result.getTotalElements(), result.hasNext());
     }
     @Transactional(readOnly = true)
     public Draft get(Long userId, Long id) { return response(owned(userId, id), true); }
@@ -47,7 +53,8 @@ public class InboxService {
                 (request.effectiveSource() == Source.PASTED_TEXT ? "" : ":SHORTCUT"));
         var previous = drafts.findByUserIdAndRequestKey(userId, request.requestKey());
         if (previous.isPresent()) {
-            if (!previous.get().getInitialFingerprint().equals(fingerprint))
+            if (!previous.get().getSource().equals(request.effectiveSource().name()) ||
+                    !previous.get().getInitialFingerprint().equals(fingerprint))
                 throw new ConflictException("Este intento ya guardó otro borrador. Abre Por revisar.");
             return response(previous.get(), true);
         }

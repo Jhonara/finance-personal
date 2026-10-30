@@ -45,7 +45,12 @@ vi.mock('@/features/categories/use-categories', () => ({
 }));
 vi.mock('@/privacy/privacy-provider', () => ({ usePrivacy: () => ({ hidden: mocks.hidden }) }));
 vi.mock('@/feedback/app-alert', () => ({ AppAlert: { alert: mocks.alert } }));
-vi.mock('react-native', () => ({ Text: 'Text', View: 'View', Keyboard: { dismiss: vi.fn() } }));
+vi.mock('react-native', () => ({
+  Text: 'Text',
+  View: 'View',
+  Platform: { OS: 'android' },
+  Keyboard: { dismiss: vi.fn() },
+}));
 vi.mock('@/theme', () => ({ colors: {}, spacing: {}, typography: {} }));
 vi.mock('@/ui/primitives', () => ({
   Button: 'Button',
@@ -390,5 +395,19 @@ describe('Purchase review flow', () => {
     });
     await flush();
     expect(JSON.stringify(renderer.toJSON())).not.toContain('85.000');
+  });
+  it('shows a discarded item as removed data in history', async () => {
+    mocks.get.mockResolvedValue({
+      data: {
+        content: [{ ...draft, status: 'DISCARDED', fields: null, source: 'SHARED_TEXT' }],
+        totalElements: 1,
+      },
+    });
+    await mount(<InboxScreen />);
+    await press('Historial');
+    const screen = JSON.stringify(renderer.toJSON());
+    expect(screen).toContain('Datos eliminados al descartar');
+    expect(screen).not.toContain('Importe o moneda por completar');
+    expect(screen).not.toContain('Fecha por completar');
   });
 });

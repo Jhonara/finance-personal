@@ -1,0 +1,1651 @@
+import React from 'react';
+import { act, create } from 'react-test-renderer';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const mocks = vi.hoisted(() => ({
+  alert: vi.fn(),
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  push: vi.fn(),
+  replace: vi.fn(),
+  feedback: vi.fn(),
+  quickOpen: vi.fn(),
+  read: vi.fn(),
+  write: vi.fn(),
+  hidden: false,
+  focusVersion: 0,
+  params: { id: '1' } as Record<string, string>,
+}));
+
+// Keep the screens, query observers and mutations real; replace only native hosts and I/O.
+vi.mock('react-native', () => {
+  const primitive =
+    (name: string) =>
+    ({
+      children,
+      ...props
+    }: {
+      children?: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode);
+    }) =>
+      React.createElement(
+        name,
+        props,
+        typeof children === 'function' ? children({ pressed: false }) : children,
+      );
+  const animation = () => ({
+    start: (cb?: (result: { finished: boolean }) => void) => cb?.({ finished: true }),
+    stop: vi.fn(),
+  });
+  return {
+    BackHandler: { addEventListener: () => ({ remove() {} }) },
+    Alert: { alert: mocks.alert },
+    ActivityIndicator: primitive('ActivityIndicator'),
+    useWindowDimensions: () => ({ width: 360, height: 640, fontScale: 1 }),
+    AccessibilityInfo: {
+      isReduceMotionEnabled: async () => false,
+      addEventListener: () => ({ remove: vi.fn() }),
+    },
+    KeyboardAvoidingView: primitive('KeyboardAvoidingView'),
+    Image: primitive('Image'),
+    Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
+      visible ? children : null,
+    Pressable: primitive('Pressable'),
+    ScrollView: primitive('ScrollView'),
+    Text: primitive('Text'),
+    TextInput: primitive('TextInput'),
+    View: primitive('View'),
+    RefreshControl: primitive('RefreshControl'),
+    StyleSheet: { create: (styles: object) => styles },
+    Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
+    Animated: {
+      Text: primitive('Text'),
+      View: primitive('AnimatedView'),
+      Value: class {
+        setValue() {}
+        interpolate() {
+          return 1;
+        }
+      },
+      timing: animation,
+      stagger: animation,
+      spring: animation,
+    },
+    Easing: { out: () => undefined, cubic: () => undefined },
+  };
+});
+vi.mock('react-native-reanimated', () => ({
+  default: {
+    Image: ({ source, style }: { source: unknown; style: unknown }) =>
+      React.createElement('AnimatedImage', { source, style }),
+  },
+  cancelAnimation: vi.fn(),
+  Easing: { ease: () => 0, inOut: () => () => 0 },
+  useAnimatedStyle: (style: () => unknown) => style(),
+  useSharedValue: (value: number) => ({ value }),
+  withRepeat: (value: number) => value,
+  withTiming: (value: number) => value,
+}));
+vi.mock('@expo/vector-icons/Ionicons', () => ({
+  default: (props: object) => React.createElement('Icon', props),
+}));
+vi.mock('@react-native-community/datetimepicker', () => ({
+  default: () => null,
+  DateTimePickerAndroid: { open: vi.fn() },
+}));
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }),
+  SafeAreaView: ({ children }: React.PropsWithChildren) =>
+    React.createElement('SafeAreaView', undefined, children),
+}));
+vi.mock('expo-linear-gradient', () => ({
+  LinearGradient: ({ children }: React.PropsWithChildren) =>
+    React.createElement('Gradient', undefined, children),
+}));
+vi.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void | (() => void)) =>
+    React.useEffect(effect, [effect, mocks.focusVersion]),
+  router: { push: mocks.push, replace: mocks.replace, back: vi.fn(), canGoBack: () => true },
+  useLocalSearchParams: () => mocks.params,
+}));
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: mocks.read,
+  setItemAsync: mocks.write,
+  deleteItemAsync: async (key: string) => {
+    stored.delete(key);
+  },
+}));
+vi.mock('@/auth/auth-provider', () => ({
+  api: { get: mocks.get, post: mocks.post, patch: mocks.patch },
+  useAuth: () => ({ state: { status: 'authenticated' }, logout: vi.fn() }),
+}));
+vi.mock('@/privacy/privacy-provider', () => ({
+  usePrivacy: () => ({ hidden: mocks.hidden, toggle: vi.fn() }),
+}));
+vi.mock('@/feedback/feedback-provider', () => ({ useFeedback: () => ({ show: mocks.feedback }) }));
+vi.mock('@/features/quick-actions/quick-action-provider', () => ({
+  useQuickActions: () => ({ open: mocks.quickOpen, openedCount: 0, active: false }),
+}));
+
+import AccountForm from '@/app/(app)/account-form';
+import BudgetForm from '@/app/(app)/budget-form';
+import SavingForm from '@/app/(app)/saving-form';
+import { Input, MoneyInput, SelectField, Button } from '@/ui/primitives';
+import { ModalSelector } from '@/ui/modal-selector';
+import { openForm } from '@/features/forms/form-session';
+import { ApiError } from '@/api/errors';
+import AccountsScreen from '@/app/(app)/accounts';
+import AccountDetail from '@/app/(app)/account-detail';
+import NewExpenseScreen from '@/app/(app)/new-expense';
+import NewIncomeScreen from '@/app/(app)/new-income';
+import HomeScreen from '@/app/(app)/index';
+import TransactionsScreen from '@/app/(app)/transactions';
+import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
+import { FinancialProgressSection, ProgressSignal } from '@/features/progress/progress-signal';
+import { financialProgress } from '@/features/progress/financial-progress';
+import { secondaryKeys } from '@/features/secondary/use-secondary';
+import { TransactionRow } from '@/ui/financial';
+import { HomeModules } from '@/features/dashboard/home-modules';
+import { HomeShortcuts } from '@/features/dashboard/home-shortcuts';
+import { HomePriorityCard } from '@/features/dashboard/home-priority-card';
+import { homePriorities, homePriorityKey } from '@/features/dashboard/home-priority';
+import { homePriorityQueryKey } from '@/features/dashboard/use-home-priority';
+import { HomeAccountPreview } from '@/features/dashboard/home-account-preview';
+import { GuidedSetupCard } from '@/ui/guided-setup-card';
+import { useCreateBudget } from './secondary/use-secondary';
+import { dashboardKeys } from './dashboard/use-dashboard-month';
+import { currentDashboardPeriod } from './dashboard/dashboard-period';
+import { currentUserKeys } from './profile/profile-keys';
+import { firstRunStorage } from './onboarding/first-run-storage';
+import { formatPrivateMoney } from '@/privacy/privacy-format';
+import type { DashboardMonth } from '@/api/dashboard-api';
+
+const period = currentDashboardPeriod();
+const dashboardKey = dashboardKeys.month(period);
+const account = {
+  id: 1,
+  name: 'Principal',
+  type: 'CASH' as const,
+  active: true,
+  currency: 'COP',
+  version: 1,
+};
+let dashboard: DashboardMonth;
+let stored: Map<string, string>;
+let client: QueryClient;
+let trees: ReturnType<typeof create>[];
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
+function textContent(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.map(textContent).join('');
+  if (value && typeof value === 'object' && 'children' in value) return textContent(value.children);
+  return '';
+}
+
+async function render(children: React.ReactNode) {
+  let tree!: ReturnType<typeof create>;
+  await act(async () => {
+    tree = create(<QueryClientProvider client={client}>{children}</QueryClientProvider>);
+  });
+  trees.push(tree);
+  return tree;
+}
+
+async function settled(check: () => void) {
+  await act(async () => {
+    await vi.waitFor(check);
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  });
+}
+
+function press(tree: ReturnType<typeof create>, label: string) {
+  const button = tree.root
+    .findAll((node) => (node.type as unknown) === 'Pressable')
+    .find((node) => node.props.accessibilityLabel === label || textContent(node) === label);
+  expect(button, label).toBeDefined();
+  button!.props.onPress();
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  mocks.hidden = false;
+  mocks.focusVersion = 0;
+  mocks.params = { id: '1' };
+  trees = [];
+  stored = new Map();
+  dashboard = { accounts: [{ ...account, balance: 110000 }], budgets: { items: [] } };
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+  });
+  mocks.read.mockImplementation(async (key: string) => {
+    if (!/^[\w.-]+$/.test(key)) throw new Error('Invalid SecureStore key');
+    return key.includes('.intro.') ? 'done' : (stored.get(key) ?? null);
+  });
+  mocks.write.mockImplementation(async (key: string, value: string) => {
+    if (!/^[\w.-]+$/.test(key)) throw new Error('Invalid SecureStore key');
+    stored.set(key, value);
+  });
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/accounts') return { data: [account] };
+    if (url === '/dashboard/month') return { data: dashboard };
+    if (url === '/alerts') return { data: dashboard.alerts ?? [] };
+    if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+    if (url === '/transactions') return { data: { totalElements: 1 } };
+    throw new Error(`Unexpected GET ${url}`);
+  });
+  mocks.patch.mockResolvedValue({ data: account });
+});
+
+afterEach(async () => {
+  await act(async () => {
+    trees.forEach((tree) => tree.unmount());
+  });
+  client.clear();
+  vi.unstubAllGlobals();
+});
+
+describe.each([
+  ['Accounts', AccountsScreen],
+  ['Account Detail', AccountDetail],
+] as const)('%s balance behavior', (_label, Screen) => {
+  it('keeps account information visible with a skeleton until Dashboard resolves', async () => {
+    const request = deferred<{ data: DashboardMonth }>();
+    mocks.get.mockImplementation(async (url: string) =>
+      url === '/dashboard/month'
+        ? request.promise
+        : { data: url === '/accounts' ? [account] : { totalElements: 1 } },
+    );
+    const tree = await render(<Screen />);
+    await settled(() => expect(client.getQueryData(['accounts', 'list'])).toBeDefined());
+    expect(textContent(tree.toJSON())).toContain('Principal');
+    expect(textContent(tree.toJSON())).not.toContain(formatPrivateMoney(0, 'COP', false));
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Cargando').length).toBeGreaterThan(
+      0,
+    );
+    await act(async () => {
+      request.resolve({ data: dashboard });
+    });
+    await settled(() => expect(client.getQueryData(dashboardKey)).toBeDefined());
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+  });
+
+  it('shows human copy after Dashboard failure and preserves account actions', async () => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/dashboard/month') throw new Error('Internal server failure');
+      return { data: url === '/accounts' ? [account] : { totalElements: 1 } };
+    });
+    const tree = await render(<Screen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('error'));
+    expect(textContent(tree.toJSON())).toContain('Saldo no disponible');
+    expect(textContent(tree.toJSON())).not.toContain(formatPrivateMoney(0, 'COP', false));
+    expect(textContent(tree.toJSON())).not.toContain('Internal server failure');
+    if (Screen === AccountsScreen) {
+      await act(async () => {
+        tree.root
+          .findAll((node) => node.props.accessibilityRole === 'button')
+          .find((node) => String(node.props.accessibilityLabel).startsWith('Principal, Efectivo,'))!
+          .props.onPress();
+      });
+      expect(mocks.push).toHaveBeenCalledWith({
+        pathname: '/(app)/account-detail',
+        params: expect.objectContaining({ id: '1', formSession: expect.any(String) }),
+      });
+    } else {
+      await act(async () => {
+        press(tree, 'Editar cuenta');
+      });
+      await act(async () => press(tree, 'Guardar cambios'));
+      await settled(() =>
+        expect(mocks.patch).toHaveBeenCalledWith(
+          '/accounts/1',
+          expect.objectContaining({ name: 'Principal' }),
+        ),
+      );
+    }
+  });
+
+  it('keeps the cached amount through a pending and failed refetch', async () => {
+    const tree = await render(<Screen />);
+    await settled(() => expect(client.getQueryData(dashboardKey)).toBeDefined());
+    const request = deferred<{ data: DashboardMonth }>();
+    mocks.get.mockImplementation(async () => request.promise);
+    await act(async () => {
+      void client.invalidateQueries({ queryKey: dashboardKeys.all });
+    });
+    expect(client.getQueryState(dashboardKey)?.fetchStatus).toBe('fetching');
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+    expect(textContent(tree.toJSON())).not.toContain(formatPrivateMoney(0, 'COP', false));
+    await act(async () => {
+      request.reject(new Error('Offline'));
+    });
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('error'));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+    expect(textContent(tree.toJSON())).not.toContain('Saldo no disponible');
+  });
+
+  it('masks known amounts including accessibility labels when privacy is active', async () => {
+    mocks.hidden = true;
+    const tree = await render(<Screen />);
+    await settled(() => expect(client.getQueryData(dashboardKey)).toBeDefined());
+    expect(textContent(tree.toJSON())).toContain('$ ••••••');
+    expect(textContent(tree.toJSON())).not.toContain('110.000');
+    expect(
+      tree.root
+        .findAll((node) => node.props.accessibilityRole === 'button')
+        .some((node) => String(node.props.accessibilityLabel).includes('110.000')),
+    ).toBe(false);
+  });
+
+  it('renders a real zero only when supplied by Dashboard', async () => {
+    dashboard = { accounts: [{ ...account, balance: 0 }] };
+    const tree = await render(<Screen />);
+    await settled(() => expect(client.getQueryData(dashboardKey)).toBeDefined());
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(0, 'COP', false));
+    expect(textContent(tree.toJSON())).not.toContain('Saldo no disponible');
+  });
+});
+
+describe('Home guided setup lifecycle', () => {
+  async function home() {
+    const tree = await render(<HomeScreen />);
+    await settled(() =>
+      expect(client.getQueryData(['onboarding', 'ordinary-movement-exists', 'INCOME'])).toBeDefined(),
+    );
+    return tree;
+  }
+
+  function BudgetAction() {
+    const mutation = useCreateBudget();
+    return (
+      <button onClick={() => mutation.mutate({ categoryId: 1, limitAmount: 200000, ...period })}>
+        Create budget
+      </button>
+    );
+  }
+
+  it('moves 3/4 to visible 4/4 through budget invalidation without remount, then dismisses immediately and persists', async () => {
+    client.setQueryData(['budgets', period.year, period.month], []);
+    client.setQueryData(['accounts', 'list'], [account]);
+    mocks.post.mockImplementation(async (url: string) => {
+      expect(url).toBe('/budgets');
+      const budget = { id: 8, categoryName: 'Comida', limitAmount: 200000 };
+      dashboard = { ...dashboard, budgets: { items: [budget] } };
+      return { data: budget };
+    });
+    const tree = await render(
+      <>
+        <HomeScreen />
+        <BudgetAction />
+      </>,
+    );
+    await settled(() =>
+      expect(client.getQueryData(['onboarding', 'ordinary-movement-exists', 'INCOME'])).toBeDefined(),
+    );
+    const homeInstance = tree.root.findByType(HomeScreen);
+    expect(textContent(tree.toJSON())).toContain('3 de 4 completados');
+    await act(async () => {
+      tree.root.findByType('button').props.onClick();
+    });
+    await settled(() =>
+      expect(client.getQueryData<DashboardMonth>(dashboardKey)?.budgets?.items).toHaveLength(1),
+    );
+    expect(client.getQueryState(['budgets', period.year, period.month])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['accounts', 'list'])?.isInvalidated).toBe(false);
+    expect(tree.root.findByType(HomeScreen)).toBe(homeInstance);
+    expect(tree.root.findByType(GuidedSetupCard).props.completed).toBe(4);
+    expect(textContent(tree.toJSON())).toContain('¡Listo! Ya tienes tu base financiera.');
+    expect(mocks.write).not.toHaveBeenCalled();
+
+    const save = deferred<void>();
+    mocks.write.mockImplementationOnce(async (key: string, value: string) => {
+      await save.promise;
+      stored.set(key, value);
+    });
+    await act(async () => {
+      press(tree, 'Continuar');
+    });
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+    expect(tree.root.findByType(HomeScreen)).toBe(homeInstance);
+    await act(async () => {
+      save.resolve();
+    });
+    expect(stored.get(firstRunStorage.completionKey(10))).toBe('done');
+
+    // A monthly data change must not resurrect an acknowledged setup.
+    await act(async () => {
+      client.setQueryData(dashboardKey, { ...dashboard, budgets: { items: [] } });
+    });
+    await settled(() =>
+      expect(client.getQueryData<DashboardMonth>(dashboardKey)?.budgets?.items).toHaveLength(0),
+    );
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+    const remounted = await home();
+    expect(remounted.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+  });
+
+  it('keeps completion visible until Continue and isolates dismissal by user', async () => {
+    dashboard = { ...dashboard, budgets: { items: [{ id: 8 }] } };
+    stored.set(firstRunStorage.completionKey(10), 'done');
+    const tree = await home();
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+    await act(async () => {
+      client.setQueryData(currentUserKeys.current(), { id: 11, name: 'Luis' });
+    });
+    await settled(() => expect(mocks.read).toHaveBeenCalledWith(firstRunStorage.completionKey(11)));
+    expect(textContent(tree.toJSON())).toContain('¡Listo! Ya tienes tu base financiera.');
+    expect(stored.has(firstRunStorage.completionKey(11))).toBe(false);
+    await act(async () => {
+      press(tree, 'Continuar');
+    });
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+    expect(stored.get(firstRunStorage.completionKey(11))).toBe('done');
+    expect(stored.get(firstRunStorage.completionKey(10))).toBe('done');
+  });
+
+  it('allows retry if completion could not be persisted', async () => {
+    dashboard = { ...dashboard, budgets: { items: [{ id: 8 }] } };
+    const tree = await home();
+    mocks.write.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await act(async () => {
+      press(tree, 'Continuar');
+    });
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(1);
+    expect(mocks.feedback).toHaveBeenCalledWith(
+      'No pudimos guardar tu avance. Pulsa Continuar para reintentar.',
+      'error',
+    );
+    await act(async () => {
+      press(tree, 'Continuar');
+    });
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+    expect(stored.get(firstRunStorage.completionKey(10))).toBe('done');
+  });
+
+  it('ignores a previous user storage read that resolves after the user changes', async () => {
+    const oldRead = deferred<string | null>();
+    mocks.read.mockImplementation(async (key: string) =>
+      key === firstRunStorage.completionKey(10) ? oldRead.promise : 'done',
+    );
+    const tree = await home();
+    await act(async () => {
+      client.setQueryData(currentUserKeys.current(), { id: 11, name: 'Luis' });
+    });
+    await settled(() => expect(mocks.read).toHaveBeenCalledWith(firstRunStorage.completionKey(11)));
+    await act(async () => {
+      oldRead.resolve(null);
+    });
+    expect(tree.root.findAllByType(GuidedSetupCard)).toHaveLength(0);
+  });
+});
+
+async function reenter(
+  tree: ReturnType<typeof create>,
+  Screen: React.ComponentType,
+  params: Record<string, string>,
+) {
+  mocks.params = params;
+  await act(async () => {
+    tree.update(
+      <QueryClientProvider client={client}>
+        <Screen />
+      </QueryClientProvider>,
+    );
+  });
+}
+function input(tree: ReturnType<typeof create>, label: string) {
+  return [...tree.root.findAllByType(Input), ...tree.root.findAllByType(MoneyInput)].find(
+    (node) => node.props.label === label,
+  )!;
+}
+const cases = [
+  {
+    name: 'Account',
+    Screen: AccountForm,
+    label: 'Nombre',
+    value: 'Cuenta A',
+    submit: 'Crear cuenta',
+    path: '/accounts',
+  },
+  {
+    name: 'Budget',
+    Screen: BudgetForm,
+    label: 'Límite mensual',
+    value: '50000',
+    submit: 'Crear presupuesto',
+    path: '/budgets',
+  },
+  {
+    name: 'Saving',
+    Screen: SavingForm,
+    label: 'Nombre',
+    value: 'Meta A',
+    submit: 'Crear meta',
+    path: '/savings/goals',
+  },
+];
+describe.each(cases)('$name retained-route lifecycle', ({ Screen, label, value, submit, path }) => {
+  beforeEach(() => {
+    mocks.params = { formSession: 'A', id: '' };
+    const existingGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation((url: string, ...args: unknown[]) => {
+      if (url === '/categories')
+        return Promise.resolve({ data: [{ id: 4, name: 'Comida', type: 'EXPENSE' }] });
+      if (url === '/savings/goals')
+        return Promise.resolve({ data: [{ id: 99, name: 'Anterior', targetAmount: 100 }] });
+      return existingGet(url, ...args);
+    });
+  });
+  async function fill(tree: ReturnType<typeof create>) {
+    await act(async () => {
+      input(tree, label).props.onChangeText(value);
+      if (Screen === BudgetForm) tree.root.findByType(ModalSelector).props.onSelect(4);
+      if (Screen === SavingForm) tree.root.findByType(MoneyInput).props.onChangeText('100000');
+    });
+  }
+  it('preserves internal draft and starts clean after back/new entry', async () => {
+    const tree = await render(<Screen />);
+    await fill(tree);
+    await reenter(tree, Screen, { formSession: 'A', id: '' });
+    expect(input(tree, label).props.value).toBe(value);
+    await reenter(tree, Screen, { formSession: 'B', id: '' });
+    expect(input(tree, label).props.value).toBe('');
+    expect(
+      tree.root.findAllByType(Button).find((node) => textContent(node) === submit)?.props.loading,
+    ).toBeFalsy();
+  });
+  it('preserves values after a rejected submission and clears on next entry', async () => {
+    mocks.post.mockRejectedValue(new ApiError('Invalid', 400, null, null, null, {}));
+    const tree = await render(<Screen />);
+    await fill(tree);
+    await act(async () => press(tree, submit));
+    await settled(() => expect(mocks.post).toHaveBeenCalledWith(path, expect.any(Object)));
+    expect(input(tree, label).props.value).toBe(value);
+    await reenter(tree, Screen, { formSession: 'B', id: '' });
+    expect(input(tree, label).props.value).toBe('');
+    expect(textContent(tree.toJSON())).not.toContain('No pudimos crear');
+  });
+  it('resets after success and permits the next creation', async () => {
+    mocks.post.mockResolvedValue({ data: { id: 20, name: value, version: 0 } });
+    const tree = await render(<Screen />);
+    await fill(tree);
+    await act(async () => press(tree, submit));
+    await settled(() => expect(mocks.feedback).toHaveBeenCalled());
+    if (Screen === AccountForm) expect(textContent(tree.toJSON())).toContain('Registrar dinero que ya tenía');
+    else expect(input(tree, label).props.value).toBe('');
+    await reenter(tree, Screen, { formSession: 'B', id: '' });
+    await fill(tree);
+    await act(async () => press(tree, submit));
+    await settled(() => expect(mocks.post).toHaveBeenCalledTimes(2));
+  });
+  it('ignores late success from A after opening B', async () => {
+    const request = deferred<{ data: { id: number } }>();
+    mocks.post.mockReturnValue(request.promise);
+    const tree = await render(<Screen />);
+    await fill(tree);
+    await act(async () => press(tree, submit));
+    await settled(() => expect(mocks.post).toHaveBeenCalled());
+    await reenter(tree, Screen, { formSession: 'B', id: '' });
+    await act(async () => input(tree, label).props.onChangeText('222'));
+    await act(async () => request.resolve({ data: { id: 20 } }));
+    await settled(() => expect(client.isMutating()).toBe(0));
+    expect(input(tree, label).props.value).toBe('222');
+    expect(mocks.feedback).not.toHaveBeenCalled();
+  });
+});
+
+it('edits B with only its own name, id and version after editing A on a retained route', async () => {
+  const second = { ...account, id: 2, name: 'Banco B', version: 19 };
+  client.setQueryData(['accounts', 'list'], [account, second]);
+  mocks.get.mockImplementation(async (url: string) => ({
+    data:
+      url === '/accounts' ? [account, second] : url === '/dashboard/month' ? dashboard : { totalElements: 1 },
+  }));
+  const tree = await render(<AccountDetail />);
+  await settled(() => expect(textContent(tree.toJSON())).toContain('Editar cuenta'));
+  expect(input(tree, 'Nombre')).toBeUndefined();
+  await act(async () => press(tree, 'Editar cuenta'));
+  await act(async () => input(tree, 'Nombre').props.onChangeText('Borrador A'));
+  await reenter(tree, AccountDetail, { id: '2', formSession: 'B' });
+  expect(input(tree, 'Nombre')).toBeUndefined();
+  await act(async () => press(tree, 'Editar cuenta'));
+  expect(input(tree, 'Nombre').props.value).toBe('Banco B');
+  await act(async () => press(tree, 'Guardar cambios'));
+  await settled(() =>
+    expect(mocks.patch).toHaveBeenCalledWith(
+      '/accounts/2',
+      expect.objectContaining({ name: 'Banco B', version: 19 }),
+    ),
+  );
+});
+
+it('loads the immutable budget category and clears edit params for a new creation', async () => {
+  mocks.params = {
+    id: '1',
+    version: '4',
+    limit: '900',
+    categoryId: '7',
+    categoryName: 'Comida',
+    formSession: 'A',
+  };
+  const tree = await render(<BudgetForm />);
+  expect(tree.root.findByType(SelectField).props).toMatchObject({ value: 'Comida', disabled: true });
+  await act(async () => input(tree, 'Límite mensual').props.onChangeText(''));
+  expect(input(tree, 'Límite mensual').props.value).toBe('');
+  await reenter(tree, BudgetForm, {
+    id: '2',
+    version: '9',
+    limit: '2500',
+    categoryId: '8',
+    categoryName: 'Viajes',
+    formSession: 'B',
+  });
+  expect(tree.root.findByType(SelectField).props.value).toBe('Viajes');
+  expect(input(tree, 'Límite mensual').props.value).toBe('2500');
+  await act(async () => press(tree, 'Guardar cambios'));
+  await settled(() =>
+    expect(mocks.patch).toHaveBeenCalledWith('/budgets/2', { limitAmount: 2500, version: 9 }),
+  );
+  openForm('/(app)/budget-form');
+  const destination = mocks.push.mock.calls.at(-1)![0];
+  await reenter(tree, BudgetForm, { ...mocks.params, ...destination.params });
+  expect(input(tree, 'Límite mensual').props.value).toBe('');
+  expect(tree.root.findByType(SelectField).props.disabled).toBe(false);
+});
+
+it('starts a fresh credit draft after editing a retained credit route', () => {
+  openForm('/(app)/credit-form', { id: '3', mode: 'edit' });
+  const edit = mocks.push.mock.calls.at(-1)![0];
+  openForm('/(app)/credit-form');
+  const create = mocks.push.mock.calls.at(-1)![0];
+  expect({ ...edit.params, ...create.params }).toMatchObject({ id: '', mode: '' });
+  expect(create.params.formSession).not.toBe(edit.params.formSession);
+});
+
+it('returns from a new budget to the selected month', async () => {
+  mocks.params = { id: '', source: 'budgets', year: '2026', month: '9', formSession: 'budget-return' };
+  const tree = await render(<BudgetForm />);
+  await act(async () => press(tree, 'Volver'));
+  expect(mocks.replace).toHaveBeenCalledWith({
+    pathname: '/(app)/budgets',
+    params: { year: '2026', month: '9' },
+  });
+});
+
+it('keeps November authoritative when September and October resolve out of order, then returns to September', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 16, 12));
+  const requests = new Map<number, ReturnType<typeof deferred<{ data: DashboardMonth }>>>();
+  const signals = new Map<number, AbortSignal>();
+  const monthData = (month: number): DashboardMonth => ({
+    totalIncome: month * 100000,
+    totalExpense: month * 1000,
+    netCashFlow: month * 99000,
+    netWorthByCurrency: { COP: month * 500000 },
+    accounts: [{ ...account, name: `Cuenta mes ${month}`, balance: month * 500000 }],
+    budgets: {
+      overallPercentage: month,
+      items: [
+        {
+          id: month,
+          categoryName: `Presupuesto mes ${month}`,
+          year: 2026,
+          month,
+          status: 'OK',
+          limitAmount: 100000,
+          spentAmount: month * 1000,
+        },
+      ],
+    },
+    recentTransactions: [
+      {
+        transactionId: month,
+        type: 'EXPENSE',
+        description: `Movimiento mes ${month}`,
+        amount: month * 1000,
+        currency: 'COP',
+      },
+    ],
+  });
+  const originalGet = mocks.get.getMockImplementation()!;
+  mocks.get.mockImplementation(
+    (url: string, options?: { params?: { month: number }; signal?: AbortSignal }) => {
+      if (url !== '/dashboard/month') return originalGet(url, options);
+      const month = options!.params!.month;
+      if (options?.signal) signals.set(month, options.signal);
+      if (!requests.has(month)) requests.set(month, deferred());
+      return requests.get(month)!.promise;
+    },
+  );
+  try {
+    const tree = await render(<HomeScreen />);
+    await act(async () => press(tree, 'Mes siguiente'));
+    await act(async () => press(tree, 'Mes siguiente'));
+    expect(textContent(tree.toJSON()).toLowerCase()).toContain('noviembre de 2026');
+    // Current balances remain subscribed even while a different activity month loads.
+    expect(signals.get(9)?.aborted).toBe(false);
+    expect(signals.get(10)?.aborted).toBe(true);
+    await act(async () => requests.get(11)!.resolve({ data: monthData(11) }));
+    await settled(() =>
+      expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 11 }))?.status).toBe('success'),
+    );
+    await act(async () => {
+      requests.get(10)!.resolve({ data: monthData(10) });
+      requests.get(9)!.resolve({ data: monthData(9) });
+    });
+    await settled(() =>
+      expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 9 }))?.status).toBe('success'),
+    );
+    expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 11');
+    expect(textContent(tree.toJSON())).toContain('Tus saldos de hoy');
+    expect(textContent(tree.toJSON())).toContain('Noviembre de 2026');
+    expect(textContent(tree.toJSON())).toContain('11% utilizado');
+    expect(textContent(tree.toJSON())).toContain('Movimiento mes 11');
+    expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 10');
+    expect(textContent(tree.toJSON())).not.toContain('Movimiento mes 9');
+    expect(tree.root.findAllByType(ProgressSignal)).toHaveLength(0);
+    await act(async () => press(tree, 'Ver todos los movimientos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/transactions',
+      params: { year: 2026, month: 11 },
+    });
+    await act(async () => press(tree, 'Ver presupuesto de Noviembre de 2026'));
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/budgets',
+      params: { year: 2026, month: 11 },
+    });
+    await act(async () => press(tree, 'Ver reportes de este mes'));
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/reports',
+      params: { year: 2026, month: 11 },
+    });
+    await act(async () => press(tree, 'Volver al mes actual'));
+    await settled(() =>
+      expect(client.getQueryState(dashboardKeys.month({ year: 2026, month: 9 }))?.status).toBe('success'),
+    );
+    expect(textContent(tree.toJSON()).toLowerCase()).toContain('septiembre de 2026');
+    await act(async () => press(tree, 'Saldos por cuenta'));
+    await act(async () => press(tree, 'Tu plan y avances'));
+    expect(textContent(tree.toJSON())).toContain('Cuenta mes 9');
+    expect(textContent(tree.toJSON())).toContain('9% utilizado');
+    expect(textContent(tree.toJSON())).toContain('Movimiento mes 9');
+    expect(textContent(tree.toJSON())).not.toContain('Cuenta mes 11');
+    expect(
+      tree.root.findAllByType(ProgressSignal).find((node) => node.props.signal.kind === 'flow')?.props.signal
+        .destination.params,
+    ).toEqual({ year: 2026, month: 9 });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('refreshes both account details and their current balances when pulling Accounts to refresh', async () => {
+  const tree = await render(<AccountsScreen />);
+  await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+  expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+  dashboard = { ...dashboard, accounts: [{ ...account, balance: 220000 }] };
+  mocks.get.mockClear();
+  const refresh = tree.root.find((node) => (node.type as unknown) === 'ScrollView').props.refreshControl;
+  await act(async () => refresh.props.onRefresh());
+  await settled(() => expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(220000, 'COP', false)));
+  expect(mocks.get.mock.calls.map(([url]) => url)).toEqual(
+    expect.arrayContaining(['/accounts', '/dashboard/month']),
+  );
+});
+
+it('opens account detail read-only, edits only name and cancels without a request', async () => {
+  const tree = await render(<AccountDetail />);
+  await settled(() => expect(client.getQueryData(['accounts', 'list'])).toBeDefined());
+  expect(input(tree, 'Nombre')).toBeUndefined();
+  expect(textContent(tree.toJSON())).toContain('TipoEfectivo');
+  expect(textContent(tree.toJSON())).not.toContain('CASH');
+  await act(async () => press(tree, 'Editar cuenta'));
+  expect(input(tree, 'Nombre').props.value).toBe('Principal');
+  expect(input(tree, 'Tipo')).toBeUndefined();
+  expect(input(tree, 'Moneda')).toBeUndefined();
+  await act(async () => input(tree, 'Nombre').props.onChangeText('Draft'));
+  await act(async () => press(tree, 'Cancelar'));
+  expect(input(tree, 'Nombre').props.value).toBe('Draft');
+  await act(async () =>
+    mocks.alert.mock.calls
+      .at(-1)![2]
+      .find((button: { text: string }) => button.text === 'Descartar')
+      .onPress(),
+  );
+  expect(input(tree, 'Nombre')).toBeUndefined();
+  expect(mocks.patch).not.toHaveBeenCalled();
+  await act(async () => press(tree, 'Editar cuenta'));
+  expect(input(tree, 'Nombre').props.value).toBe('Principal');
+});
+
+it('checks opening balance for the selected account instead of another account', async () => {
+  const second = { ...account, id: 2, name: 'Nueva cuenta', version: 2 };
+  mocks.params = { id: '2' };
+  mocks.get.mockImplementation(
+    async (url: string, options?: { params?: { accountId?: number; type?: string } }) => {
+      if (url === '/accounts') return { data: [account, second] };
+      if (url === '/dashboard/month') return { data: dashboard };
+      if (url === '/transactions')
+        return {
+          data: {
+            totalElements:
+              options?.params?.accountId === 1 && options?.params?.type === 'OPENING_BALANCE' ? 1 : 0,
+          },
+        };
+      throw new Error(`Unexpected GET ${url}`);
+    },
+  );
+  const tree = await render(<AccountDetail />);
+  await settled(() => expect(textContent(tree.toJSON())).toContain('Registra con cuánto empiezas'));
+  expect(mocks.get).toHaveBeenCalledWith('/transactions', {
+    params: expect.objectContaining({ accountId: 2, type: 'OPENING_BALANCE' }),
+  });
+});
+
+it.each([
+  ['gasto', NewExpenseScreen, 'Monto gastado', 'Registrar gasto', '/expenses'],
+  ['ingreso', NewIncomeScreen, 'Monto recibido', 'Registrar ingreso', '/incomes'],
+] as const)(
+  'requires a category before registering a %s',
+  async (_kind, Screen, amountLabel, submitLabel, endpoint) => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/categories') return { data: [{ id: 7, name: 'Prueba', active: true }] };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    mocks.post.mockResolvedValue({ data: { id: 21 } });
+    const tree = await render(<Screen />);
+    await settled(() => expect(tree.root.findAllByType(ModalSelector).length).toBe(2));
+    await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Cuenta')!
+        .props.onSelect(1),
+    );
+    await act(async () => press(tree, submitLabel));
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(textContent(tree.toJSON())).toContain('Elige una categoría');
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Categoría')!
+        .props.onSelect(7),
+    );
+    const kind = endpoint === '/expenses' ? 'expense' : 'income';
+    await settled(() => expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(true));
+    await act(async () => press(tree, submitLabel));
+    await settled(() =>
+      expect(mocks.post).toHaveBeenCalledWith(
+        endpoint,
+        expect.objectContaining({ accountId: 1, categoryId: 7, amount: 10000 }),
+      ),
+    );
+    await settled(() => expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(false));
+  },
+);
+
+it.each([
+  ['gasto', NewExpenseScreen, 'Monto gastado', 'Registrar gasto', 'expense'],
+  ['ingreso', NewIncomeScreen, 'Monto recibido', 'Registrar ingreso', 'income'],
+] as const)(
+  'keeps a %s draft after a failed confirmation',
+  async (_label, Screen, amountLabel, submitLabel, kind) => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/categories') return { data: [{ id: 7, name: 'Prueba', active: true }] };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    mocks.post.mockRejectedValue(new Error('offline'));
+    const tree = await render(<Screen />);
+    await settled(() => expect(tree.root.findAllByType(ModalSelector)).toHaveLength(2));
+    await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Cuenta')!
+        .props.onSelect(1),
+    );
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Categoría')!
+        .props.onSelect(7),
+    );
+    await act(async () => press(tree, submitLabel));
+    await settled(() => expect(mocks.post).toHaveBeenCalledTimes(1));
+    expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(true);
+    expect(input(tree, amountLabel).props.value).toBe('10000');
+  },
+);
+
+import BudgetsScreen from '@/app/(app)/budgets';
+import BudgetDetail from '@/app/(app)/budget-detail';
+it.each([true, false])(
+  'uses a compact budget creation action only with existing content: %s',
+  async (existing) => {
+    mocks.get.mockResolvedValue({
+      data: existing
+        ? [
+            {
+              id: 7,
+              categoryName: 'Comida',
+              limitAmount: 111111,
+              spentAmount: 12000,
+              remainingAmount: 99111,
+              percentageUsed: 10.8,
+              status: 'OK',
+            },
+          ]
+        : [],
+    });
+    const tree = await render(<BudgetsScreen />);
+    await settled(() => expect(mocks.get).toHaveBeenCalled());
+    const action = tree.root
+      .findAllByType(Button)
+      .find((n) => n.props.accessibilityLabel === 'Crear presupuesto');
+    if (existing) expect(action?.props.children).toBe('+ Nuevo');
+    else expect(textContent(tree.toJSON())).toContain('Crear presupuesto');
+    expect(textContent(tree.toJSON())).toContain('Planea cuánto quieres gastar');
+    await act(async () => press(tree, 'Crear presupuesto'));
+    expect(mocks.push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(app)/budget-form' }));
+  },
+);
+it('loads current budget amounts and edit identity from the server', async () => {
+  mocks.params = {
+    id: '7',
+    version: '3',
+    limit: '111111',
+    spent: '12000',
+    remaining: '99111',
+    percentage: '10.8',
+    category: 'Comida',
+    categoryId: '4',
+    year: '2026',
+    month: '9',
+    status: 'OK',
+  };
+  mocks.get.mockResolvedValue({
+    data: [
+      {
+        id: 7,
+        version: 3,
+        limitAmount: 111111,
+        spentAmount: 12000,
+        remainingAmount: 99111,
+        percentageUsed: 10.8,
+        categoryName: 'Comida',
+        categoryId: 4,
+        status: 'OK',
+      },
+    ],
+  });
+  const tree = await render(<BudgetDetail />);
+  await settled(() => expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(12000, 'COP', false)));
+  const copy = textContent(tree.toJSON());
+  for (const amount of [111111, 12000, 99111])
+    expect(copy).toContain(formatPrivateMoney(amount, 'COP', false));
+  expect(copy).toContain('10,8% usado');
+  expect(copy).toContain('En control');
+  await act(async () => press(tree, 'Editar límite'));
+  expect(mocks.push).toHaveBeenCalledWith(
+    expect.objectContaining({
+      pathname: '/(app)/budget-form',
+      params: expect.objectContaining({ id: '7', version: '3', limit: '111111', categoryId: '4' }),
+    }),
+  );
+});
+
+describe('Para ti on Home', () => {
+  const useful = {
+    accounts: [account],
+    totalIncome: 1000,
+    totalExpense: 100,
+    netCashFlow: 900,
+    savings: [{ id: 1, name: 'Moto', progressPercent: 81 }],
+  };
+  it('hides section for a new user without fetching decorative data', async () => {
+    const tree = await render(<FinancialProgressSection dashboard={{}} period={period} />);
+    expect(tree.toJSON()).toBeNull();
+    expect(mocks.get).not.toHaveBeenCalled();
+  });
+  it('hides amounts from visual and accessible content while keeping percentages', async () => {
+    mocks.hidden = true;
+    const tree = await render(<FinancialProgressSection dashboard={useful} period={period} />);
+    expect(textContent(tree.toJSON())).toContain('Este mes llevas flujo positivo');
+    expect(JSON.stringify(tree.toJSON())).not.toContain('900');
+    expect(JSON.stringify(tree.toJSON())).toContain('Importe oculto');
+    const savings = await render(
+      <FinancialProgressSection dashboard={{ savings: useful.savings }} period={period} />,
+    );
+    expect(textContent(savings.toJSON())).toContain('Moto está al 81%');
+    expect(JSON.stringify(savings.toJSON())).toContain('81 por ciento completada');
+  });
+  it('shows backend amount when visible and navigates using real signal targets', async () => {
+    const tree = await render(<FinancialProgressSection dashboard={useful} period={period} />);
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(900, 'COP', false));
+    const buttons = tree.root.findAll((node) => (node.type as unknown) === 'Pressable');
+    await act(async () => buttons[0]!.props.onPress());
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/transactions', params: period });
+    expect(buttons).toHaveLength(1);
+    const savings = await render(
+      <FinancialProgressSection dashboard={{ savings: useful.savings }} period={period} />,
+    );
+    await act(async () =>
+      savings.root.findAll((node) => (node.type as unknown) === 'Pressable')[0]!.props.onPress(),
+    );
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/saving-detail', params: { id: 1 } });
+    expect(buttons.every((node) => node.props.accessibilityRole === 'button')).toBe(true);
+  });
+  it('never assigns a button role to a signal without a safe destination', async () => {
+    const signal = financialProgress({ dashboard: { savings: [{ progressPercent: 25 }] }, period })[0];
+    const tree = await render(<ProgressSignal signal={signal!} width={260} />);
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button')).toHaveLength(0);
+    expect(JSON.stringify(tree.toJSON())).toContain('25 por ciento');
+  });
+  it('reacts to cached credits and invalidation without initiating requests', async () => {
+    const tree = await render(<FinancialProgressSection dashboard={{}} period={period} />);
+    await act(async () => {
+      client.setQueryData(secondaryKeys.credits, [
+        { id: 2, name: 'Casa', status: 'ACTIVE', principal: 1000, paidPrincipal: 270 },
+      ]);
+    });
+    expect(textContent(tree.toJSON())).toContain('Has avanzado 27% en Casa');
+    const button = tree.root.findAll((node) => (node.type as unknown) === 'Pressable')[0];
+    await act(async () => button!.props.onPress());
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/credit-detail', params: { id: 2 } });
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: secondaryKeys.credits });
+    });
+    expect(tree.toJSON()).toBeNull();
+    expect(mocks.get).not.toHaveBeenCalled();
+  });
+  it('opens budgets in the selected month', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    mocks.get.mockResolvedValue({ data: [] });
+    await render(<BudgetsScreen />);
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith(
+        '/budgets',
+        expect.objectContaining({ params: { year: 2026, month: 2 } }),
+      ),
+    );
+  });
+  it('keeps the budget month chosen by the user when returning to the screen', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    mocks.get.mockResolvedValue({ data: [] });
+    const tree = await render(<BudgetsScreen />);
+    await act(async () => press(tree, 'Mes siguiente'));
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith(
+        '/budgets',
+        expect.objectContaining({ params: { year: 2026, month: 3 } }),
+      ),
+    );
+    mocks.focusVersion += 1;
+    await act(async () =>
+      tree.update(
+        <QueryClientProvider client={client}>
+          <BudgetsScreen />
+        </QueryClientProvider>,
+      ),
+    );
+    expect(textContent(tree.toJSON())).toContain('Mar de 2026');
+  });
+  it('keeps applied movement filters on return and preserves cached history after a failed refresh', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation(async (url, options) =>
+      url === '/transactions'
+        ? {
+            data: {
+              content: [
+                {
+                  id: 8,
+                  type: 'EXPENSE',
+                  amount: 25,
+                  currency: 'COP',
+                  description: 'Compra de prueba',
+                  date: '2026-02-18',
+                },
+              ],
+              last: true,
+            },
+          }
+        : originalGet(url, options),
+    );
+    const tree = await render(<TransactionsScreen />);
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Compra de prueba'));
+    await act(async () =>
+      tree.root
+        .findByType(TransactionFiltersModal)
+        .props.onApply({ year: 2026, month: 2, type: 'EXPENSE', accountId: 1 }),
+    );
+    await settled(() => expect(tree.root.findAllByType(TransactionFiltersModal)).toHaveLength(1));
+    mocks.focusVersion += 1;
+    await act(async () =>
+      tree.update(
+        <QueryClientProvider client={client}>
+          <TransactionsScreen />
+        </QueryClientProvider>,
+      ),
+    );
+    expect(tree.root.findByType(TransactionFiltersModal).props.filters).toEqual({
+      year: 2026,
+      month: 2,
+      type: 'EXPENSE',
+      accountId: 1,
+    });
+    mocks.get.mockRejectedValue(new Error('Offline'));
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['transactions'] });
+    });
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Sigues viendo el historial guardado'));
+    expect(textContent(tree.toJSON())).toContain('Compra de prueba');
+  });
+  it('searches all pages with the active filters and keeps the input mounted while loading', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    const originalGet = mocks.get.getMockImplementation()!;
+    const request = deferred<{ data: object }>();
+    mocks.get.mockImplementation(async (url, options) => {
+      if (url !== '/transactions') return originalGet(url, options);
+      if (options.params.q && options.params.page === 0) return request.promise;
+      return {
+        data: {
+          content: [
+            {
+              id: 80 + options.params.page,
+              type: 'EXPENSE',
+              amount: 25,
+              currency: 'COP',
+              description: options.params.q ? 'Mercado segunda página' : 'Compra anterior',
+              date: '2026-02-18',
+            },
+          ],
+          page: options.params.page,
+          last: true,
+        },
+      };
+    });
+    const tree = await render(<TransactionsScreen />);
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Compra anterior'));
+    await act(async () =>
+      tree.root.findByType(TransactionFiltersModal).props.onApply({
+        year: 2026,
+        month: 2,
+        type: 'EXPENSE',
+        accountId: 1,
+      }),
+    );
+    const input = tree.root.findByType(Input);
+    await act(async () => input.props.onChangeText('  mercado  '));
+    expect(tree.root.findByType(Input)).toBe(input);
+    expect(textContent(tree.toJSON())).not.toContain('Compra anterior');
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    });
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith('/transactions', {
+        params: expect.objectContaining({
+          q: 'mercado',
+          year: 2026,
+          month: 2,
+          type: 'EXPENSE',
+          accountId: 1,
+          page: 0,
+        }),
+      }),
+    );
+    expect(tree.root.findByType(Input)).toBe(input);
+    await act(async () =>
+      request.resolve({
+        data: {
+          content: [
+            {
+              id: 79,
+              type: 'EXPENSE',
+              amount: 25,
+              currency: 'COP',
+              description: 'Mercado primera página',
+              date: '2026-02-18',
+            },
+          ],
+          totalElements: 2,
+          page: 0,
+          last: false,
+        },
+      }),
+    );
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Mercado primera página'));
+    await act(async () => press(tree, 'Cargar más movimientos'));
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Mercado segunda página'));
+    expect(mocks.get).toHaveBeenCalledWith('/transactions', {
+      params: expect.objectContaining({ q: 'mercado', accountId: 1, page: 1 }),
+    });
+    await act(async () => press(tree, 'Borrar búsqueda'));
+    expect(tree.root.findByType(Input).props.value).toBe('');
+    expect(tree.root.findByType(TransactionFiltersModal).props.filters).toEqual({
+      year: 2026,
+      month: 2,
+      type: 'EXPENSE',
+      accountId: 1,
+    });
+  });
+  it('lets the user replace a failed search without losing the search field', async () => {
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation(async (url, options) => {
+      if (url !== '/transactions') return originalGet(url, options);
+      if (options.params.q === 'fallo') throw new Error('Offline');
+      return { data: { content: [], last: true, totalElements: 0 } };
+    });
+    const tree = await render(<TransactionsScreen />);
+    await act(async () => tree.root.findByType(Input).props.onChangeText('fallo'));
+    await act(async () => tree.root.findByType(Input).props.onSubmitEditing());
+    await settled(() => expect(client.getQueryState(['transactions', { q: 'fallo' }])?.status).toBe('error'));
+    expect(tree.root.findByType(Input).props.value).toBe('fallo');
+    expect(textContent(tree.toJSON())).not.toContain('Resultados · 0');
+    await act(async () => tree.root.findByType(Input).props.onChangeText('otra búsqueda'));
+    await act(async () => tree.root.findByType(Input).props.onSubmitEditing());
+    await settled(() => expect(textContent(tree.toJSON())).toContain('No encontramos coincidencias.'));
+    expect(tree.root.findByType(Input).props.value).toBe('otra búsqueda');
+  });
+  it('opens movements in the selected month and accepts a new period on the retained screen', async () => {
+    mocks.params = { year: '2026', month: '2' };
+    const tree = await render(<TransactionsScreen />);
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith(
+        '/transactions',
+        expect.objectContaining({ params: expect.objectContaining({ year: 2026, month: 2 }) }),
+      ),
+    );
+    mocks.params = { year: '2026', month: '3' };
+    await act(async () =>
+      tree.update(
+        <QueryClientProvider client={client}>
+          <TransactionsScreen />
+        </QueryClientProvider>,
+      ),
+    );
+    await settled(() =>
+      expect(mocks.get).toHaveBeenCalledWith(
+        '/transactions',
+        expect.objectContaining({ params: expect.objectContaining({ year: 2026, month: 3 }) }),
+      ),
+    );
+  });
+});
+
+describe('Home visual hub', () => {
+  it('personalizes shortcuts and highlights without hiding balances or alerts, then restores general view', async () => {
+    dashboard = {
+      ...dashboard,
+      assetsByCurrency: { COP: 110000 },
+      liabilitiesByCurrency: { COP: 400000 },
+      alerts: [{ code: 'CREDIT_BEHIND', data: { creditId: 3 } }],
+      credits: [{ id: 3, name: 'Casa', status: 'LATE' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(homePriorityQueryKey(10))?.status).toBe('success'));
+    await act(async () => press(tree, 'Personalizar Inicio'));
+    let picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    expect(picker.props.subtitle).toContain('este dispositivo');
+    await act(async () => picker.props.onClose());
+    expect(stored.has(homePriorityKey(10))).toBe(false);
+    await act(async () => press(tree, 'Personalizar Inicio'));
+    picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    const debtOption = picker
+      .findAll((node) => (node.type as unknown) === 'Pressable')
+      .find((node) => textContent(node) === homePriorities[2].label + homePriorities[2].subtitle)!;
+    await act(async () => debtOption.props.onPress({ stopPropagation: vi.fn() }));
+    await settled(() => expect(client.getQueryData(homePriorityQueryKey(10))).toBe('debt'));
+    expect(stored.get(homePriorityKey(10))).toBe('debt');
+    expect(tree.root.findByType(HomeShortcuts).props.priority).toBe('debt');
+    const shortcuts = tree.root
+      .findByType(HomeShortcuts)
+      .findAll((node) => (node.type as unknown) === 'Pressable');
+    expect(shortcuts[0]?.props.accessibilityLabel).toBe('Abrir créditos y préstamos');
+    expect(shortcuts).toHaveLength(4);
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Tienes un aviso por revisar');
+    expect(content).toContain(formatPrivateMoney(110000, 'COP', false));
+    expect(content).toContain(formatPrivateMoney(400000, 'COP', false));
+    expect(tree.root.findAllByType(ModalSelector).every((node) => !node.props.visible)).toBe(true);
+    await act(async () => press(tree, 'Revisar este crédito'));
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/credit-detail', params: { id: 3 } });
+    await act(async () => press(tree, 'Personalizar Inicio'));
+    picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
+    await act(async () => {
+      picker.props.onSelect(0);
+      picker.props.onClose();
+    });
+    await settled(() => expect(tree.root.findByType(HomePriorityCard).props.priority).toBe('general'));
+    expect(tree.root.findByType(HomeShortcuts).props.priority).toBe('general');
+    expect(textContent(tree.toJSON())).not.toContain('Revisar este crédito');
+  });
+
+  it('includes credit alerts from the complete feed and updates when they are dismissed', async () => {
+    dashboard = { ...dashboard, alerts: [{ code: 'ALL_GOOD' }] };
+    const originalGet = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation((url: string, options?: unknown) =>
+      url === '/alerts'
+        ? Promise.resolve({
+            data: [
+              { code: 'HIGH_INTEREST', data: { creditId: 5 } },
+              { code: 'CREDIT_BEHIND', data: { creditId: 3 } },
+            ],
+          })
+        : originalGet(url, options),
+    );
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(secondaryKeys.alerts)?.status).toBe('success'));
+    expect(textContent(tree.toJSON())).toContain('2 avisos por revisar');
+    expect(textContent(tree.toJSON())).toContain('Pago de crédito pendiente. Ver detalles');
+    await act(async () => {
+      client.setQueryData(secondaryKeys.alerts, [{ code: 'ALL_GOOD' }]);
+    });
+    await settled(() => expect(textContent(tree.toJSON())).not.toContain('avisos por revisar'));
+  });
+
+  it('shows current credit capital even when no account has been created', async () => {
+    dashboard = {
+      accounts: [],
+      credits: [{ id: 3, name: 'Casa', status: 'ACTIVE' }],
+      assetsByCurrency: { COP: 0 },
+      liabilitiesByCurrency: { COP: 45000000 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Créditos por pagar');
+    expect(content).toContain(formatPrivateMoney(45000000, 'COP', false));
+    expect(content).not.toContain('Tu dinero empieza aquí.');
+    await act(async () => press(tree, 'Ver créditos desde el panorama'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+  });
+
+  it('opens and closes the selected recent movement without leaving Home', async () => {
+    dashboard = {
+      ...dashboard,
+      recentTransactions: [
+        {
+          transactionId: 42,
+          type: 'EXPENSE',
+          description: 'Compra del mercado',
+          amount: 68000,
+          currency: 'COP',
+          effectiveDate: '2026-10-12',
+          accountName: 'Principal',
+          categoryName: 'Alimentación',
+        },
+      ],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    await act(async () => tree.root.findByType(TransactionRow).props.onPress());
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('IMPORTE');
+    expect(content).toContain('12 de octubre de 2026');
+    expect(content).toContain('DescripciónCompra del mercado');
+    expect(content).toContain('CategoríaAlimentación');
+    expect(mocks.push).not.toHaveBeenCalled();
+    await act(async () => press(tree, 'Cerrar detalle'));
+    expect(textContent(tree.toJSON())).not.toContain('IMPORTE');
+    expect(tree.root.findAllByType(TransactionRow)).toHaveLength(1);
+  });
+
+  it('keeps current balances visible when a different activity month fails', async () => {
+    dashboard = {
+      ...dashboard,
+      assetsByCurrency: { COP: 110000 },
+      liabilitiesByCurrency: { COP: 400000 },
+      totalExpense: 1000,
+      alerts: [{ code: 'ALL_GOOD' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const originalGet = mocks.get.getMockImplementation()!;
+    const request = deferred<{ data: DashboardMonth }>();
+    mocks.get.mockImplementation((url: string, options?: { params?: { month: number } }) =>
+      url === '/dashboard/month' && options?.params?.month !== period.month
+        ? request.promise
+        : originalGet(url, options),
+    );
+    await act(async () => press(tree, 'Mes siguiente'));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(110000, 'COP', false));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(400000, 'COP', false));
+    await act(async () => request.reject(new Error('Offline')));
+    await settled(() => expect(textContent(tree.toJSON())).toContain('No pudimos cargar este mes'));
+    expect(textContent(tree.toJSON())).toContain(formatPrivateMoney(400000, 'COP', false));
+    expect(textContent(tree.toJSON())).not.toContain('aviso por revisar');
+    await act(async () => press(tree, 'Volver al mes actual'));
+    expect(textContent(tree.toJSON())).not.toContain('No pudimos cargar este mes');
+    expect(textContent(tree.toJSON())).toContain('Balance del mes');
+  });
+
+  it('shows account money and credit capital separately without leading with negative net worth', async () => {
+    dashboard = {
+      ...dashboard,
+      accounts: [account, { ...account, id: 2, currency: 'USD' }],
+      assetsByCurrency: { COP: 3013778, USD: 0 },
+      liabilitiesByCurrency: { COP: 91303485.93, USD: 0 },
+      overdueByCurrency: { COP: 3580111.6, USD: 0 },
+      netWorthByCurrency: { COP: -88289707.93, USD: 0 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Dinero en tus cuentas');
+    expect(content).toContain(formatPrivateMoney(3013778, 'COP', false));
+    expect(content).toContain('Créditos por pagar');
+    expect(content).toContain(formatPrivateMoney(91303485.93, 'COP', false));
+    expect(content).toContain('Cuotas vencidas estimadas');
+    expect(content).toContain(formatPrivateMoney(3580111.6, 'COP', false));
+    expect(content).not.toContain(formatPrivateMoney(-88289707.93, 'COP', false));
+    expect(content).not.toContain('Balance registrado');
+    expect(content.match(/Cuotas vencidas estimadas/g)).toHaveLength(1);
+    expect(content).not.toContain('Sin saldo ni capital pendiente en USD');
+    await act(async () => press(tree, 'Saldos en USD'));
+    expect(textContent(tree.toJSON())).toContain('Sin saldo ni capital pendiente en USD');
+    await act(async () => press(tree, 'Saldos en COP'));
+    await act(async () => press(tree, 'Ver cuentas desde el panorama'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/accounts');
+    await act(async () => press(tree, 'Ver créditos desde el panorama'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+    await act(async () => press(tree, 'Revisar cuotas vencidas en créditos'));
+    expect(mocks.push).toHaveBeenLastCalledWith('/(app)/credits');
+    await act(async () => press(tree, 'Cómo leer el panorama financiero'));
+    expect(textContent(tree.toJSON())).toContain('se muestran separados, por moneda');
+  });
+
+  it('does not reveal a zero-balance state while amounts are hidden', async () => {
+    mocks.hidden = true;
+    dashboard = {
+      ...dashboard,
+      assetsByCurrency: { COP: 0 },
+      liabilitiesByCurrency: { COP: 0 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).not.toContain('Sin saldo ni capital pendiente');
+    expect(content).toContain('••••••');
+  });
+
+  it('orders the Home sections, caps previews and presents one full-width insight without a carousel', async () => {
+    dashboard = {
+      accounts: Array.from({ length: 5 }, (_, i) => ({ ...account, id: i + 1 })),
+      totalIncome: 1000,
+      totalExpense: 100,
+      netCashFlow: 900,
+      budgets: { overallPercentage: 38, items: [{ status: 'OK', ...period }] },
+      savings: [{ id: 1, progressPercent: 40 }],
+      recentTransactions: Array.from({ length: 5 }, (_, i) => ({
+        transactionId: i + 1,
+        amount: 10,
+        type: 'EXPENSE',
+        currency: 'COP',
+        description: `Reciente ${i}`,
+      })),
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    expect(tree.root.findAllByType(HomeModules)).toHaveLength(0);
+    expect(tree.root.findAllByType(HomeAccountPreview)).toHaveLength(0);
+    await act(async () => press(tree, 'Tu plan y avances'));
+    await act(async () => press(tree, 'Saldos por cuenta'));
+    expect(
+      tree.root.findByType(HomeModules).findAll((node) => (node.type as unknown) === 'Pressable'),
+    ).toHaveLength(2);
+    expect(tree.root.findAllByType(ProgressSignal)).toHaveLength(1);
+    expect(tree.root.findAllByType(HomeAccountPreview)).toHaveLength(3);
+    expect(tree.root.findAllByType(TransactionRow)).toHaveLength(3);
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'ScrollView' && node.props.horizontal),
+    ).toHaveLength(0);
+    const content = textContent(tree.toJSON());
+    const titles = [
+      'Tus saldos de hoy',
+      'Balance del mes',
+      'Tu plan',
+      'Para ti',
+      'Mis cuentas',
+      'Últimos movimientos',
+    ];
+    const positions = titles.map((title) => content.indexOf(title));
+    expect(positions.every((value) => value >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    await act(async () => press(tree, 'Ver todos los movimientos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/transactions', params: period });
+  });
+  it('promotes budgets, savings and the complete alert feed from the existing APIs', async () => {
+    dashboard = {
+      ...dashboard,
+      savings: [{ id: 2, name: 'Moto', progressPercent: 70 }],
+      credits: [
+        { id: 3, name: 'Casa', status: 'ACTIVE' },
+        { id: 4, status: 'PAID' },
+      ],
+      budgets: {
+        overallPercentage: 38,
+        items: [{ id: 1, categoryName: 'Comida', percentageUsed: 38, ...period }],
+      },
+      alerts: [{ code: 'ALL_GOOD' }, { code: 'BUDGET_WARNING' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    expect(textContent(tree.toJSON())).toContain('Tu plan');
+    await act(async () => press(tree, 'Tu plan y avances'));
+    expect(textContent(tree.toJSON())).toContain('38% utilizado');
+    expect(textContent(tree.toJSON())).toContain('Tienes un aviso por revisar');
+    expect(textContent(tree.toJSON()).indexOf('Tienes un aviso por revisar')).toBeLessThan(
+      textContent(tree.toJSON()).indexOf('Tus saldos de hoy'),
+    );
+    for (const [label, target] of [
+      ['Ver ahorros', '/(app)/savings'],
+      ['Abrir créditos y préstamos', '/(app)/credits'],
+      ['Ver alertas', '/(app)/alerts'],
+    ] as const) {
+      await act(async () => press(tree, label));
+      expect(mocks.push).toHaveBeenLastCalledWith(target);
+    }
+    await act(async () => press(tree, 'Ver presupuestos'));
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/budgets', params: period });
+    expect(
+      mocks.get.mock.calls.every(([url]) =>
+        [
+          '/dashboard/month',
+          '/accounts',
+          '/transactions',
+          '/me',
+          '/alerts',
+          '/recurrences/upcoming',
+        ].includes(url),
+      ),
+    ).toBe(true);
+  });
+  it('gives a new user one account action and no false financial summary', async () => {
+    dashboard = {
+      accounts: [],
+      budgets: { items: [] },
+      savings: [],
+      credits: [],
+      alerts: [{ code: 'ALL_GOOD' }],
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Tu dinero empieza aquí.');
+    expect(content).toContain('Crear mi primera cuenta');
+    expect(content).toContain('Configura tus finanzas');
+    expect(content).not.toContain('Tus saldos de hoy');
+    expect(content).not.toContain('Este mes');
+    expect(content).not.toContain('Tu plan');
+    expect(content).not.toContain('Para ti');
+    await act(async () => press(tree, 'Crear mi primera cuenta'));
+    expect(mocks.push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/(app)/account-form' }));
+  });
+  it('invites the first movement without showing zero monthly cards', async () => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/dashboard/month') return { data: dashboard };
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+      if (url === '/transactions') return { data: { totalElements: 0 } };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    const tree = await render(<HomeScreen />);
+    await settled(() =>
+      expect(client.getQueryData(['onboarding', 'ordinary-movement-exists', 'INCOME'])).toBeDefined(),
+    );
+    const content = textContent(tree.toJSON());
+    expect(content).toContain('Tus saldos de hoy');
+    expect(content).toContain('Registrar mi primer movimiento');
+    expect(content).toContain('Tu plan');
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'Text' && textContent(node) === 'Ingresos'),
+    ).toHaveLength(0);
+    expect(
+      tree.root.findAll((node) => (node.type as unknown) === 'Text' && textContent(node) === 'Gastos'),
+    ).toHaveLength(0);
+    expect(content).not.toContain('Flujo neto');
+    await act(async () => press(tree, 'Registrar mi primer movimiento'));
+    expect(mocks.quickOpen).toHaveBeenCalledOnce();
+  });
+  it('keeps Home metrics private without hiding module navigation', async () => {
+    mocks.hidden = true;
+    dashboard = {
+      ...dashboard,
+      totalIncome: 928431,
+      totalExpense: 431,
+      netCashFlow: 928000,
+      netWorthByCurrency: { COP: 1234567 },
+      assetsByCurrency: { COP: 1234567 },
+      liabilitiesByCurrency: { COP: 0 },
+    };
+    const tree = await render(<HomeScreen />);
+    await settled(() => expect(client.getQueryState(dashboardKey)?.status).toBe('success'));
+    const content =
+      textContent(tree.toJSON()) +
+      tree.root
+        .findAll((node) => typeof node.props.accessibilityLabel === 'string')
+        .map((node) => node.props.accessibilityLabel)
+        .join(' ');
+    expect(content).not.toMatch(/928[.,]?431|1[.,]?234[.,]?567/);
+    expect(content).toContain('Ver créditos');
+    expect(content).toContain('••••••');
+  });
+});
