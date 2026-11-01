@@ -24,7 +24,7 @@ vi.mock('expo-router', () => ({
 }));
 
 import { AppThemeProvider, useAppTheme } from './theme-provider';
-import { colors, lightPalette, setThemeColors, typography } from './index';
+import { colors, darkPalette, lightPalette, setThemeColors, typography } from './index';
 import { themedStyleSheet } from './themed-styles';
 import { ConfirmationProvider } from '@/feedback/confirmation-provider';
 import { AppAlert } from '@/feedback/app-alert';
@@ -86,7 +86,7 @@ describe('appearance transitions without losing the current task', () => {
     });
     await act(async () => host('ThemeControls').props.setMode('dark'));
     expect(host('FinancialForm').props).toMatchObject({ amount: '123456', busy: true });
-    expect(host('FinancialForm').props.style.backgroundColor).toBe('#11272D');
+    expect(host('FinancialForm').props.style.backgroundColor).toBe(darkPalette.surface);
     expect(host('FinancialForm').props.textStyle.color).toBe('#EAF8F5');
     await act(async () => host('ThemeControls').props.setMode('light'));
     expect(host('FinancialForm').props).toMatchObject({ amount: '123456', busy: true });

@@ -2,7 +2,7 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import { useState } from 'react';
 
 import type { DashboardMonth } from '@/api/dashboard-api';
@@ -13,7 +13,6 @@ import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { MoneyText, MotionPressable } from '@/ui/motion';
 import { Progress } from '@/ui/progress';
 import { BrandSurface } from '@/ui/brand-surface';
-import { HomeCompanion } from './home-brand';
 import { homePlan } from './home-plan';
 
 function money(value: number | undefined, currency: string | undefined, hidden: boolean) {
@@ -83,22 +82,6 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
           !(typeof overdue === 'number' && overdue > 0);
         return (
           <View key={currency ?? 'unavailable'} style={styles.panoramaGroup}>
-            <View style={styles.panoramaHeader}>
-              {currencies.length <= 1 ? (
-                <View style={styles.currencyBadge}>
-                  <Ionicons name="globe-outline" size={15} color={colors.primary} />
-                  <Text style={styles.currencyLabel}>{currency ?? 'Sin moneda'}</Text>
-                </View>
-              ) : null}
-              {accountCount ? (
-                <View style={styles.accountPill}>
-                  <Ionicons name="wallet-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.accountPillText}>
-                    {accountCount} {accountCount === 1 ? 'cuenta' : 'cuentas'}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
             {emptyCurrency ? (
               <LinearGradient colors={[colors.successSoft, colors.surface]} style={styles.emptyCurrency}>
                 <View pointerEvents="none" style={styles.emptyOrb} />
@@ -131,11 +114,12 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                           <Ionicons name="wallet-outline" size={22} color={colors.secondary} />
                         </View>
                         <View style={styles.heroTitles}>
-                          <Text style={styles.heroEyebrow}>SALDO REGISTRADO</Text>
+                          <Text style={styles.heroEyebrow}>
+                            SALDO REGISTRADO · {currency ?? 'Sin moneda'}
+                          </Text>
                           <Text style={styles.heroTitle}>Dinero en tus cuentas</Text>
                         </View>
                       </View>
-                      <HomeCompanion size={44} />
                     </View>
                     <MoneyText
                       adjustsFontSizeToFit
@@ -146,7 +130,9 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                       {money(accountBalance, currency, hidden)}
                     </MoneyText>
                     <View style={styles.heroFooter}>
-                      <Text style={styles.heroCaption}>Saldo actual</Text>
+                      <Text style={styles.heroCaption}>
+                        {accountCount} {accountCount === 1 ? 'cuenta' : 'cuentas'} · Saldo actual
+                      </Text>
                       <View style={styles.heroLink}>
                         <Text style={styles.heroLinkText}>Ver cuentas</Text>
                         <Ionicons name="arrow-forward" size={15} color={colors.secondary} />
@@ -162,7 +148,6 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                   style={styles.debtPressable}
                 >
                   <LinearGradient colors={[colors.surface, colors.creditSoft]} style={styles.debtSection}>
-                    <View pointerEvents="none" style={styles.debtOrb} />
                     <View style={styles.debtHeading}>
                       <View style={styles.debtIcon}>
                         <Ionicons name="document-text-outline" size={23} color={colors.credit} />
@@ -174,17 +159,12 @@ export function FinancialPanorama({ data }: { data: DashboardMonth }) {
                             ? 'No tienes capital pendiente registrado'
                             : 'Lo que falta del monto prestado'}
                         </Text>
+                        <MoneyText style={styles.debtAmount}>
+                          {money(debtBalance, currency, hidden)}
+                        </MoneyText>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={colors.credit} />
                     </View>
-                    <MoneyText
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                      numberOfLines={1}
-                      style={styles.debtAmount}
-                    >
-                      {money(debtBalance, currency, hidden)}
-                    </MoneyText>
                   </LinearGradient>
                 </MotionPressable>
                 {typeof overdue === 'number' && Number.isFinite(overdue) && overdue > 0 ? (
@@ -244,6 +224,8 @@ export function HomeMetrics({
   period: DashboardPeriod;
 }) {
   const { hidden } = usePrivacy();
+  const { width, fontScale } = useWindowDimensions();
+  const stacked = width / fontScale < 360;
   const flow = data.netCashFlow ?? data.balance;
   const budgetPercent = homePlan(data, period).budgetPercent;
   const metrics = [
@@ -281,21 +263,14 @@ export function HomeMetrics({
         <Text style={styles.monthCurrency}>{currency}</Text>
       </View>
       <LinearGradient colors={[colors.surface, colors.infoSoft]} style={styles.monthCard}>
-        <View style={styles.metrics}>
+        <View style={[styles.metrics, stacked && { flexDirection: 'column' }]}>
           {metrics.map((metric) => (
             <View key={metric.label} style={[styles.metric, { backgroundColor: metric.surface }]}>
               <View style={[styles.metricIcon, { backgroundColor: metric.ink }]}>
                 <Ionicons name={metric.icon} size={15} color={colors.background} />
               </View>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.metricLabel}>
-                {metric.label}
-              </Text>
-              <MoneyText
-                adjustsFontSizeToFit
-                minimumFontScale={0.55}
-                numberOfLines={1}
-                style={[styles.metricAmount, { color: metric.ink }]}
-              >
+              <Text style={styles.metricLabel}>{metric.label}</Text>
+              <MoneyText adjustsFontSizeToFit style={[styles.metricAmount, { color: metric.ink }]}>
                 {metric.prefix}
                 {money(metric.value, currency, hidden)}
               </MoneyText>
@@ -326,7 +301,7 @@ export function HomeMetrics({
 }
 
 const styles = themedStyleSheet(() => ({
-  section: { gap: spacing.sm, marginTop: spacing.md },
+  section: { gap: spacing.md },
   sectionIntro: { gap: spacing.xxs },
   sectionHeading: { ...typography.sectionTitle, fontSize: 17, lineHeight: 23 },
   sectionSubtitle: { ...typography.caption, fontSize: 13, lineHeight: 18, color: colors.textSecondary },
@@ -426,7 +401,7 @@ const styles = themedStyleSheet(() => ({
     color: '#A9F4DB',
   },
   heroTitle: { ...typography.label, color: '#FFFFFF', fontWeight: '700' },
-  heroAmount: { ...typography.moneyLarge, fontSize: 30, lineHeight: 38, color: '#FFFFFF' },
+  heroAmount: { ...typography.moneyLarge, fontSize: 32, lineHeight: 42, color: '#FFFFFF' },
   heroFooter: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -442,8 +417,8 @@ const styles = themedStyleSheet(() => ({
   heroLinkText: { ...typography.caption, fontWeight: '700', color: colors.secondary },
   debtPressable: { borderRadius: 22, ...shadows.card },
   debtSection: {
-    borderRadius: 22,
-    padding: spacing.lg,
+    borderRadius: radius.large,
+    padding: spacing.md,
     gap: spacing.sm,
     overflow: 'hidden',
     borderWidth: 1,
@@ -470,7 +445,7 @@ const styles = themedStyleSheet(() => ({
   debtCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
   debtTitle: { ...typography.label, color: colors.credit, fontWeight: '700' },
   debtCaption: { ...typography.caption, color: colors.textSecondary },
-  debtAmount: { ...typography.moneyMedium, fontSize: 25, lineHeight: 32, color: colors.textPrimary },
+  debtAmount: { ...typography.moneyMedium, fontSize: 20, lineHeight: 28, color: colors.textPrimary },
   debtFooter: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -552,12 +527,12 @@ const styles = themedStyleSheet(() => ({
   metricLabel: {
     ...typography.caption,
     color: colors.textPrimary,
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: '600',
     textAlign: 'center',
   },
-  metricAmount: { ...typography.moneySmall, fontSize: 13, lineHeight: 18, textAlign: 'center' },
+  metricAmount: { ...typography.moneySmall, fontSize: 16, lineHeight: 22, textAlign: 'center' },
   budgetFoot: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: spacing.md },
   budgetCaption: {
     flexDirection: 'row',

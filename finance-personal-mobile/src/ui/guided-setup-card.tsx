@@ -43,14 +43,19 @@ export function GuidedSetupCard({
   return (
     <BrandSurface style={[styles.card, allDone && styles.complete]}>
       <View style={styles.header}>
-        <Animated.View style={[{ transform: [{ scale: completionScale }] }]}>
-          <HomeCompanion size={42} />
-        </Animated.View>
+        {!allDone ? (
+          <Animated.View style={[{ transform: [{ scale: completionScale }] }]}>
+            <HomeCompanion size={42} />
+          </Animated.View>
+        ) : null}
         <View style={styles.grow}>
-          <Text accessibilityLiveRegion="polite" style={typography.sectionTitle}>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={allDone ? typography.cardTitle : typography.sectionTitle}
+          >
             {allDone ? '¡Listo! Ya tienes tu base financiera.' : 'Configura tus finanzas'}
           </Text>
-          <Text style={typography.bodySecondary}>
+          <Text style={allDone ? typography.caption : typography.bodySecondary}>
             {allDone
               ? 'Ahora puedes seguir organizando y entendiendo mejor tu dinero.'
               : 'Completa estos pasos para empezar.'}
@@ -80,7 +85,9 @@ export function GuidedSetupCard({
           </View>
         </>
       ) : (
-        <Button onPress={onContinue}>Continuar</Button>
+        <Button variant="secondary" size="compact" onPress={onContinue}>
+          Continuar
+        </Button>
       )}
     </BrandSurface>
   );

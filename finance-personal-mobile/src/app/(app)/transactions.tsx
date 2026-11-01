@@ -84,7 +84,13 @@ export default function TransactionsScreen() {
     </View>
   );
   return (
-    <Screen entry scroll refreshing={transactions.isRefetching} onRefresh={() => void transactions.refetch()}>
+    <Screen
+      entry
+      scroll
+      scrollResetKey={JSON.stringify([filters, searchQuery])}
+      refreshing={transactions.isRefetching}
+      onRefresh={() => void transactions.refetch()}
+    >
       {pageHeader}
       <Button variant="secondary" onPress={() => router.push('/(app)/inbox')}>
         Movimientos detectados

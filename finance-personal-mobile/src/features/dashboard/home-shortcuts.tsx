@@ -6,54 +6,39 @@ import { MotionPressable } from '@/ui/motion';
 import { colors, radius, spacing, typography } from '@/theme';
 import { TourTarget } from '@/ui/tour-target';
 import { currentDashboardPeriod } from './dashboard-period';
-import { priorityShortcuts, type HomePriority } from './home-priority';
+import type { HomePriority } from './home-priority';
+import { homeShortcutOptions } from './shortcut-preferences';
+import { useHomeShortcuts } from './use-home-shortcuts';
 
-export function HomeShortcuts({ priority = 'general' }: { priority?: HomePriority }) {
+export function HomeShortcuts({
+  priority = 'general',
+  userId,
+}: {
+  priority?: HomePriority;
+  userId?: number;
+}) {
   const { width, fontScale } = useWindowDimensions();
   const wrap = width / fontScale < 350;
+  const preferences = useHomeShortcuts(userId, priority);
   return (
     <TourTarget id="home-shortcuts">
+      <View style={styles.heading}>
+        <Text style={typography.cardTitle}>A mano</Text>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel="Configurar accesos rápidos"
+          onPress={() => router.push('/(app)/more')}
+          style={styles.edit}
+        >
+          <Text style={styles.editText}>Personalizar</Text>
+        </MotionPressable>
+      </View>
       <View style={styles.row}>
-        {[
-          {
-            key: 'budgets' as const,
-            title: 'Presupuestos',
-            icon: 'pie-chart-outline',
-            route: '/(app)/budgets',
-            color: colors.expense,
-            soft: colors.expenseSoft,
-          },
-          {
-            key: 'savings' as const,
-            title: 'Metas',
-            icon: 'flag-outline',
-            route: '/(app)/savings',
-            color: colors.success,
-            soft: colors.successSoft,
-          },
-          {
-            key: 'credits' as const,
-            title: 'Créditos',
-            icon: 'card-outline',
-            route: '/(app)/credits',
-            color: colors.lavender,
-            soft: colors.lavenderSoft,
-          },
-          {
-            key: 'reports' as const,
-            title: 'Reportes',
-            icon: 'stats-chart-outline',
-            route: '/(app)/reports',
-            color: colors.info,
-            soft: colors.infoSoft,
-          },
-        ]
-          .sort(
-            (a, b) => priorityShortcuts[priority].indexOf(a.key) - priorityShortcuts[priority].indexOf(b.key),
-          )
-          .map((item, index) => (
+        {preferences.selected
+          .map((key) => homeShortcutOptions.find((item) => item.key === key)!)
+          .map((item) => (
             <MotionPressable
-              key={item.title}
+              key={item.key}
               accessibilityRole="button"
               accessibilityLabel={
                 item.title === 'Créditos' ? 'Abrir créditos y préstamos' : `Abrir ${item.title.toLowerCase()}`
@@ -62,21 +47,13 @@ export function HomeShortcuts({ priority = 'general' }: { priority?: HomePriorit
                 router.push(
                   item.route === '/(app)/budgets' || item.route === '/(app)/reports'
                     ? { pathname: item.route, params: currentDashboardPeriod() }
-                    : (item.route as '/(app)/savings' | '/(app)/credits'),
+                    : item.route,
                 )
               }
-              style={[
-                styles.item,
-                wrap && styles.wrappedItem,
-                priority !== 'general' && index === 0 && styles.featured,
-              ]}
+              style={[styles.item, wrap && styles.wrappedItem]}
             >
-              <View style={[styles.icon, { backgroundColor: item.soft }]}>
-                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={23} color={item.color} />
-              </View>
-              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.9} style={styles.label}>
-                {item.title}
-              </Text>
+              <Ionicons name={item.icon} size={22} color={colors.primary} />
+              <Text style={styles.label}>{item.title}</Text>
             </MotionPressable>
           ))}
       </View>
@@ -84,28 +61,30 @@ export function HomeShortcuts({ priority = 'general' }: { priority?: HomePriorit
   );
 }
 const styles = themedStyleSheet(() => ({
+  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  edit: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  editText: { ...typography.label, color: colors.primary },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   item: {
     flex: 1,
     minWidth: 0,
+    minHeight: 80,
     alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'center',
+    gap: spacing.sm,
     padding: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    borderRadius: radius.large,
+    borderRadius: radius.medium,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
   },
   wrappedItem: { flexBasis: '45%' },
-  featured: { borderColor: colors.success, backgroundColor: colors.primarySoft },
-  icon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   label: {
     ...typography.caption,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
 }));

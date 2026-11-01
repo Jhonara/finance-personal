@@ -54,7 +54,7 @@ export function HomeHeader({
       </View>
       <View style={styles.greeting}>
         <Text accessibilityRole="header" style={styles.greetingTitle}>
-          ¡{greeting}! 👋
+          {greeting}
         </Text>
       </View>
     </View>
@@ -76,16 +76,16 @@ const styles = themedStyleSheet(() => ({
   brandTitle: { ...typography.cardTitle, fontSize: 14, lineHeight: 18 },
   actions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   privacy: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: radius.pill,
     backgroundColor: colors.infoSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profile: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: radius.pill,
     backgroundColor: colors.primaryStrong,
     alignItems: 'center',

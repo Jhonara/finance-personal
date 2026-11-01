@@ -3,6 +3,7 @@ import { MotionPressable, ScreenEntry } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   useMemo,
+  useCallback,
   useRef,
   useState,
   type ComponentProps,
@@ -29,6 +30,8 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { colors, radius, shadows, sizes, spacing, typography } from '@/theme';
 import { useAppTheme } from '@/theme/theme-provider';
 import { formatMoneyInput, isButtonDisabled, preserveMoneyInput } from './presentation';
+import { useScreenScrollPolicy } from './use-screen-scroll-policy';
+import { useReducedMotion } from './use-reduced-motion';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -42,6 +45,7 @@ export function Screen({
   onRefresh,
   entry = false,
   scrollRef: externalScrollRef,
+  scrollResetKey,
 }: PropsWithChildren<{
   scroll?: boolean;
   padded?: boolean;
@@ -51,11 +55,23 @@ export function Screen({
   onRefresh?: () => void;
   entry?: boolean;
   scrollRef?: RefObject<ScrollViewInstance | null>;
+  scrollResetKey?: string;
 }>) {
   const tour = useTour();
   const { palette } = useAppTheme();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const offset = useRef(0);
+  const reducedMotion = useReducedMotion();
+  const scrollToTop = useCallback(
+    (animated: boolean) => {
+      if (scroll) {
+        scrollRef.current?.scrollTo({ y: 0, animated: animated && !reducedMotion });
+        offset.current = 0;
+      }
+    },
+    [scroll, reducedMotion],
+  );
+  useScreenScrollPolicy(scrollToTop, scrollResetKey);
   const scrollContext = useMemo(() => ({ ref: scrollRef, offset }), []);
   const ScrollContainer = keyboard ? KeyboardAwareScrollView : ScrollView;
   const content = scroll ? (
@@ -133,6 +149,7 @@ export function Button({
     <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: blocked, busy: loading }}
       disabled={blocked}
       onPress={onPress}
       style={({ pressed }) => [
@@ -140,7 +157,7 @@ export function Button({
         styles[`button_${variant}`],
         variant === 'primary' && { backgroundColor: palette.primaryStrong },
         variant === 'secondary' && { backgroundColor: palette.primarySoft },
-        variant === 'outline' && { backgroundColor: palette.surface, borderColor: palette.border },
+        variant === 'outline' && { backgroundColor: palette.surface, borderColor: palette.controlBorder },
         variant === 'secondary' && secondaryToneStyles[tone],
         variant === 'outline' && tone === 'danger' && { borderColor: colors.danger },
         size === 'compact' && styles.buttonCompact,
@@ -151,7 +168,7 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : palette.primary}
+          color={variant === 'primary' || variant === 'danger' ? palette.onPrimary : palette.primary}
         />
       ) : (
         <Text
@@ -159,7 +176,7 @@ export function Button({
             typography.button,
             styles.buttonCopy,
             styles[`buttonText_${variant}`],
-            { color: variant === 'primary' || variant === 'danger' ? '#FFFFFF' : palette.primary },
+            { color: variant === 'primary' || variant === 'danger' ? palette.onPrimary : palette.primary },
             variant === 'secondary' && secondaryToneTextStyles[tone],
             (variant === 'outline' || variant === 'ghost') && secondaryToneTextStyles[tone],
           ]}
@@ -235,13 +252,14 @@ export function Input({
           disabled && styles.disabled,
           {
             backgroundColor: focused ? palette.primarySoft : palette.surface,
-            borderColor: error ? palette.danger : focused ? palette.primary : palette.border,
+            borderColor: error ? palette.danger : focused ? palette.primary : palette.controlBorder,
           },
         ]}
       >
         {icon && <Ionicons name={icon} size={sizes.icon} color={palette.textMuted} />}
         <TextInput
           accessibilityLabel={label}
+          accessibilityHint={error ?? helperText}
           editable={!disabled}
           placeholderTextColor={palette.textMuted}
           style={[typography.body, styles.input, { color: palette.textPrimary }, style]}
@@ -261,6 +279,7 @@ export function Input({
             accessibilityRole="button"
             accessibilityLabel={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             onPress={() => setPasswordVisible((visible) => !visible)}
+            style={styles.passwordToggle}
           >
             <Ionicons
               name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
@@ -307,7 +326,7 @@ export function MoneyInput({
           disabled && styles.disabled,
           {
             backgroundColor: focused ? palette.primarySoft : palette.surface,
-            borderColor: error ? palette.danger : focused ? palette.primary : palette.border,
+            borderColor: error ? palette.danger : focused ? palette.primary : palette.controlBorder,
           },
         ]}
       >
@@ -362,6 +381,8 @@ export function SelectField({
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={label}
+        accessibilityValue={{ text: value ?? placeholder }}
+        accessibilityState={{ disabled }}
         disabled={disabled}
         onPress={onPress}
         style={({ pressed }) => [
@@ -369,7 +390,7 @@ export function SelectField({
           styles.select,
           disabled && styles.disabled,
           pressed && styles.pressed,
-          { backgroundColor: palette.surface, borderColor: palette.border },
+          { backgroundColor: palette.surface, borderColor: palette.controlBorder },
         ]}
       >
         <Text
@@ -433,20 +454,20 @@ const styles = themedStyleSheet(() => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  button_primary: { backgroundColor: colors.primaryStrong, borderRadius: radius.pill },
+  button_primary: { backgroundColor: colors.primaryStrong, borderRadius: radius.medium },
   buttonCopy: { textAlign: 'center', flexShrink: 1 },
   selectCopy: { flex: 1, minWidth: 0 },
-  button_secondary: { backgroundColor: colors.primarySoft, borderRadius: radius.pill },
+  button_secondary: { backgroundColor: colors.primarySoft, borderRadius: radius.medium },
   button_outline: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.pill,
+    borderRadius: radius.medium,
   },
   button_ghost: { backgroundColor: 'transparent' },
-  button_danger: { backgroundColor: colors.dangerSolid, borderRadius: radius.pill },
+  button_danger: { backgroundColor: colors.dangerSolid, borderRadius: radius.medium },
   buttonCompact: { minHeight: 44, paddingHorizontal: spacing.lg },
-  buttonPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  buttonPressed: { opacity: 0.88 },
   buttonDisabled: { opacity: 0.48 },
   buttonText_primary: { color: '#FFFFFF' },
   buttonText_secondary: { color: colors.primary },
@@ -463,6 +484,12 @@ const styles = themedStyleSheet(() => ({
   iconPrimary: { backgroundColor: colors.primarySoft },
   pressed: { opacity: 0.7 },
   field: { gap: spacing.sm },
+  passwordToggle: {
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   inputShell: {
     minHeight: sizes.input,
     flexDirection: 'row',

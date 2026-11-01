@@ -2,49 +2,12 @@ import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { useColorScheme } from 'react-native';
-import { colors, lightPalette, setThemeColors } from './index';
+import { colors, darkPalette, lightPalette, setThemeColors } from './index';
 
 const STORAGE_KEY = 'finance-personal.appearance.v1';
 export type AppearanceMode = 'system' | 'light' | 'dark';
 
-const dark = {
-  ...colors,
-  background: '#09191E',
-  surface: '#11272D',
-  surfaceElevated: '#19343B',
-  surfaceSecondary: '#17343A',
-  text: '#EAF8F5',
-  textPrimary: '#EAF8F5',
-  textSecondary: '#B9D1D1',
-  textMuted: '#A2BCBE',
-  border: '#31545A',
-  divider: '#29454A',
-  primary: '#79E6C6',
-  primaryStrong: '#235D61',
-  primaryPressed: '#17464B',
-  primarySoft: '#173D3B',
-  secondarySoft: '#164D40',
-  success: '#64DDB5',
-  info: '#83C9E9',
-  credit: '#83C9E9',
-  warning: '#F1C982',
-  danger: '#F19AA4',
-  expense: '#F19AA4',
-  accent: '#B0A0F0',
-  lavender: '#B0A0F0',
-  accentSoft: '#302C51',
-  successSoft: '#164538',
-  warningSoft: '#493C22',
-  dangerSoft: '#4A2B31',
-  expenseSoft: '#4A2B31',
-  infoSoft: '#183E54',
-  lavenderSoft: '#302C51',
-  creditSoft: '#183E54',
-  coralSoft: '#4A2B31',
-  coralStrong: '#F19AA4',
-  brandMist: '#123D38',
-  brandGlow: 'rgba(121,230,198,0.07)',
-} satisfies Record<keyof typeof colors, string>;
+const dark = darkPalette;
 
 type ThemeValue = {
   mode: AppearanceMode;

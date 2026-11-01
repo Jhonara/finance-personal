@@ -1400,7 +1400,10 @@ describe('Home visual hub', () => {
     expect(tree.root.findByType(HomeShortcuts).props.priority).toBe('debt');
     const shortcuts = tree.root
       .findByType(HomeShortcuts)
-      .findAll((node) => (node.type as unknown) === 'Pressable');
+      .findAll(
+        (node) =>
+          (node.type as unknown) === 'Pressable' && node.props.accessibilityLabel?.startsWith('Abrir '),
+      );
     expect(shortcuts[0]?.props.accessibilityLabel).toBe('Abrir créditos y préstamos');
     expect(shortcuts).toHaveLength(4);
     const content = textContent(tree.toJSON());
@@ -1635,7 +1638,7 @@ describe('Home visual hub', () => {
     await act(async () => press(tree, 'Tu plan y avances'));
     expect(textContent(tree.toJSON())).toContain('38% utilizado');
     expect(textContent(tree.toJSON())).toContain('Tienes un aviso por revisar');
-    expect(textContent(tree.toJSON()).indexOf('Tienes un aviso por revisar')).toBeLessThan(
+    expect(textContent(tree.toJSON()).indexOf('Tienes un aviso por revisar')).toBeGreaterThan(
       textContent(tree.toJSON()).indexOf('Tus saldos de hoy'),
     );
     for (const [label, target] of [

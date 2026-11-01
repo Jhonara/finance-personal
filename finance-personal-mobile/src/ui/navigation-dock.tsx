@@ -12,12 +12,15 @@ import { CenterActionButton } from './center-action';
 import { useReducedMotion } from './use-reduced-motion';
 import { dockIndex, dockItems } from './navigation-model';
 import { requestFormExit } from '@/features/forms/use-unsaved-form';
+import { useTabScrollToTop } from './scroll-policy';
 
 type DockProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 export function NavigationDock({ state, descriptors, emitter, navigateToTab }: DockProps) {
   const { palette } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, fontScale = 1 } = useWindowDimensions();
+  const scrollToTop = useTabScrollToTop();
+  const barHeight = Math.max(74, 54 + Math.min(fontScale, 2) * 20);
   const [keyboard, setKeyboard] = useState(false);
   const [barWidth, setBarWidth] = useState(width - 24);
   const reduced = useReducedMotion();
@@ -51,9 +54,15 @@ export function NavigationDock({ state, descriptors, emitter, navigateToTab }: D
         backgroundColor: palette.background,
       }}
     >
-      <View onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)} style={styles.bar}>
+      <View
+        onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
+        style={[styles.bar, { height: barHeight }]}
+      >
         {selected >= 0 ? (
-          <Animated.View pointerEvents="none" style={[styles.indicator, { width: slot - 4 }, indicator]} />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.indicator, { width: slot - 4, height: barHeight - 14 }, indicator]}
+          />
         ) : null}
         {dockItems.map((item, index) => {
           if (item.name === 'action') return <CenterActionButton key={item.name} dark />;
@@ -73,21 +82,20 @@ export function NavigationDock({ state, descriptors, emitter, navigateToTab }: D
                   target: route.key,
                   canPreventDefault: true,
                 });
-                if (focused.key !== route.key && !event.defaultPrevented)
-                  requestFormExit(() => navigateToTab(route.key));
+                if (event.defaultPrevented) return;
+                if (focused.key === route.key) scrollToTop?.();
+                else requestFormExit(() => navigateToTab(route.key));
               }}
               onLongPress={() => emitter.emit({ type: 'tabLongPress', target: route.key })}
             >
               <Ionicons
                 name={active ? item.activeIcon : item.icon}
                 size={24}
-                color={active ? colors.mint : '#B9D2D4'}
+                color={active ? colors.mint : colors.navMuted}
               />
               <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-                style={[styles.label, { color: active ? '#FFFFFF' : '#B9D2D4' }]}
+                numberOfLines={2}
+                style={[styles.label, { color: active ? colors.navText : colors.navMuted }]}
               >
                 {item.name === 'transactions' && width <= 360 ? 'Movim.' : item.label}
               </Text>
@@ -106,7 +114,7 @@ const styles = themedStyleSheet(() => ({
     alignItems: 'center',
     paddingHorizontal: 6,
     borderRadius: 28,
-    backgroundColor: '#0C3037',
+    backgroundColor: colors.navBackground,
     borderWidth: 1,
     borderColor: '#31555B',
     shadowColor: '#002B32',
@@ -121,13 +129,13 @@ const styles = themedStyleSheet(() => ({
     top: 7,
     height: 58,
     borderRadius: 20,
-    backgroundColor: '#28555B',
+    backgroundColor: colors.navActive,
   },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 60, gap: 3 },
   label: {
     ...typography.caption,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 16,
     width: '92%',
     textAlign: 'center',
     fontWeight: '600',

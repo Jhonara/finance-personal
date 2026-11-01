@@ -13,13 +13,13 @@ import {
 import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 import { useAlerts } from '@/features/secondary/use-secondary';
 import { useHomePriority } from '@/features/dashboard/use-home-priority';
-import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
 import { HomePriorityCard } from '@/features/dashboard/home-priority-card';
+import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
 import { useQuickActions } from '@/features/quick-actions/quick-action-provider';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { FinancialProgressSection } from '@/features/progress/progress-signal';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { router, useFocusEffect } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
 import { Animated, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -68,6 +68,7 @@ export default function HomeScreen() {
   const planEntrance = useRef(new Animated.Value(0)).current;
   const insightEntrance = useRef(new Animated.Value(0)).current;
   const restEntrance = useRef(new Animated.Value(0)).current;
+  const entered = useRef(false);
   const { hidden, toggle } = usePrivacy();
   const dashboard = useDashboardMonth(period);
   const currentDashboard = useDashboardMonth(todayPeriod);
@@ -118,46 +119,45 @@ export default function HomeScreen() {
   useEffect(() => {
     if (openedCount > 0 || hasGuidedMovement) setShowFabHint(false);
   }, [openedCount, hasGuidedMovement]);
-  useFocusEffect(
-    useCallback(() => {
-      if (!currentDashboard.isSuccess) return;
-      const sections = [
-        greetingEntrance,
-        summaryEntrance,
-        flowEntrance,
-        planEntrance,
-        insightEntrance,
-        restEntrance,
-      ];
-      if (reducedMotion) {
-        sections.forEach((value) => value.setValue(1));
-        return;
-      }
-      sections.forEach((value) => value.setValue(0));
-      const animation = Animated.stagger(
-        motion.stagger,
-        sections.map((value) =>
-          Animated.timing(value, {
-            toValue: 1,
-            duration: motion.fast,
-            easing: motion.ease,
-            useNativeDriver: true,
-          }),
-        ),
-      );
-      animation.start();
-      return () => animation.stop();
-    }, [
-      currentDashboard.isSuccess,
-      reducedMotion,
+  useEffect(() => {
+    if (!currentDashboard.isSuccess) return;
+    const sections = [
       greetingEntrance,
       summaryEntrance,
       flowEntrance,
       planEntrance,
       insightEntrance,
       restEntrance,
-    ]),
-  );
+    ];
+    if (reducedMotion || entered.current) {
+      sections.forEach((value) => value.setValue(1));
+      return;
+    }
+    entered.current = true;
+    sections.forEach((value) => value.setValue(0));
+    const animation = Animated.stagger(
+      motion.stagger,
+      sections.map((value) =>
+        Animated.timing(value, {
+          toValue: 1,
+          duration: motion.fast,
+          easing: motion.ease,
+          useNativeDriver: true,
+        }),
+      ),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [
+    currentDashboard.isSuccess,
+    reducedMotion,
+    greetingEntrance,
+    summaryEntrance,
+    flowEntrance,
+    planEntrance,
+    insightEntrance,
+    restEntrance,
+  ]);
   const periodControl = (
     <View style={styles.periodRow}>
       <Text style={styles.periodEyebrow}>ACTIVIDAD DEL MES</Text>
@@ -247,6 +247,7 @@ export default function HomeScreen() {
   return (
     <Screen
       scroll
+      scrollResetKey={`${period.year}-${period.month}`}
       refreshing={dashboard.isRefetching || currentDashboard.isRefetching || alerts.isRefetching}
       onRefresh={() => {
         void currentDashboard.refetch();
@@ -256,9 +257,6 @@ export default function HomeScreen() {
     >
       <FirstRunGuide userId={currentUser.data?.id} />
       <Animated.View style={fadeSlide(greetingEntrance, 10)}>{header}</Animated.View>
-      <HomeAttention alerts={alerts.data} unavailable={alerts.isError && !alerts.data} />
-      <HomeShortcuts priority={homePriority.priority} />
-      <HomePriorityCard priority={homePriority.priority} data={data} period={todayPeriod} />
       {currentDashboard.isError ? (
         <ErrorState
           title="No pudimos actualizar tus saldos"
@@ -271,7 +269,10 @@ export default function HomeScreen() {
           <FinancialPanorama data={data} />
         </Animated.View>
       ) : null}
+      <HomeAttention alerts={alerts.data} unavailable={alerts.isError && !alerts.data} />
       <HomeUpcoming userId={currentUser.data?.id} />
+      <HomeShortcuts priority={homePriority.priority} userId={currentUser.data?.id} />
+      <HomePriorityCard priority={homePriority.priority} data={data} period={todayPeriod} />
       {view.hasPanorama ? periodControl : null}
       {view.hasPanorama ? (
         <Text style={styles.periodHint}>Ingresos, gastos y movimientos del mes elegido.</Text>

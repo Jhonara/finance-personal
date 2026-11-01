@@ -158,7 +158,13 @@ export default function ReportsScreen() {
     if (view === 'credits') void credits.refetch();
   };
   return (
-    <Screen key={view} entry scroll refreshing={refreshing} onRefresh={refresh} style={{ gap: spacing.lg }}>
+    <Screen
+      scroll
+      scrollResetKey={`${view}-${period.year}-${period.month}-${selectedCurrency}`}
+      refreshing={refreshing}
+      onRefresh={refresh}
+      style={{ gap: spacing.lg }}
+    >
       <ScreenHeader title="Reportes" back onBack={() => router.back()} />
       <View style={styles.navigation}>
         {reportViews.map((item) => (
