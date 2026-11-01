@@ -30,6 +30,18 @@ public class ReportController {
     private final TransactionService transactions;
     private final CategoryReportService categoryReports;
 
+    @GetMapping("/transactions")
+    @Operation(operationId = "getReportTransactions", summary = "Movimientos que explican el ingreso o gasto mensual neto")
+    public TransactionPageResponse reportTransactions(@RequestParam int year, @RequestParam int month,
+            @RequestParam @Pattern(regexp = "[A-Z]{3}") String currency, @RequestParam CategoryType type,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size, Authentication authentication) {
+        Long owner = ((UserPrincipal) authentication.getPrincipal()).getUser().getId();
+        var financialType = type == CategoryType.INCOME ? FinancialTransactionType.INCOME : FinancialTransactionType.EXPENSE;
+        return transactions.find(owner, new TransactionQuery(null, null, year, month, null, null, null,
+                null, page, size, currency, false, null, null, financialType, null));
+    }
+
     @GetMapping("/expenses") @Operation(operationId = "getReportExpenseTransactions",
             description = "Operaciones que explican el gasto neto del reporte, incluidas reversiones. Filtra antes de paginar.")
     public TransactionPageResponse expenses(@RequestParam int year, @RequestParam int month,

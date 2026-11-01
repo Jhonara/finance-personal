@@ -5,7 +5,7 @@ import type { DashboardMonth } from '@/api/dashboard-api';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { Button } from '@/ui/primitives';
 import { MotionPressable } from '@/ui/motion';
-import { chartColors, ReportRing } from './report-charts';
+import { reportPalette, ReportAmountBars, ReportRing } from './report-charts';
 import { ReportPanel, ReportNotice, ReportEmpty, reportStyles as s } from './report-ui';
 
 export function AccountReport({
@@ -26,7 +26,9 @@ export function AccountReport({
     value === undefined || !Number.isFinite(value)
       ? 'No disponible'
       : formatPrivateMoney(value, currency, hidden);
-  const colors = chartColors();
+  const accountKey = (account: { id?: number; name?: string }) =>
+    String(account.id ?? `${account.name}-${accounts.indexOf(account)}`);
+  const palette = reportPalette(accounts.map(accountKey));
   const canChart =
     accounts.length > 0 &&
     accounts.every(
@@ -37,9 +39,10 @@ export function AccountReport({
     Math.abs(accounts.reduce((sum, account) => sum + (account.balance ?? 0), 0) - total) < 0.02;
   const positive = accounts.filter((account) => (account.balance ?? 0) > 0);
   const parts = positive.map((account, index) => ({
+    key: accountKey(account),
     name: `${account.name ?? 'Cuenta'} · ${index + 1}`,
     value: account.balance!,
-    color: colors[index % colors.length]!,
+    color: palette.get(accountKey(account))!,
   }));
   const selectedIndex = positive.findIndex((account) => account.id === selectedId);
   return (
@@ -53,7 +56,22 @@ export function AccountReport({
         <Text style={s.caption}>
           Suma de las cuentas registradas en esta moneda. Incluye cuentas archivadas que aún conservan saldo.
         </Text>
-        {canChart ? (
+        {canChart && positive.length > 5 ? (
+          <ReportAmountBars
+            currency={currency}
+            hidden={hidden}
+            items={positive.map((account) => ({
+              key: accountKey(account),
+              name: account.name ?? 'Cuenta',
+              value: account.balance!,
+              color: palette.get(accountKey(account))!,
+              caption: 'Ver saldo y movimientos →',
+              onPress: account.id
+                ? () => router.push({ pathname: '/(app)/account-detail', params: { id: account.id! } })
+                : undefined,
+            }))}
+          />
+        ) : canChart ? (
           <ReportRing
             parts={parts}
             hidden={hidden}
@@ -93,7 +111,7 @@ export function AccountReport({
             >
               <View style={s.between}>
                 <View style={[s.row, { flex: 1 }]}>
-                  <View style={[s.dot, { backgroundColor: colors[index % colors.length] }]} />
+                  <View style={[s.dot, { backgroundColor: palette.get(accountKey(account)) }]} />
                   <Text style={[s.label, { flex: 1 }]}>{account.name ?? 'Cuenta'}</Text>
                 </View>
                 <Text style={s.amount}>{money(account.balance)}</Text>

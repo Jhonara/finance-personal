@@ -32,6 +32,7 @@ class OpenApiContractIntegrationTests {
                 .andExpect(jsonPath("$.paths['/api/v1/credits']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/dashboard/month']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/reports/month']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/reports/transactions'].get.operationId").value("getReportTransactions"))
                 .andExpect(jsonPath("$.paths['/api/v1/savings/goals/{id}/currency']").exists())
                 .andExpect(jsonPath("$.components.schemas.CreateSavingGoalRequest.required").value(org.hamcrest.Matchers.hasItem("currency")))
                 .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists());

@@ -78,6 +78,19 @@ export const getReportExpenses = async (
     })
   ).data;
 
+export const getReportTransactions = async (
+  year: number,
+  month: number,
+  currency: string,
+  type: ReportCategoryType,
+  page: number,
+) =>
+  (
+    await api.get<TransactionPage>('/reports/transactions', {
+      params: { year, month, currency, type, page, size: 20 },
+    })
+  ).data;
+
 export const getCategoryReport = async (
   year: number,
   month: number,

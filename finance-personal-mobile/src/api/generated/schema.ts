@@ -36,6 +36,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar el perfil actual
+         * @description Obtiene únicamente el usuario identificado por el Bearer JWT.
+         */
+        get: operations["getCurrentUser"];
+        /**
+         * Actualizar nombres del perfil propio
+         * @description No cambia correo, credenciales ni información financiera. No infiere apellidos de nombres históricos.
+         */
+        put: operations["update_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inbox/{id}": {
         parameters: {
             query?: never;
@@ -44,7 +68,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get"];
-        put: operations["update_1"];
+        put: operations["update_2"];
         post?: never;
         delete: operations["discard"];
         options?: never;
@@ -80,7 +104,7 @@ export interface paths {
          * @description Obtiene la información de un crédito específico del usuario autenticado.
          */
         get: operations["findById"];
-        put: operations["update_2"];
+        put: operations["update_3"];
         post?: never;
         delete: operations["delete_1"];
         options?: never;
@@ -695,7 +719,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Leer, posponer hasta mañana o reactivar un aviso sin resolverlo manualmente */
-        post: operations["update_3"];
+        post: operations["update_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -827,7 +851,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Actualizar nombre o estado de una categoría propia */
-        patch: operations["update_4"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/budgets/{id}": {
@@ -855,7 +879,7 @@ export interface paths {
          * Actualizar presupuesto
          * @description Actualiza el límite usando la versión recibida para controlar concurrencia optimista.
          */
-        patch: operations["update_5"];
+        patch: operations["update_6"];
         trace?: never;
     };
     "/api/v1/budgets/{id}/state": {
@@ -889,7 +913,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Actualizar metadatos de una cuenta propia */
-        patch: operations["update_6"];
+        patch: operations["update_7"];
         trace?: never;
     };
     "/api/v1/users": {
@@ -960,6 +984,23 @@ export interface paths {
          * @description Obtiene el porcentaje de progreso alcanzado en una meta de ahorro.
          */
         get: operations["progress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Movimientos que explican el ingreso o gasto mensual neto */
+        get: operations["getReportTransactions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1093,26 +1134,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["agenda"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Consultar el perfil actual
-         * @description Obtiene únicamente el usuario identificado por el Bearer JWT.
-         */
-        get: operations["getCurrentUser"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1494,6 +1515,21 @@ export interface components {
             /** Format: int64 */
             creditId?: number;
             creditName?: string;
+        };
+        UpdateProfileRequest: {
+            firstName?: string;
+            lastName?: string;
+            displayName?: string;
+        };
+        /** @description Perfil seguro del usuario autenticado actual. */
+        CurrentUserResponse: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            email?: string;
+            firstName?: string;
+            lastName?: string;
+            displayName?: string;
         };
         PurchaseDraftFields: {
             /** @enum {string} */
@@ -2481,6 +2517,9 @@ export interface components {
              * @example Jhonatan Ramírez
              */
             name: string;
+            firstName?: string;
+            lastName?: string;
+            displayName?: string;
             /**
              * @description Correo electrónico único del usuario.
              * @example prueba@correo.com
@@ -2807,13 +2846,6 @@ export interface components {
         };
         RecurringAgendaResponse: {
             entries?: components["schemas"]["RecurringEntryResponse"][];
-        };
-        /** @description Perfil seguro del usuario autenticado actual. */
-        CurrentUserResponse: {
-            /** Format: int64 */
-            id?: number;
-            name?: string;
-            email?: string;
         };
         PurchaseDraftPage: {
             content?: components["schemas"]["PurchaseDraftResponse"][];
@@ -3252,6 +3284,9 @@ export interface components {
              * @example Jhonatan Ramírez
              */
             name?: string;
+            firstName?: string;
+            lastName?: string;
+            displayName?: string;
             /**
              * @description Correo electrónico del usuario.
              * @example jhonatan@email.com
@@ -3529,6 +3564,59 @@ export interface operations {
             };
         };
     };
+    getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil obtenido correctamente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Usuario no autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+        };
+    };
     get: {
         parameters: {
             query?: never;
@@ -3551,7 +3639,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3683,7 +3771,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -4966,7 +5054,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -5301,7 +5389,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -5398,7 +5486,7 @@ export interface operations {
             };
         };
     };
-    update_5: {
+    update_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -5490,7 +5578,7 @@ export interface operations {
             };
         };
     };
-    update_6: {
+    update_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5669,6 +5757,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": number;
+                };
+            };
+        };
+    };
+    getReportTransactions: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+                currency: string;
+                type: "EXPENSE" | "INCOME";
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransactionPageResponse"];
                 };
             };
         };
@@ -5870,35 +5985,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RecurringAgendaResponse"];
-                };
-            };
-        };
-    };
-    getCurrentUser: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Perfil obtenido correctamente */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CurrentUserResponse"];
-                };
-            };
-            /** @description Usuario no autenticado */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CurrentUserResponse"];
                 };
             };
         };

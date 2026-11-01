@@ -14,7 +14,7 @@ import {
   type DashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
 import { categoryRows, comparisonPercent, type CurrencyMonth, type TrendPoint } from './report-model';
-import { chartColors, ReportRing } from './report-charts';
+import { chartColors, ReportRing, ReportAmountBars } from './report-charts';
 import { InteractiveHistory } from './interactive-history';
 import { reportStyles as s, ReportChoice, ReportEmpty, ReportNotice, ReportPanel } from './report-ui';
 
@@ -67,6 +67,47 @@ export function MonthlyOverview({
           créditos se consultan aparte.
         </Text>
       </BrandSurface>
+      <ReportPanel
+        title="Ingresos frente a gastos"
+        subtitle="La misma escala para ambos importes."
+        icon="swap-horizontal-outline"
+      >
+        <ReportAmountBars
+          currency={currency}
+          hidden={hidden}
+          items={[
+            {
+              key: 'income',
+              name: 'Ingresos',
+              value: current.income,
+              color: colors.income,
+              caption: 'Ver los movimientos incluidos →',
+              accessibilityLabel: 'Ver ingresos del período',
+              onPress: () =>
+                router.push({
+                  pathname: '/(app)/report-transactions',
+                  params: { ...period, currency, type: 'INCOME' },
+                }),
+            },
+            {
+              key: 'expense',
+              name: 'Gastos',
+              value: current.expense,
+              color: colors.expense,
+              caption: 'Ver los movimientos incluidos →',
+              accessibilityLabel: 'Ver gastos del período',
+              onPress: () =>
+                router.push({
+                  pathname: '/(app)/report-transactions',
+                  params: { ...period, currency, type: 'EXPENSE' },
+                }),
+            },
+          ]}
+        />
+        <Text style={s.caption}>
+          Los ajustes conservan su signo. Estos flujos no son el saldo disponible de tus cuentas.
+        </Text>
+      </ReportPanel>
       {current.income === 0 && current.expense === 0 ? (
         <ReportNotice>
           Este mes aún no tiene ingresos ni gastos en {currency}. Puedes cambiar el período o revisar los
@@ -158,6 +199,12 @@ export function MonthlyOverview({
           points={points}
           currency={currency}
           hidden={hidden}
+          onOpenPeriod={(type, selected) =>
+            router.push({
+              pathname: '/(app)/report-transactions',
+              params: { year: selected.year, month: selected.month, currency, type },
+            })
+          }
         />
       </ReportPanel>
       <Button

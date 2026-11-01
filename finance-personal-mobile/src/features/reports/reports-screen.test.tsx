@@ -9,7 +9,13 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   back: vi.fn(),
   hidden: false,
-  params: { year: '2026', month: '10' },
+  params: { year: '2026', month: '10' } as {
+    year: string;
+    month: string;
+    currency?: string;
+    type?: 'INCOME' | 'EXPENSE';
+    category?: string;
+  },
 }));
 vi.mock('react-native', () => {
   const host =
@@ -97,6 +103,8 @@ vi.mock('@/privacy/privacy-provider', () => ({
   usePrivacy: () => ({ hidden: mocks.hidden, toggle: vi.fn() }),
 }));
 import ReportsScreen from '@/app/(app)/reports';
+import ReportTransactions from '@/app/(app)/report-transactions';
+import { TransactionRow } from '@/ui/financial';
 import { ReportTrend } from './report-charts';
 import type { ReportMonth } from './report-model';
 import { ExpenseBreakdown } from './monthly-reports';
@@ -768,5 +776,81 @@ describe('Report journeys', () => {
     await press(tree, 'Renombrar');
     await settle(() => expect(content(tree)).toContain('Tu categoría con mayor gasto: Alimentación'));
     expect(content(tree)).not.toContain('Tu categoría con mayor gasto: Mercado');
+  });
+  it('starts with comparable bars for many categories while retaining the distribution option', async () => {
+    const data: CategoryReport = {
+      year: 2026,
+      month: 10,
+      currency: 'COP',
+      type: 'EXPENSE',
+      totalAmount: 210,
+      groups: Array.from({ length: 6 }, (_, index) => ({
+        categoryId: index + 1,
+        categoryName: `Grupo ${index + 1}`,
+        amount: (index + 1) * 10,
+        directAmount: (index + 1) * 10,
+        subcategories: [],
+      })),
+    };
+    const tree = await render(
+      <CategoryHierarchyReport
+        data={data}
+        period={{ year: 2026, month: 10 }}
+        currency="COP"
+        type="EXPENSE"
+        hidden={false}
+      />,
+    );
+    expect(tree.root.findAllByType(ReportRing)).toHaveLength(0);
+    const bars = tree.root.findByType(ReportAmountBars).props.items;
+    expect(bars.map((item: { value: number }) => item.value)).toEqual([60, 50, 40, 30, 20, 10]);
+    await press(tree, 'Gráfica de gastos: Distribución');
+    expect(tree.root.findByType(ReportRing).props.parts).toHaveLength(6);
+  });
+  it('loads the exact monthly income drilldown and presents its reversal as a reduction', async () => {
+    mocks.params = { year: '2026', month: '10', currency: 'USD', type: 'INCOME' };
+    mocks.get.mockResolvedValue({
+      data: {
+        content: [
+          { id: 1, type: 'INCOME', amount: 100, currency: 'USD', status: 'REVERSED' },
+          { id: 2, type: 'REVERSAL', originalType: 'INCOME', amount: 100, currency: 'USD', status: 'POSTED' },
+        ],
+        last: true,
+      },
+    });
+    const tree = await render(<ReportTransactions />);
+    await settle(() => expect(tree.root.findAllByType(TransactionRow)).toHaveLength(2));
+    expect(mocks.get).toHaveBeenCalledWith('/reports/transactions', {
+      params: { year: 2026, month: 10, currency: 'USD', type: 'INCOME', page: 0, size: 20 },
+    });
+    expect(mocks.get.mock.calls.some(([url]) => url === '/reports/expenses')).toBe(false);
+    expect(tree.root.findAllByType(TransactionRow).map((row) => row.props.amountPrefix)).toEqual(['+', '-']);
+    expect(content(tree)).toContain('Ingresos del período');
+  });
+  it('keeps legacy category-name expense links compatible', async () => {
+    mocks.params = { year: '2026', month: '10', currency: 'COP', type: 'EXPENSE', category: 'Mercado' };
+    mocks.get.mockResolvedValue({ data: { content: [], last: true } });
+    await render(<ReportTransactions />);
+    await settle(() =>
+      expect(mocks.get).toHaveBeenCalledWith('/reports/expenses', {
+        params: { year: 2026, month: 10, currency: 'COP', category: 'Mercado', page: 0, size: 20 },
+      }),
+    );
+  });
+  it('uses account bars for many accounts and preserves the selected currency and account IDs', async () => {
+    const accounts = Array.from({ length: 7 }, (_, index) => ({
+      id: index + 1,
+      name: `Cuenta ${index + 1}`,
+      currency: 'COP',
+      balance: 10,
+    }));
+    const tree = await render(
+      <AccountReport data={{ assetsByCurrency: { COP: 70 }, accounts }} currency="COP" hidden={false} />,
+    );
+    expect(tree.root.findAllByType(ReportRing)).toHaveLength(0);
+    const bars = tree.root.findByType(ReportAmountBars).props.items;
+    expect(new Set(bars.map((item: { color: string }) => item.color)).size).toBe(7);
+    await act(async () => bars[3].onPress());
+    expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/account-detail', params: { id: 4 } });
   });
 });

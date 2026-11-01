@@ -3,7 +3,11 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { getCategoryTransactions, getReportExpenses } from '@/features/reports/reports-api';
+import {
+  getCategoryTransactions,
+  getReportExpenses,
+  getReportTransactions,
+} from '@/features/reports/reports-api';
 import { dashboardPeriodFromParams, formatDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import {
   presentTransaction,
@@ -61,7 +65,9 @@ export default function ReportTransactions() {
             type,
             pageParam,
           )
-        : getReportExpenses(period!.year, period!.month, currency, category || undefined, pageParam),
+        : type === 'INCOME' || !category
+          ? getReportTransactions(period!.year, period!.month, currency, type, pageParam)
+          : getReportExpenses(period!.year, period!.month, currency, category, pageParam),
     getNextPageParam: (page) => (page.last ? undefined : (page.page ?? 0) + 1),
   });
   const rows = query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
@@ -75,7 +81,7 @@ export default function ReportTransactions() {
     >
       <ScreenHeader
         title="Movimientos del reporte"
-        subtitle={category || (type === 'INCOME' ? 'Ingresos de la categoría' : 'Gastos de la categoría')}
+        subtitle={category || (type === 'INCOME' ? 'Ingresos del período' : 'Gastos del período')}
         back
         backFallback="/(app)/reports"
       />
@@ -86,7 +92,7 @@ export default function ReportTransactions() {
       )}
       <Text style={typography.caption}>
         {type === 'INCOME'
-          ? 'Ingresos que explican este total, con sus fechas y cuentas.'
+          ? 'Ingresos y reversiones que explican este total, con sus fechas y cuentas.'
           : 'Gastos y reversiones que explican este reporte. Una reversión devuelve dinero y reduce el gasto.'}
       </Text>
       {!valid ? (
@@ -108,7 +114,7 @@ export default function ReportTransactions() {
             <Card style={{ padding: spacing.md }}>
               {rows.map((transaction) => {
                 const item = presentTransaction(transaction);
-                if (transaction.type === 'REVERSAL') item.amountPrefix = '+';
+                if (transaction.type === 'REVERSAL') item.amountPrefix = type === 'INCOME' ? '-' : '+';
                 return (
                   <TransactionRow
                     key={transaction.id}

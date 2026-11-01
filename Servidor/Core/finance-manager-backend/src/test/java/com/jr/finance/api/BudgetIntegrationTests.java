@@ -596,6 +596,47 @@ class BudgetIntegrationTests {
         assertThat(budgetRepository.findById(allocation).orElseThrow().isActive()).isFalse();
     }
 
+    @Test
+    void globalReportDrilldownKeepsIncomeReversalsAndExcludesOtherTypesOwnersPeriodsAndCurrencies() throws Exception {
+        User owner = createUser();
+        User other = createUser();
+        Account source = account(owner, "Origen");
+        Account destination = account(owner, "Destino");
+        Account dollars = account(owner, "Dólares", "USD");
+        Account foreign = account(other, "Ajena");
+        ledgerService.recordOpeningBalance(owner.getId(), source.getId(), command("5000", LocalDate.of(2026, 8, 1), null));
+        var income = ledgerService.recordIncome(owner.getId(), source.getId(), command("100", LocalDate.of(2026, 8, 2), null));
+        reverseInAugust(income.getId(), owner.getId());
+        ledgerService.recordIncome(owner.getId(), source.getId(), command("40", LocalDate.of(2026, 8, 3), null));
+        ledgerService.recordIncome(owner.getId(), source.getId(), command("20", LocalDate.of(2026, 7, 3), null));
+        ledgerService.recordIncome(other.getId(), foreign.getId(), command("99", LocalDate.of(2026, 8, 3), null));
+        ledgerService.recordIncome(owner.getId(), dollars.getId(), new FinancialOperationCommand(
+                new BigDecimal("5"), LocalDate.of(2026, 8, 3), null, "USD", null));
+        ledgerService.recordExpense(owner.getId(), source.getId(), command("25", LocalDate.of(2026, 8, 4), null));
+        transferService.create(owner.getId(), transfer(source.getId(), destination.getId(), "7"));
+
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=INCOME&size=2")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.content.length()").value(2));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=INCOME")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[?(@.type == 'REVERSAL')]").value(org.hamcrest.Matchers.hasSize(1)));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=EXPENSE")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].amount").value(25));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=USD&type=INCOME")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].amount").value(5));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=TRANSFER")
+                        .header("Authorization", bearer(owner))).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=INCOME"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private Long createBudget(User user, Category category, String limit) throws Exception {
         return createBudget(user, category, limit, 2026, 8);
     }

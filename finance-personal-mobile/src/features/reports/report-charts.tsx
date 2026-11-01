@@ -347,7 +347,7 @@ export function ReportTrend({
           <Text style={s.caption}>Ingresos</Text>
         </View>
         <View style={s.row}>
-          <View style={[s.dot, { backgroundColor: colors.info }]} />
+          <View style={[s.dot, { backgroundColor: colors.expense }]} />
           <Text style={s.caption}>Gastos</Text>
         </View>
       </View>
@@ -399,7 +399,7 @@ export function ReportTrend({
                       width={11}
                       targetHeight={Math.abs(zero - y(value))}
                       rx={3}
-                      fill={series === 0 ? colors.success : colors.info}
+                      fill={series === 0 ? colors.income : colors.expense}
                     />
                   ) : null,
                 )}

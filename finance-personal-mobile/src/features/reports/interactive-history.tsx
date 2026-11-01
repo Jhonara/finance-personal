@@ -25,10 +25,12 @@ export function InteractiveHistory({
   points,
   currency,
   hidden,
+  onOpenPeriod,
 }: {
   points: TrendPoint[];
   currency: string;
   hidden: boolean;
+  onOpenPeriod?: (type: 'INCOME' | 'EXPENSE', period: TrendPoint) => void;
 }) {
   const [mode, setMode] = useState<'bars' | 'lines'>('bars');
   const pointKey = (point: TrendPoint | undefined) => point && `${point.year}-${point.month}`;
@@ -77,7 +79,7 @@ export function InteractiveHistory({
               <Text style={s.caption}>Ingresos</Text>
             </View>
             <View style={s.row}>
-              <View style={[s.dot, { backgroundColor: colors.info }]} />
+              <View style={[s.dot, { backgroundColor: colors.expense }]} />
               <Text style={s.caption}>Gastos</Text>
             </View>
           </View>
@@ -104,9 +106,9 @@ export function InteractiveHistory({
               endSpacing={18}
               showScrollIndicator={points.length > 6}
               color={colors.success}
-              color2={colors.info}
+              color2={colors.expense}
               dataPointsColor={colors.success}
-              dataPointsColor2={colors.info}
+              dataPointsColor2={colors.expense}
               thickness={3}
               thickness2={3}
               dataPointsRadius={5}
@@ -183,6 +185,23 @@ export function InteractiveHistory({
           onSelectMonth={setSelectedMonth}
         />
       )}
+      {point && onOpenPeriod ? (
+        <View style={s.chips}>
+          {(['INCOME', 'EXPENSE'] as const).map((type) => (
+            <MotionPressable
+              key={type}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver ${type === 'INCOME' ? 'ingresos' : 'gastos'} de ${formatDashboardPeriod(point)}`}
+              onPress={() => onOpenPeriod(type, point)}
+              style={s.chip}
+            >
+              <Text style={s.label}>
+                Ver {type === 'INCOME' ? 'ingresos' : 'gastos'} del mes seleccionado →
+              </Text>
+            </MotionPressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

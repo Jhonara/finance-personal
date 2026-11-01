@@ -30,7 +30,7 @@ export function CategoryHierarchyReport({
   hidden: boolean;
 }) {
   const [level, setLevel] = useState<'summary' | 'detail'>('summary');
-  const [visual, setVisual] = useState<'distribution' | 'ranking'>('distribution');
+  const [visual, setVisual] = useState<'distribution' | 'ranking'>();
   const [selectedKey, setSelectedKey] = useState<string>();
   const [choosingGroup, setChoosingGroup] = useState(false);
   const categories = useCategories(type, null);
@@ -127,7 +127,8 @@ export function CategoryHierarchyReport({
   const total = level === 'summary' ? data.totalAmount : (selected?.amount ?? 0);
   const canShowShares = total > 0 && !hasNegative;
   const singleDetail = level === 'detail' && items.length === 1 && !hasNegative;
-  const showRanking = !singleDetail && (visual === 'ranking' || hasNegative || !canShowShares);
+  const visualMode = visual ?? (items.length > 5 ? 'ranking' : 'distribution');
+  const showRanking = !singleDetail && (visualMode === 'ranking' || hasNegative || !canShowShares);
   const share = (amount: number) =>
     `${((amount / total) * 100).toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`;
 
@@ -172,7 +173,7 @@ export function CategoryHierarchyReport({
                 { value: 'distribution', label: 'Distribución' },
                 { value: 'ranking', label: 'Ranking' },
               ]}
-              selected={visual}
+              selected={visualMode}
               onSelect={setVisual}
             />
           ) : null}
@@ -181,7 +182,7 @@ export function CategoryHierarchyReport({
               Hay reversiones o ajustes. Las barras conservan su signo y el total neto; no se dibuja una
               distribución circular con importes negativos.
             </ReportNotice>
-          ) : canShowShares && visual === 'distribution' && !singleDetail ? (
+          ) : canShowShares && visualMode === 'distribution' && !singleDetail ? (
             <ReportRing
               parts={items.map(({ key, name, value, color }) => ({ key, name, value, color }))}
               hidden={hidden}
@@ -199,9 +200,7 @@ export function CategoryHierarchyReport({
               <View style={s.row}>
                 {items[0]!.icon}
                 <Text style={[s.label, { flex: 1 }]}>{items[0]!.name}</Text>
-                {!hidden && total > 0 ? (
-                  <Text style={[s.label, { color: items[0]!.color }]}>100%</Text>
-                ) : null}
+                {!hidden && total > 0 ? <Text style={s.label}>100%</Text> : null}
               </View>
               <Text style={s.amount}>{money(items[0]!.value)}</Text>
               <Text style={s.caption}>{items[0]!.caption}</Text>

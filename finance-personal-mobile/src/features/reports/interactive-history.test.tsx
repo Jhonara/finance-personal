@@ -191,6 +191,15 @@ describe('interactive financial history', () => {
     await press('Ver tendencia');
     expect(selectedMonth()).toBe('Consultar Octubre de 2026');
   });
+  it('opens the actual selected month behind the series instead of the current month', async () => {
+    const open = vi.fn();
+    await act(async () => {
+      tree = create(<InteractiveHistory points={series} currency="COP" hidden={false} onOpenPeriod={open} />);
+    });
+    await act(async () => tree!.root.findByType('ReportTrend' as never).props.onSelectMonth('2026-8'));
+    await press('Ver gastos de Agosto de 2026');
+    expect(open).toHaveBeenCalledExactlyOnceWith('EXPENSE', series[0]);
+  });
 });
 
 describe('history axis scale', () => {
