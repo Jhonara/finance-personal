@@ -61,6 +61,9 @@ vi.mock('@/features/dashboard/home-priority-settings', () => ({
   HomePrioritySettings: 'HomePrioritySettings',
 }));
 vi.mock('@/features/dashboard/home-upcoming', () => ({ HomeUpcomingSettings: 'HomeUpcomingSettings' }));
+vi.mock('@/features/dashboard/home-shortcut-settings', () => ({
+  HomeShortcutSettings: 'HomeShortcutSettings',
+}));
 vi.mock('@/features/capture/detected-notice-settings', () => ({
   DetectedNoticeSettings: 'DetectedNoticeSettings',
 }));
@@ -163,7 +166,13 @@ describe('tool and preference organization', () => {
     const labels = tree!.root
       .findAll((node) => ['MotionPressable', 'Switch'].includes(node.type as string))
       .map((node) => node.props.accessibilityLabel);
-    expect(labels.slice(0, 4)).toEqual(['Tema sistema', 'Tema claro', 'Tema oscuro', 'Ocultar importes']);
+    expect(labels.slice(0, 5)).toEqual([
+      'Editar mi información',
+      'Tema sistema',
+      'Tema claro',
+      'Tema oscuro',
+      'Ocultar importes',
+    ]);
     expect(hosts('HomePrioritySettings')).toHaveLength(0);
     expect(hosts('DetectedNoticeSettings')).toHaveLength(0);
     await act(async () => button('Tema claro').props.onPress());

@@ -37,6 +37,7 @@ import { homeColumns } from '@/features/dashboard/home-plan';
 import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { dashboardGreeting } from '@/features/dashboard/dashboard-greeting';
 import { useCurrentUser } from '@/features/profile/use-current-user';
+import { preferredUserName } from '@/features/profile/profile-presentation';
 import { useOpeningBalanceExists } from '@/features/onboarding/use-opening-balance-exists';
 import { useFirstOrdinaryMovementExists } from '@/features/onboarding/use-first-ordinary-movement-exists';
 import { createSetupSteps, setupProgress, type SetupStepId } from '@/features/onboarding/first-run-progress';
@@ -95,7 +96,7 @@ export default function HomeScreen() {
   });
   const setup = setupProgress(setupSteps);
   const hasGuidedMovement = setupSteps.some((step) => step.id === 'movement' && step.completed);
-  const greeting = dashboardGreeting(new Date(), currentUser.data?.name);
+  const greeting = dashboardGreeting(new Date(), preferredUserName(currentUser.data));
   useEffect(() => {
     const userId = currentUser.data?.id;
     if (
@@ -187,7 +188,7 @@ export default function HomeScreen() {
   const header = (
     <HomeHeader
       greeting={greeting}
-      profileName={currentUser.data?.name}
+      profileName={preferredUserName(currentUser.data) ?? currentUser.data?.name}
       privacyHidden={hidden}
       onPrivacy={() => void toggle()}
       onProfile={() => router.push('/(app)/more')}

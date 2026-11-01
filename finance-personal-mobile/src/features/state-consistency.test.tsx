@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
   patch: vi.fn(),
+  put: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
   feedback: vi.fn(),
@@ -117,7 +118,7 @@ vi.mock('expo-secure-store', () => ({
   },
 }));
 vi.mock('@/auth/auth-provider', () => ({
-  api: { get: mocks.get, post: mocks.post, patch: mocks.patch },
+  api: { get: mocks.get, post: mocks.post, patch: mocks.patch, put: mocks.put },
   useAuth: () => ({ state: { status: 'authenticated' }, logout: vi.fn() }),
 }));
 vi.mock('@/privacy/privacy-provider', () => ({
@@ -131,6 +132,7 @@ vi.mock('@/features/quick-actions/quick-action-provider', () => ({
 import AccountForm from '@/app/(app)/account-form';
 import BudgetForm from '@/app/(app)/budget-form';
 import SavingForm from '@/app/(app)/saving-form';
+import ProfileForm from '@/app/(app)/profile-form';
 import { Input, MoneyInput, SelectField, Button } from '@/ui/primitives';
 import { ModalSelector } from '@/ui/modal-selector';
 import { openForm } from '@/features/forms/form-session';
@@ -1733,5 +1735,49 @@ describe('Home visual hub', () => {
     expect(content).not.toMatch(/928[.,]?431|1[.,]?234[.,]?567/);
     expect(content).toContain('Ver créditos');
     expect(content).toContain('••••••');
+  });
+  it('keeps an explicit profile name after a failed request and does not replace the cached profile', async () => {
+    client.setQueryData(currentUserKeys.current(), {
+      id: 10,
+      name: 'Nombre completo legado',
+      email: 'qa@example.test',
+    });
+    const tree = await render(<ProfileForm />);
+    const input = () =>
+      tree.root.findAllByType(Input).find((node) => node.props.label === 'Nombre mostrado · opcional')!;
+    await act(async () => input().props.onChangeText('Nombre elegido'));
+    mocks.put.mockRejectedValueOnce({ response: { status: 503, data: { message: 'Unavailable' } } });
+    await act(async () => press(tree, 'Guardar mi información'));
+    await settled(() => expect(textContent(tree.toJSON())).toContain('Conservamos tus datos'));
+    expect(input().props.value).toBe('Nombre elegido');
+    expect(client.getQueryData(currentUserKeys.current())).toMatchObject({ name: 'Nombre completo legado' });
+    expect(mocks.put).toHaveBeenCalledExactlyOnceWith('/me', {
+      firstName: '',
+      lastName: '',
+      displayName: 'Nombre elegido',
+    });
+  });
+  it('does not publish an old profile response into a different user session', async () => {
+    client.setQueryData(currentUserKeys.current(), { id: 10, name: 'Primer usuario' });
+    const tree = await render(<ProfileForm />);
+    const input = tree.root
+      .findAllByType(Input)
+      .find((node) => node.props.label === 'Nombre mostrado · opcional')!;
+    await act(async () => input.props.onChangeText('Preferido anterior'));
+    let resolve!: (value: unknown) => void;
+    mocks.put.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    await act(async () => press(tree, 'Guardar mi información'));
+    await act(async () => {
+      client.setQueryData(currentUserKeys.current(), { id: 11, name: 'Segundo usuario' });
+    });
+    await act(async () =>
+      resolve({ data: { id: 10, name: 'Primer usuario', displayName: 'Preferido anterior' } }),
+    );
+    expect(client.getQueryData(currentUserKeys.current())).toEqual({ id: 11, name: 'Segundo usuario' });
   });
 });

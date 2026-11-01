@@ -10,6 +10,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAppTheme } from '@/theme/theme-provider';
 
 type FormRoute =
+  | '/(app)/profile-form'
   | '/(app)/purchase-review'
   | '/(app)/recurring-form'
   | '/(app)/account-form'

@@ -3,26 +3,18 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Animated, Easing, Text, View } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { Text, View } from 'react-native';
 
 import { useAuth } from '@/auth/auth-provider';
 import { registerSchema, type RegisterFormValues } from '@/auth/auth-schemas';
 import { applyApiFieldErrors, friendlyAuthError } from '@/auth/form-errors';
 import { colors, spacing, typography } from '@/theme';
-import { Button, Input, Screen } from '@/ui/primitives';
+import { Button, Card, Input, Screen } from '@/ui/primitives';
+import { AuthIntro } from '@/ui/auth-intro';
+import { Disclosure } from '@/ui/disclosure';
 
 export default function RegisterScreen() {
   useAppTheme();
-  const intro = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(intro, {
-      toValue: 1,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [intro]);
   const { register } = useAuth();
   const {
     control,
@@ -31,11 +23,26 @@ export default function RegisterScreen() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', email: '', confirmEmail: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      name: '',
+      lastName: '',
+      displayName: '',
+      email: '',
+      confirmEmail: '',
+      password: '',
+      confirmPassword: '',
+    },
   });
   const submit = handleSubmit(async (values) => {
     try {
-      await register({ name: values.name, email: values.email, password: values.password });
+      await register({
+        name: [values.name, values.lastName].filter(Boolean).join(' '),
+        firstName: values.name,
+        lastName: values.lastName || undefined,
+        displayName: values.displayName || undefined,
+        email: values.email,
+        password: values.password,
+      });
     } catch (error) {
       const apiError = applyApiFieldErrors(error, setError);
       setError('root', { message: friendlyAuthError(apiError) });
@@ -43,45 +50,79 @@ export default function RegisterScreen() {
   });
   return (
     <Screen scroll keyboard>
-      <Animated.View style={[styles.header, { opacity: intro }]}>
-        <Text style={typography.screenTitle}>Crea tu cuenta</Text>
-        <Text style={typography.bodySecondary}>Empieza a organizar tu dinero con claridad.</Text>
-      </Animated.View>
-      <Animated.View
-        style={[
-          styles.form,
-          {
-            opacity: intro,
-            transform: [{ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-          },
-        ]}
-      >
+      <AuthIntro
+        title="Crea tu cuenta"
+        description="Empieza con tus datos de acceso. Tu perfil puede completarse después."
+      />
+      <Card style={styles.form}>
         <Controller
           control={control}
           name="name"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
               label="Nombre"
               placeholder="Tu nombre"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
+              inputRef={ref}
+              disabled={isSubmitting}
               error={errors.name?.message}
-              autoComplete="name"
-              textContentType="name"
+              autoComplete="given-name"
+              textContentType="givenName"
+              maxLength={100}
             />
           )}
         />
+        <Disclosure title="Apellidos y nombre mostrado · opcional" icon="person-outline">
+          <Controller
+            control={control}
+            name="lastName"
+            render={({ field }) => (
+              <Input
+                label="Apellidos · opcional"
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                inputRef={field.ref}
+                disabled={isSubmitting}
+                error={errors.lastName?.message}
+                autoComplete="family-name"
+                textContentType="familyName"
+                maxLength={100}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="displayName"
+            render={({ field }) => (
+              <Input
+                label="Nombre mostrado · opcional"
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                inputRef={field.ref}
+                disabled={isSubmitting}
+                error={errors.displayName?.message}
+                maxLength={50}
+                helperText="Lo usaremos en el saludo. Puedes cambiarlo en tu perfil."
+              />
+            )}
+          />
+        </Disclosure>
         <Controller
           control={control}
           name="email"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
-              label="Email"
+              label="Correo electrónico"
               placeholder="tu@correo.com"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
+              inputRef={ref}
+              disabled={isSubmitting}
               error={errors.email?.message}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -93,13 +134,15 @@ export default function RegisterScreen() {
         <Controller
           control={control}
           name="confirmEmail"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
               label="Confirmar email"
               placeholder="Repite tu correo"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
+              inputRef={ref}
+              disabled={isSubmitting}
               error={errors.confirmEmail?.message}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -111,13 +154,15 @@ export default function RegisterScreen() {
         <Controller
           control={control}
           name="password"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
               label="Contraseña"
               placeholder="Mínimo 8 caracteres"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
+              inputRef={ref}
+              disabled={isSubmitting}
               error={errors.password?.message}
               secureTextEntry
               autoComplete="new-password"
@@ -128,13 +173,15 @@ export default function RegisterScreen() {
         <Controller
           control={control}
           name="confirmPassword"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
               label="Confirmar contraseña"
               placeholder="Repite tu contraseña"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
+              inputRef={ref}
+              disabled={isSubmitting}
               error={errors.confirmPassword?.message}
               secureTextEntry
               autoComplete="new-password"
@@ -155,7 +202,7 @@ export default function RegisterScreen() {
         >
           Crear cuenta
         </Button>
-      </Animated.View>
+      </Card>
       <View style={styles.footer}>
         <Text style={typography.bodySecondary}>¿Ya tienes cuenta?</Text>
         <Link href="/(auth)/login" replace style={styles.link}>
@@ -168,8 +215,19 @@ export default function RegisterScreen() {
 
 const styles = themedStyleSheet(() => ({
   header: { gap: spacing.sm, paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
-  form: { gap: spacing.lg },
-  footer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, paddingTop: spacing.xxl },
-  link: { ...typography.label, color: colors.primary },
+  form: { width: '100%', maxWidth: 520, alignSelf: 'center', padding: spacing.xl, gap: spacing.lg },
+  footer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  link: {
+    ...typography.label,
+    color: colors.primary,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
   serverError: { ...typography.bodySecondary, color: colors.danger },
 }));

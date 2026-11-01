@@ -9,10 +9,10 @@ import { TourTarget } from '@/ui/tour-target';
 import Constants from 'expo-constants';
 import { useAuth } from '@/auth/auth-provider';
 import { useCurrentUser } from '@/features/profile/use-current-user';
-import { profileInitials } from '@/features/profile/profile-presentation';
+import { profileInitials, preferredUserName } from '@/features/profile/profile-presentation';
+import { openForm } from '@/features/forms/form-session';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { useFeedback } from '@/feedback/feedback-provider';
-import { BrandSurface } from '@/ui/brand-surface';
 import { BrandMark } from '@/ui/brand-identity';
 import { ScreenHeader } from '@/ui/headers';
 import { Card, Screen } from '@/ui/primitives';
@@ -24,6 +24,7 @@ import { useAppTheme, type AppearanceMode } from '@/theme/theme-provider';
 import { MotionPressable } from '@/ui/motion';
 import { HomePrioritySettings } from '@/features/dashboard/home-priority-settings';
 import { HomeUpcomingSettings } from '@/features/dashboard/home-upcoming';
+import { HomeShortcutSettings } from '@/features/dashboard/home-shortcut-settings';
 import { homeWidgetBridge } from '@/features/widget/home-widget-bridge';
 import { DetectedNoticeSettings } from '@/features/capture/detected-notice-settings';
 import { captureQaEnabled } from '@/features/capture/capture-diagnostics';
@@ -117,7 +118,7 @@ export default function MoreScreen() {
         back
         onBack={() => router.back()}
       />
-      <BrandSurface tone="insight" style={styles.profileCard}>
+      <Section title="Mi información">
         {profile.isPending ? (
           <SkeletonRow />
         ) : profile.isError ? (
@@ -143,10 +144,19 @@ export default function MoreScreen() {
             {!!profile.data.email && (
               <Text style={[typography.bodySecondary, { flexShrink: 1 }]}>{profile.data.email}</Text>
             )}
+            <Text style={typography.caption}>
+              Nombre mostrado: {preferredUserName(profile.data) ?? 'Aún sin definir'}
+            </Text>
+            <SettingsRow
+              icon="person-outline"
+              title="Editar mi información"
+              subtitle="Nombre, apellidos y cómo prefieres que te llamemos."
+              onPress={() => openForm('/(app)/profile-form')}
+            />
           </>
         )}
-      </BrandSurface>
-      <Section title="Apariencia y privacidad">
+      </Section>
+      <Section title="Apariencia">
         <View style={styles.appearance}>
           <View style={styles.appearanceTitle}>
             <View style={[styles.appearanceIcon, { backgroundColor: palette.infoSoft }]}>
@@ -194,6 +204,8 @@ export default function MoreScreen() {
             ))}
           </View>
         </View>
+      </Section>
+      <Section title="Privacidad">
         <SettingsRow
           icon="eye-off-outline"
           title="Ocultar importes"
@@ -244,29 +256,30 @@ export default function MoreScreen() {
         <Disclosure title="Opciones de Inicio" icon="home-outline">
           <HomePrioritySettings userId={profile.data?.id} />
           <HomeUpcomingSettings userId={profile.data?.id} />
+          <HomeShortcutSettings userId={profile.data?.id} />
         </Disclosure>
-        {(Platform.OS === 'android' || captureQaEnabled) && (
-          <Disclosure title="Avisos y captura" icon="notifications-outline">
-            <DetectedNoticeSettings />
-            {Platform.OS === 'android' && (
-              <SettingsRow
-                icon="scan-outline"
-                title="Lectura de avisos bancarios"
-                subtitle="Elige qué avisos de compra quieres revisar."
-                onPress={() => router.push('/(app)/capture-notifications')}
-              />
-            )}
-            {captureQaEnabled && (
-              <SettingsRow
-                icon="pulse-outline"
-                title="Diagnóstico de captura"
-                subtitle="Permisos, sincronización y pruebas ficticias. Solo desarrollo y QA."
-                onPress={() => router.push('/(app)/capture-diagnostics')}
-              />
-            )}
-          </Disclosure>
-        )}
       </View>
+      {(Platform.OS === 'android' || captureQaEnabled) && (
+        <Disclosure title="Avisos y captura" icon="notifications-outline">
+          <DetectedNoticeSettings />
+          {Platform.OS === 'android' && (
+            <SettingsRow
+              icon="scan-outline"
+              title="Lectura de avisos bancarios"
+              subtitle="Elige qué avisos de compra quieres revisar."
+              onPress={() => router.push('/(app)/capture-notifications')}
+            />
+          )}
+          {captureQaEnabled && (
+            <SettingsRow
+              icon="pulse-outline"
+              title="Diagnóstico de captura"
+              subtitle="Permisos, sincronización y pruebas ficticias. Solo desarrollo y QA."
+              onPress={() => router.push('/(app)/capture-diagnostics')}
+            />
+          )}
+        </Disclosure>
+      )}
       <Section title="Organización">
         <SettingsRow
           icon="pricetags-outline"
@@ -291,7 +304,7 @@ export default function MoreScreen() {
           />
         </TourTarget>
       </Section>
-      <Section title="Cuenta">
+      <Section title="Seguridad y sesiones">
         <SettingsRow
           icon="log-out-outline"
           title="Cerrar sesión"
@@ -330,7 +343,7 @@ const styles = themedStyleSheet(() => ({
   appearanceOptions: { flexDirection: 'row', padding: 4, borderRadius: radius.pill, gap: 4 },
   appearanceChoice: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

@@ -124,6 +124,10 @@ export default function AppLayout() {
             />
             <Tabs.Screen name="reports" options={internalScreenOptions} />
             <Tabs.Screen name="component-catalog" options={internalScreenOptions} />
+            <Tabs.Screen
+              name="profile-form"
+              options={{ ...internalScreenOptions, tabBarStyle: { display: 'none' } }}
+            />
             <Tabs.Screen name="report-transactions" options={internalScreenOptions} />
             <Tabs.Screen
               name="capture-image"

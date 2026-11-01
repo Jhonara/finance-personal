@@ -3,27 +3,19 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Animated, Easing, Text, View } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/auth-provider';
 import { qaApiServerEnabled } from '@/config/qa-api-server';
 import { loginSchema, type LoginFormValues } from '@/auth/auth-schemas';
 import { applyApiFieldErrors, friendlyAuthError } from '@/auth/form-errors';
 import { colors, spacing, typography } from '@/theme';
-import { Button, Input, Screen } from '@/ui/primitives';
+import { Button, Card, Input, Screen } from '@/ui/primitives';
+import { AuthIntro } from '@/ui/auth-intro';
 
 export default function LoginScreen() {
   useAppTheme();
-  const intro = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(intro, {
-      toValue: 1,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [intro]);
   const { login, qaServerUrl, setQaServer } = useAuth();
   const [showServer, setShowServer] = useState(false);
   const [serverInput, setServerInput] = useState(qaServerUrl);
@@ -49,25 +41,16 @@ export default function LoginScreen() {
   });
   return (
     <Screen scroll keyboard>
-      <Animated.View style={[styles.hero, { opacity: intro }]}>
-        <Text style={typography.display}>Finance Personal</Text>
-        <Text style={typography.bodySecondary}>Organiza tu dinero con claridad.</Text>
-      </Animated.View>
-      <Animated.View
-        style={[
-          styles.form,
-          {
-            opacity: intro,
-            transform: [{ translateY: intro.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-          },
-        ]}
-      >
+      <AuthIntro title="Bienvenido de nuevo" description="Entra para ver tu dinero y seguir tus planes." />
+      <Card style={styles.form}>
         <Controller
           control={control}
           name="email"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
-              label="Email"
+              label="Correo electrónico"
+              inputRef={ref}
+              disabled={isSubmitting}
               placeholder="tu@correo.com"
               value={value}
               onChangeText={onChange}
@@ -83,9 +66,11 @@ export default function LoginScreen() {
         <Controller
           control={control}
           name="password"
-          render={({ field: { onChange, value, onBlur } }) => (
+          render={({ field: { onChange, value, onBlur, ref } }) => (
             <Input
               label="Contraseña"
+              inputRef={ref}
+              disabled={isSubmitting}
               placeholder="Tu contraseña"
               value={value}
               onChangeText={onChange}
@@ -110,7 +95,7 @@ export default function LoginScreen() {
         >
           Iniciar sesión
         </Button>
-      </Animated.View>
+      </Card>
       <View style={styles.footer}>
         <Text style={typography.bodySecondary}>¿No tienes cuenta?</Text>
         <Link href="/(auth)/register" replace style={styles.link}>
@@ -170,9 +155,20 @@ export default function LoginScreen() {
 
 const styles = themedStyleSheet(() => ({
   hero: { gap: spacing.sm, paddingTop: spacing.huge, paddingBottom: spacing.xxxl },
-  form: { gap: spacing.lg },
-  footer: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, paddingTop: spacing.xxl },
-  link: { ...typography.label, color: colors.primary },
+  form: { width: '100%', maxWidth: 520, alignSelf: 'center', padding: spacing.xl, gap: spacing.lg },
+  footer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  link: {
+    ...typography.label,
+    color: colors.primary,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
   explore: { ...typography.label, color: colors.success, textAlign: 'center', padding: spacing.md },
   serverError: { ...typography.bodySecondary, color: colors.danger },
   qaServer: { gap: spacing.sm, paddingTop: spacing.lg },

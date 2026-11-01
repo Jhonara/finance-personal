@@ -229,6 +229,7 @@ export function Input({
   icon,
   style,
   secureTextEntry,
+  inputRef,
   ...props
 }: TextInputProps & {
   label?: string;
@@ -236,6 +237,7 @@ export function Input({
   helperText?: string;
   disabled?: boolean;
   icon?: IconName;
+  inputRef?: ComponentProps<typeof TextInput>['ref'];
 }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -258,6 +260,7 @@ export function Input({
       >
         {icon && <Ionicons name={icon} size={sizes.icon} color={palette.textMuted} />}
         <TextInput
+          ref={inputRef}
           accessibilityLabel={label}
           accessibilityHint={error ?? helperText}
           editable={!disabled}
