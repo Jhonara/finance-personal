@@ -18,7 +18,15 @@ public class RegisterRequest {
             example = "Jhonatan Ramírez"
     )
     @NotBlank(message = "El nombre es obligatorio")
+    @Size(max = 100, message = "El nombre no puede superar 100 caracteres")
     private String name;
+
+    @Size(max = 100)
+    private String firstName;
+    @Size(max = 100)
+    private String lastName;
+    @Size(max = 50)
+    private String displayName;
 
     @Schema(
             description = "Correo electrónico único del usuario.",

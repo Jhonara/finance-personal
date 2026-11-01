@@ -40,6 +40,8 @@ La API oficial usa el prefijo `/api/v1`. La autenticación devuelve un access to
 
 ## OpenAPI y Swagger
 
+El perfil propio admite lectura y actualización de nombres explícitos en `/api/v1/me`. Consulta [compatibilidad y migración del perfil](docs/explicit-profile-names.md); el correo y los datos de seguridad no se modifican mediante ese contrato.
+
 Con perfil `local`, abre Swagger UI en `http://localhost:8080/swagger` y el documento OpenAPI en `http://localhost:8080/v3/api-docs`. Ambos usan Bearer JWT para los endpoints protegidos; `register`, `login` y `refresh` son públicos. En producción permanecen deshabilitados salvo que se establezca explícitamente `SWAGGER_ENABLED=true`.
 
 ## Esquema y migraciones
