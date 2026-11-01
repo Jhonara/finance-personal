@@ -403,6 +403,7 @@ describe('Alerts real screens and hooks', () => {
 describe('More, preferences and session UI', () => {
   it('changes the shared Home preference from Profile and keeps it on a failed save', async () => {
     const tree = await render(<MoreScreen />);
+    await press(tree, 'Opciones de Inicio');
     await press(tree, 'Personalizar Inicio');
     let picker = tree.root.findAllByType(ModalSelector).find((node) => node.props.visible)!;
     await act(async () => {

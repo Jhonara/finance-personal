@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/auth-provider';
 import { toApiError } from '@/api/errors';
 import { getCurrentUser } from '@/features/profile/profile-api';
 import { getDraft, inboxKeys } from '@/features/inbox/inbox-api';
+import { requestFormExit } from '@/features/forms/use-unsaved-form';
 import { openForm } from '@/features/forms/form-session';
 import { notificationBridge } from './notification-bridge';
 import { prepareCaptureText } from './shared-text-intake';
@@ -37,6 +38,19 @@ export function DetectedNoticeProvider({ children }: PropsWithChildren) {
   const [target, setTarget] = useState<NoticeTarget | null>(null);
   const [revision, setRevision] = useState(0);
   const routing = useRef(false);
+  const waitingForExit = useRef(false);
+  const session = useRef(state);
+  session.current = state;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    waitingForExit.current = false;
+  }, [state]);
   const syncing = useRef(false);
   const ignoredLogged = useRef(new Set<string>());
 
@@ -46,7 +60,10 @@ export function DetectedNoticeProvider({ children }: PropsWithChildren) {
     const receive = (data: Record<string, unknown> | undefined) => {
       const next = data ? parseNoticeTarget(data) : null;
       if (!next || !active) return;
-      void saveNoticeTarget(next).then(() => setTarget(next));
+      waitingForExit.current = false;
+      void saveNoticeTarget(next).then(() => {
+        if (active) setTarget(next);
+      });
     };
     void loadNoticeTarget().then((pending) => {
       if (active && pending) setTarget(pending);
@@ -126,6 +143,7 @@ export function DetectedNoticeProvider({ children }: PropsWithChildren) {
     }, 15_000);
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
+        waitingForExit.current = false;
         void syncBankNotices();
         setRevision((value) => value + 1);
       }
@@ -137,15 +155,20 @@ export function DetectedNoticeProvider({ children }: PropsWithChildren) {
   }, [state.status, syncBankNotices]);
 
   useEffect(() => {
-    if (!target || routing.current) return;
+    if (!target || routing.current || waitingForExit.current) return;
     if (state.status !== 'authenticated') {
       if (state.status === 'unauthenticated') router.replace('/(auth)/login');
       return;
     }
     routing.current = true;
+    const epoch = currentNoticeEpoch();
+    const startedSession = state;
+    const current = () =>
+      mounted.current && session.current === startedSession && epoch === currentNoticeEpoch();
     void (async () => {
       try {
         const user = await getCurrentUser();
+        if (!current()) return;
         if (String(user.id) !== target.ownerId) {
           await saveNoticeTarget(null);
           await Notifications.clearLastNotificationResponseAsync();
@@ -153,11 +176,30 @@ export function DetectedNoticeProvider({ children }: PropsWithChildren) {
           return;
         }
         await getDraft(target.draftId);
-        await saveNoticeTarget(null);
-        setTarget(null);
-        await Notifications.clearLastNotificationResponseAsync();
-        openForm('/(app)/purchase-review', { id: String(target.draftId) });
+        if (!current()) return;
+        waitingForExit.current = true;
+        requestFormExit(() => {
+          if (!current()) {
+            waitingForExit.current = false;
+            return;
+          }
+          void (async () => {
+            await saveNoticeTarget(null);
+            if (!current()) return;
+            await Notifications.clearLastNotificationResponseAsync();
+            if (!current()) return;
+            setTarget(null);
+            openForm('/(app)/purchase-review', { id: String(target.draftId) });
+          })()
+            .catch(() => {
+              waitingForExit.current = false;
+            })
+            .finally(() => {
+              routing.current = false;
+            });
+        });
       } catch (error) {
+        if (!current()) return;
         const status = toApiError(error).status;
         if (status === 401) {
           await logout();

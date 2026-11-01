@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link, router } from 'expo-router';
@@ -77,6 +78,7 @@ const getModules = () =>
   ] as const;
 
 export default function ExploreScreen() {
+  useAppTheme();
   const modules = getModules();
   const [selected, setSelected] = useState(0);
   const module = modules[selected]!;

@@ -6,10 +6,12 @@ import { Animated, Text, View } from 'react-native';
 
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { useReducedMotion } from './use-reduced-motion';
+import { useAppTheme } from '@/theme/theme-provider';
 
 export type CompanionState = 'neutral' | 'happy' | 'celebrate' | 'thinking' | 'attention';
 
 export function BrandMark({ size = 40 }: { size?: number }) {
+  const { palette } = useAppTheme();
   const reduced = useReducedMotion();
   const entrance = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -35,7 +37,7 @@ export function BrandMark({ size = 40 }: { size?: number }) {
       style={{ width: size, height: size, opacity: entrance }}
     >
       <LinearGradient
-        colors={[colors.primaryStrong, colors.primary]}
+        colors={[palette.primaryStrong, palette.primary]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ width: size, height: size, borderRadius: size * 0.28, overflow: 'hidden' }}
@@ -48,7 +50,7 @@ export function BrandMark({ size = 40 }: { size?: number }) {
             width: size * 0.22,
             height: size * 0.58,
             borderRadius: radius.pill,
-            backgroundColor: colors.secondary,
+            backgroundColor: palette.secondary,
             transform: [{ rotate: '34deg' }],
           }}
         />
@@ -60,7 +62,7 @@ export function BrandMark({ size = 40 }: { size?: number }) {
             width: size * 0.4,
             height: size * 0.16,
             borderRadius: radius.pill,
-            backgroundColor: colors.mint,
+            backgroundColor: palette.mint,
             transform: [{ rotate: '-28deg' }],
           }}
         />
@@ -72,7 +74,7 @@ export function BrandMark({ size = 40 }: { size?: number }) {
             width: size * 0.12,
             height: size * 0.12,
             borderRadius: radius.pill,
-            backgroundColor: colors.coral,
+            backgroundColor: palette.coral,
           }}
         />
       </LinearGradient>
@@ -81,12 +83,18 @@ export function BrandMark({ size = 40 }: { size?: number }) {
 }
 
 export function BrandLogo({ compact = false }: { compact?: boolean }) {
+  const { palette } = useAppTheme();
   return (
     <View accessible accessibilityRole="text" accessibilityLabel="Finance Personal" style={styles.logo}>
       <BrandMark size={compact ? 32 : 40} />
       <View accessible={false}>
-        <Text style={compact ? styles.logoCaption : styles.logoEyebrow}>FINANZAS</Text>
-        <Text numberOfLines={1} style={compact ? styles.logoCompact : styles.logoName}>
+        <Text style={[compact ? styles.logoCaption : styles.logoEyebrow, { color: palette.success }]}>
+          FINANZAS
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={[compact ? styles.logoCompact : styles.logoName, { color: palette.textPrimary }]}
+        >
           Finance Personal
         </Text>
       </View>
@@ -95,13 +103,14 @@ export function BrandLogo({ compact = false }: { compact?: boolean }) {
 }
 
 export function BrandAvatar({ size = 52, children }: PropsWithChildren<{ size?: number }>) {
+  const { palette } = useAppTheme();
   return (
     <View
       style={{
         width: size,
         height: size,
         borderRadius: radius.pill,
-        backgroundColor: colors.secondarySoft,
+        backgroundColor: palette.secondarySoft,
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -120,6 +129,7 @@ export function FinancialCompanion({
   size?: number;
   decorative?: boolean;
 }) {
+  const { palette } = useAppTheme();
   const reduced = useReducedMotion();
   const entrance = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -148,7 +158,7 @@ export function FinancialCompanion({
     >
       <BrandAvatar size={size}>
         <LinearGradient
-          colors={[colors.secondary, colors.success]}
+          colors={[palette.secondary, palette.success]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
@@ -160,21 +170,46 @@ export function FinancialCompanion({
           }}
         >
           {state === 'thinking' ? (
-            <View style={[styles.brow, { width: size * 0.13, left: size * 0.12, top: size * 0.13 }]} />
+            <View
+              style={[
+                styles.brow,
+                {
+                  width: size * 0.13,
+                  left: size * 0.12,
+                  top: size * 0.13,
+                  backgroundColor: palette.primaryStrong,
+                },
+              ]}
+            />
           ) : null}
           <View style={[styles.face, { gap: size * 0.13, marginTop: size * 0.07 }]}>
-            <View style={[styles.eye, { width: size * 0.055, height: size * 0.085 }]} />
-            <View style={[styles.eye, { width: size * 0.055, height: size * 0.085 }]} />
+            <View
+              style={[
+                styles.eye,
+                { width: size * 0.055, height: size * 0.085, backgroundColor: palette.primaryStrong },
+              ]}
+            />
+            <View
+              style={[
+                styles.eye,
+                { width: size * 0.055, height: size * 0.085, backgroundColor: palette.primaryStrong },
+              ]}
+            />
           </View>
           {state === 'attention' ? (
-            <View style={[styles.openMouth, { width: size * 0.07, height: size * 0.07 }]} />
+            <View
+              style={[
+                styles.openMouth,
+                { width: size * 0.07, height: size * 0.07, backgroundColor: palette.primaryStrong },
+              ]}
+            />
           ) : (
             <View
               style={{
                 width: size * (state === 'thinking' ? 0.08 : state === 'neutral' ? 0.12 : 0.19),
                 height: size * (state === 'neutral' ? 0.035 : 0.09),
                 borderBottomWidth: Math.max(1.5, size * 0.035),
-                borderBottomColor: colors.primaryStrong,
+                borderBottomColor: palette.primaryStrong,
                 borderRadius: state === 'neutral' ? 0 : radius.pill,
                 marginTop: size * 0.02,
               }}
@@ -182,11 +217,16 @@ export function FinancialCompanion({
           )}
         </LinearGradient>
         {state === 'celebrate' || state === 'attention' ? (
-          <View style={[styles.stateBadge, { right: 0, top: 0, width: size * 0.3, height: size * 0.3 }]}>
+          <View
+            style={[
+              styles.stateBadge,
+              { right: 0, top: 0, width: size * 0.3, height: size * 0.3, backgroundColor: palette.amber },
+            ]}
+          >
             <Ionicons
               name={state === 'celebrate' ? 'sparkles' : 'alert'}
               size={size * 0.17}
-              color={colors.primaryStrong}
+              color={palette.primaryStrong}
             />
           </View>
         ) : null}

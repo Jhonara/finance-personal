@@ -422,8 +422,8 @@ function CreditForm() {
             </MovementFormSection>
             {!imported && !editing ? (
               <MovementFormSection
-                title="Cuenta vinculada"
-                subtitle="Solo si el dinero entró a una cuenta tuya."
+                title="Destino del desembolso"
+                subtitle="Indica si el dinero llegó a una de tus cuentas o se pagó directamente a otra parte."
                 icon="wallet-outline"
               >
                 <CreditAccountSelector
@@ -432,6 +432,7 @@ function CreditForm() {
                   value={account}
                   onChange={setAccount}
                   disabled={safety.busy || saved}
+                  purpose="disbursement"
                 />
               </MovementFormSection>
             ) : null}

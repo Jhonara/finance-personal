@@ -1,11 +1,13 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, useAuth } from '@/auth/auth-provider';
 import { toApiError } from '@/api/errors';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useNativeIntents } from '@/features/shortcuts/native-intents-provider';
+import { nativeShortcutAvailability } from '@/features/shortcuts/shortcut-presentation';
 import {
   useWalletCards,
   walletCardsKey,
@@ -21,6 +23,7 @@ import { ErrorState, SkeletonRow } from '@/ui/states';
 import { spacing, typography } from '@/theme';
 
 export default function NativeShortcutsSettings() {
+  useAppTheme();
   const native = useNativeIntents();
   const auth = useAuth();
   const cards = useWalletCards();
@@ -76,9 +79,7 @@ export default function NativeShortcutsSettings() {
         }
       />
       <Text style={typography.bodySecondary}>
-        {native.available
-          ? 'Acciones nativas disponibles en esta versión instalada.'
-          : 'Las acciones de iOS requieren la versión nativa de Finance Personal. Expo Go no las incluye.'}
+        {nativeShortcutAvailability(Platform.OS, native.available)}
       </Text>
       {native.error ? (
         <Text accessibilityLiveRegion="polite" style={typography.body}>
@@ -104,7 +105,7 @@ export default function NativeShortcutsSettings() {
       )}
       {native.pending.length > 0 && (
         <Card style={{ padding: spacing.lg, gap: spacing.md }}>
-          <Text style={typography.cardTitle}>Pendientes en este iPhone · {native.pending.length}</Text>
+          <Text style={typography.cardTitle}>Pendientes en este dispositivo · {native.pending.length}</Text>
           <Button disabled={native.busy} loading={native.busy} onPress={native.retry}>
             Volver a intentar
           </Button>
@@ -119,7 +120,7 @@ export default function NativeShortcutsSettings() {
                 onPress={() =>
                   AppAlert.alert(
                     '¿Descartar esta entrada?',
-                    'Se elimina la entrada pendiente de este iPhone. Un borrador que ya llegó al servidor se conserva en Por revisar.',
+                    'Se elimina la entrada pendiente de este dispositivo. Un borrador que ya llegó al servidor se conserva en Por revisar.',
                     [
                       { text: 'Cancelar', style: 'cancel' },
                       {

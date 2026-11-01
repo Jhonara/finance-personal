@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, Text, View, useWindowDimensions, type ColorValue } from 'react-native';
@@ -16,6 +17,7 @@ import { NavigationDock } from '@/ui/navigation-dock';
 const internalScreenOptions = { tabBarButton: () => null };
 
 export default function AppLayout() {
+  useAppTheme();
   const { state } = useAuth();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();

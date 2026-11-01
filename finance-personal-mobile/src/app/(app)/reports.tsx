@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -22,9 +23,10 @@ import {
   periodContext,
   type ReportView,
 } from '@/features/reports/report-model';
-import { getReportMonth } from '@/features/reports/reports-api';
+import { getBudgetVsActual, getCategoryReport, getReportMonth } from '@/features/reports/reports-api';
 import { ReportPeriodPicker } from '@/features/reports/report-period-picker';
-import { MonthlyOverview, ExpenseBreakdown } from '@/features/reports/monthly-reports';
+import { MonthlyOverview } from '@/features/reports/monthly-reports';
+import { CategoryHierarchyReport } from '@/features/reports/category-hierarchy-report';
 import { BudgetReport, CreditReport, SavingsReport } from '@/features/reports/plan-reports';
 import { AccountReport } from '@/features/reports/account-report';
 import {
@@ -42,11 +44,13 @@ import { Button, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 
 export default function ReportsScreen() {
+  useAppTheme();
   const {
     year,
     month,
     currency: requestedCurrency,
-  } = useLocalSearchParams<{ year?: string; month?: string; currency?: string }>();
+    report: requestedReport,
+  } = useLocalSearchParams<{ year?: string; month?: string; currency?: string; report?: ReportView }>();
   const [period, setPeriod] = useState<DashboardPeriod>(
     () => dashboardPeriodFromParams(year, month) ?? currentDashboardPeriod(),
   );
@@ -54,7 +58,12 @@ export default function ReportsScreen() {
     const requested = dashboardPeriodFromParams(year, month);
     if (requested) setPeriod(requested);
   }, [year, month]);
-  const [view, setView] = useState<ReportView>('summary');
+  const [view, setView] = useState<ReportView>(() =>
+    reportViews.some((item) => item.id === requestedReport) ? requestedReport! : 'summary',
+  );
+  useEffect(() => {
+    if (requestedReport && reportViews.some((item) => item.id === requestedReport)) setView(requestedReport);
+  }, [requestedReport]);
   const [count, setCount] = useState(6);
   const [selectedCurrency, setSelectedCurrency] = useState<string>(requestedCurrency ?? '');
   useEffect(() => {
@@ -91,6 +100,12 @@ export default function ReportsScreen() {
     enabled: view === 'budgets',
     staleTime: 60_000,
   });
+  const budgetComparison = useQuery({
+    queryKey: ['reports', 'budget-vs-actual', period.year, period.month],
+    queryFn: () => getBudgetVsActual(period.year, period.month),
+    enabled: view === 'budgets',
+    staleTime: 60_000,
+  });
   const available = reportCurrencies(
     queries.map((query) => query.data),
     [
@@ -103,6 +118,13 @@ export default function ReportsScreen() {
     ],
   );
   const currency = selectedCurrency && available.includes(selectedCurrency) ? selectedCurrency : available[0];
+  const categoryReport = useQuery({
+    queryKey: ['reports', 'categories', period.year, period.month, currency, view],
+    queryFn: () =>
+      getCategoryReport(period.year, period.month, currency!, view === 'income' ? 'INCOME' : 'EXPENSE'),
+    enabled: (view === 'expenses' || view === 'income') && Boolean(currency),
+    staleTime: 60_000,
+  });
   const currentQuery = queries.at(-1)!;
   const current = currency ? currencyMonth(currentQuery.data, currency) : undefined;
   const previous = currency ? currencyMonth(queries.at(-2)?.data, currency) : undefined;
@@ -112,12 +134,14 @@ export default function ReportsScreen() {
   }));
   const activeQueries =
     view === 'budgets'
-      ? [budgets]
+      ? [budgets, budgetComparison]
       : view === 'credits'
         ? [snapshot, credits]
-        : monthly
-          ? [currentQuery]
-          : [snapshot];
+        : view === 'expenses' || view === 'income'
+          ? [categoryReport]
+          : monthly
+            ? [currentQuery]
+            : [snapshot];
   const waiting = activeQueries.some((query) => query.isPending && !query.data);
   const failed = activeQueries.some((query) => query.isError && !query.data);
   const stale = activeQueries.some((query) => query.isError && query.data);
@@ -129,6 +153,8 @@ export default function ReportsScreen() {
     if (monthly) queries.forEach((query) => void query.refetch());
     else void snapshot.refetch();
     if (view === 'budgets') void budgets.refetch();
+    if (view === 'budgets') void budgetComparison.refetch();
+    if (view === 'expenses' || view === 'income') void categoryReport.refetch();
     if (view === 'credits') void credits.refetch();
   };
   return (
@@ -226,17 +252,38 @@ export default function ReportsScreen() {
                   }
                 />
               ) : null}
-              {view === 'expenses' && current ? (
-                <ExpenseBreakdown
-                  current={current}
-                  previous={previous}
-                  currency={currency}
-                  hidden={hidden}
+              {(view === 'expenses' || view === 'income') && categoryReport.data ? (
+                <CategoryHierarchyReport
+                  data={categoryReport.data}
                   period={period}
+                  currency={currency}
+                  type={view === 'income' ? 'INCOME' : 'EXPENSE'}
+                  hidden={hidden}
                 />
               ) : null}
+              {(view === 'expenses' || view === 'income') && categoryReport.isError ? (
+                <ReportPanel
+                  title="No se pudo actualizar el detalle por categoría"
+                  icon="cloud-offline-outline"
+                >
+                  <Text style={s.body}>
+                    Puedes consultar los datos del mes y volver a intentar este desglose.
+                  </Text>
+                  <Button variant="secondary" onPress={() => void categoryReport.refetch()}>
+                    Reintentar desglose
+                  </Button>
+                </ReportPanel>
+              ) : null}
               {view === 'budgets' && budgets.data ? (
-                <BudgetReport budgets={budgets.data} period={period} currency={currency} hidden={hidden} />
+                <BudgetReport
+                  budgets={budgets.data}
+                  comparison={budgetComparison.data}
+                  comparisonError={budgetComparison.isError}
+                  onRetryComparison={() => void budgetComparison.refetch()}
+                  period={period}
+                  currency={currency}
+                  hidden={hidden}
+                />
               ) : null}
               {view === 'accounts' && snapshot.data ? (
                 <AccountReport data={snapshot.data} currency={currency} hidden={hidden} />

@@ -76,7 +76,7 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
     () => ({
       mode,
       isDark,
-      palette: isDark ? dark : colors,
+      palette: isDark ? dark : lightPalette,
       async setMode(next) {
         setModeState(next);
         const SecureStore = await import('expo-secure-store');
@@ -88,13 +88,9 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
   return (
     <ThemeContext.Provider value={value}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <ThemeMount key={isDark ? 'dark' : 'light'}>{children}</ThemeMount>
+      {children}
     </ThemeContext.Provider>
   );
-}
-
-function ThemeMount({ children }: PropsWithChildren) {
-  return <>{children}</>;
 }
 
 export function useAppTheme(): ThemeValue {

@@ -20,6 +20,7 @@ import { presentSavingGoal } from './savings-presentation';
 
 export function SavingContributionForm({
   visible,
+  withdraw = false,
   goal,
   completed,
   onClose,
@@ -27,6 +28,7 @@ export function SavingContributionForm({
   onSaved,
 }: {
   visible: boolean;
+  withdraw?: boolean;
   goal: SavingGoal;
   completed: boolean;
   onClose(): void;
@@ -55,7 +57,13 @@ export function SavingContributionForm({
     if (!submitting.current) guard.request(onClose);
   };
   const submit = () => {
-    if (submitting.current || uncertain || completed || goal.id === undefined) return;
+    if (
+      submitting.current ||
+      uncertain ||
+      (!withdraw && (completed || (goal.status && goal.status !== 'ACTIVE'))) ||
+      goal.id === undefined
+    )
+      return;
     submitting.current = true;
     void form.handleSubmit(
       async (data) => {
@@ -69,10 +77,15 @@ export function SavingContributionForm({
         try {
           const after = await mutation.mutateAsync({
             id: goal.id,
-            data: { amount, movementDate: data.movementDate },
+            data: {
+              amount,
+              movementDate: data.movementDate,
+              ...(goal.version === undefined ? {} : { version: goal.version }),
+            },
+            ...(withdraw ? { withdraw: true } : {}),
           });
           form.reset({ amount: '', movementDate: localDateFromNative(new Date()) });
-          feedback.show('Aporte registrado', 'success');
+          feedback.show(withdraw ? 'Retiro anotado' : 'Aporte registrado', 'success');
           await onSaved(before, after);
         } catch (cause) {
           const failure = cause instanceof ApiError ? cause : toApiError(cause);
@@ -103,7 +116,12 @@ export function SavingContributionForm({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
       <Screen scroll keyboard style={{ gap: spacing.lg }}>
-        <ScreenHeader title="Nuevo aporte" subtitle={goal.name} back onBack={close} />
+        <ScreenHeader
+          title={withdraw ? 'Retirar de la meta' : 'Nuevo aporte'}
+          subtitle={goal.name}
+          back
+          onBack={close}
+        />
         <Text style={typography.cardTitle}>Progreso actual · {presentSavingGoal(goal).percentageLabel}</Text>
         <Text style={typography.bodySecondary}>
           Ahorrado · {savingsAmount(goal.currentAmount, hidden, goal.currency)}
@@ -113,7 +131,7 @@ export function SavingContributionForm({
           name="amount"
           render={({ field }) => (
             <MoneyInput
-              label="Monto del aporte"
+              label={withdraw ? 'Monto del retiro' : 'Monto del aporte'}
               placeholder="0"
               currency={goal.currency ?? ''}
               value={field.value}
@@ -128,7 +146,7 @@ export function SavingContributionForm({
           name="movementDate"
           render={({ field }) => (
             <FinancialDateField
-              label="Fecha del aporte"
+              label={withdraw ? 'Fecha del retiro' : 'Fecha del aporte'}
               value={field.value}
               onChange={field.onChange}
               error={form.formState.errors.movementDate?.message}
@@ -136,15 +154,16 @@ export function SavingContributionForm({
           )}
         />
         <Text style={typography.bodySecondary}>
-          Anota dinero que ya apartaste en la moneda de esta meta. Este registro actualiza tu progreso; no
-          retira dinero de tus cuentas.
+          {withdraw
+            ? 'Anota dinero que dejaste de apartar para esta meta. Reduce el progreso y conserva el historial; no ingresa ni retira dinero de tus cuentas.'
+            : 'Anota dinero que ya apartaste en la moneda de esta meta. Este registro actualiza tu progreso; no retira dinero de tus cuentas.'}
         </Text>
         {error ? (
           <Text accessibilityLiveRegion="polite" style={typography.bodySecondary}>
             {error}
           </Text>
         ) : null}
-        {completed ? (
+        {completed && !withdraw ? (
           <Text style={typography.cardTitle}>Meta cumplida. Ya completaste tu objetivo.</Text>
         ) : null}
         {uncertain || error ? (
@@ -176,13 +195,13 @@ export function SavingContributionForm({
             Ya revisé el progreso
           </Button>
         ) : null}
-        {!completed ? (
+        {!completed || withdraw ? (
           <Button
             loading={mutation.isPending || form.formState.isSubmitting}
             disabled={uncertain || reviewing}
             onPress={submit}
           >
-            Registrar aporte
+            {withdraw ? 'Registrar retiro' : 'Registrar aporte'}
           </Button>
         ) : null}
       </Screen>

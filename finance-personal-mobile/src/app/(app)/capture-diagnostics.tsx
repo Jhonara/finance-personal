@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -53,6 +54,7 @@ const showDate = (value?: string | number) =>
   value ? new Date(value).toLocaleString('es-CO') : 'Aún no hay una sincronización verificada';
 
 export default function CaptureDiagnosticsScreen() {
+  useAppTheme();
   const { state, qaServerUrl } = useAuth();
   const user = useCurrentUser();
   const ownerId = user.data?.id ? String(user.data.id) : '';

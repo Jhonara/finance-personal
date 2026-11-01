@@ -15,12 +15,14 @@ export function CreditAccountSelector({
   onChange,
   label,
   disabled,
+  purpose = 'payment',
 }: {
   currency?: string;
   value?: number;
   onChange(id?: number): void;
   label: string;
   disabled: boolean;
+  purpose?: 'payment' | 'disbursement';
 }) {
   const accounts = useAccounts();
   const now = new Date();
@@ -35,6 +37,50 @@ export function CreditAccountSelector({
       subtitle: accountBalanceLabel(balanceForAccount(dashboard, a.id), a.currency ?? '', hidden),
     }));
   const selected = options.find((a) => a.id === value);
+  if (purpose === 'disbursement')
+    return (
+      <View style={{ gap: spacing.sm }}>
+        <Text style={typography.label}>¿Dónde quedó el dinero del préstamo?</Text>
+        <Text style={typography.caption}>
+          Solo sumaremos el desembolso al saldo si realmente llegó a una cuenta que registras aquí.
+        </Text>
+        <Button
+          variant={value === undefined ? 'primary' : 'secondary'}
+          disabled={disabled}
+          onPress={() => onChange(undefined)}
+        >
+          Se pagó directamente fuera de mis cuentas
+        </Button>
+        <Button
+          variant={value !== undefined ? 'primary' : 'secondary'}
+          disabled={disabled}
+          onPress={() => setOpen(true)}
+        >
+          Entró a una cuenta mía
+        </Button>
+        {selected && (
+          <Text style={typography.bodySecondary}>
+            {selected.label}: el desembolso aumentará el saldo de esta cuenta. Si luego usaste ese dinero,
+            registra también el pago o gasto correspondiente.
+          </Text>
+        )}
+        {accounts.isError && (
+          <Button variant="ghost" onPress={() => void accounts.refetch()}>
+            Reintentar cuentas
+          </Button>
+        )}
+        <ModalSelector
+          visible={open}
+          label={label}
+          subtitle="Elige la cuenta donde recibiste el dinero"
+          options={options}
+          loading={accounts.isPending}
+          selectedId={value}
+          onSelect={onChange}
+          onClose={() => setOpen(false)}
+        />
+      </View>
+    );
   return (
     <View style={{ gap: spacing.sm }}>
       <Text style={typography.label}>{label} · opcional</Text>

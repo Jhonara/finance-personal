@@ -10,6 +10,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
+  put: vi.fn(),
+  patch: vi.fn(),
+  delete: vi.fn(),
   back: vi.fn(),
   push: vi.fn(),
   feedback: vi.fn(),
@@ -100,7 +103,7 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('expo-secure-store', () => ({ getItemAsync: mocks.read, setItemAsync: mocks.write }));
 vi.mock('@/auth/auth-provider', () => ({
-  api: { get: mocks.get, post: mocks.post },
+  api: { get: mocks.get, post: mocks.post, put: mocks.put, patch: mocks.patch, delete: mocks.delete },
   useAuth: () => ({ state: { status: 'authenticated' } }),
 }));
 vi.mock('@/privacy/privacy-provider', () => ({ usePrivacy: () => ({ hidden: mocks.hidden }) }));
@@ -185,11 +188,27 @@ beforeEach(() => {
   });
   mocks.get.mockImplementation(async (url: string) => {
     if (url === '/savings/goals') return { data: [...goals] };
+    if (url.endsWith('/movements'))
+      return {
+        data: [
+          { id: 10, type: 'CONTRIBUTION', amount: 100, movementDate: '2026-10-31' },
+          { id: 11, type: 'WITHDRAWAL', amount: 20, movementDate: '2026-10-31' },
+        ],
+      };
     if (url === '/me') return { data: { id: 10, name: 'Ana' } };
     if (url.endsWith('/progress'))
       return { data: goals.find((goal) => url.includes(`/goals/${goal.id}/`))?.progress ?? 0 };
     throw Error(`Unexpected GET ${url}`);
   });
+  mocks.put.mockImplementation(async (_url: string, data: object) => {
+    goals = [{ ...goals[0], ...data, version: 1 }];
+    return { data: goals[0] };
+  });
+  mocks.patch.mockImplementation(async (_url: string, data: object) => {
+    goals = [{ ...goals[0], ...data, version: 1 }];
+    return { data: goals[0] };
+  });
+  mocks.delete.mockResolvedValue({});
   mocks.post.mockImplementation(
     async (url: string, data: { name?: string; targetAmount?: number; amount?: number }) => {
       if (url === '/savings/goals') {
@@ -311,6 +330,11 @@ describe('Create goal', () => {
       currency: 'COP',
     });
     expect(text(tree.toJSON())).toContain('Tu primera meta está lista');
+    expect(
+      tree.root
+        .findAll((node) => (node.type as unknown) === 'TextInput')
+        .find((node) => node.props.accessibilityLabel === 'Objetivo')!.props.value,
+    ).toBe('3.000.000,25');
     expect(storage.get(savingsEventKey(10, 'first-goal'))).toBe('seen');
     await act(async () => press(tree, 'Continuar'));
     expect(mocks.back).toHaveBeenCalledOnce();
@@ -501,4 +525,83 @@ it('keeps dismissal per user across navigation and switching A to B to A', async
   });
   await flush(() => {});
   await flush(() => expect(text(tree.toJSON())).not.toContain('Tus planes tienen su propio espacio'));
+});
+
+it('edits goal metadata with its captured version and preserves account-independent history', async () => {
+  goals = [{ ...firstGoal, version: 0, status: 'ACTIVE', description: 'Antes' }];
+  const tree = await render(<SavingDetail />);
+  await act(async () => press(tree, 'Editar meta'));
+  await fill(tree, 'Nombre', 'Nueva meta');
+  await fill(tree, 'Descripción · opcional', 'Descripción cambiada');
+  await act(async () => press(tree, 'Guardar cambios'));
+  await flush(() => expect(mocks.put).toHaveBeenCalledOnce());
+  expect(mocks.put).toHaveBeenCalledWith(
+    '/savings/goals/1',
+    expect.objectContaining({
+      name: 'Nueva meta',
+      description: 'Descripción cambiada',
+      version: 0,
+      targetAmount: 1000,
+    }),
+  );
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+
+it('shows contribution and withdrawal history and masks every history amount', async () => {
+  goals = [{ ...firstGoal, version: 0, currentAmount: 80 }];
+  const tree = await render(<SavingDetail />);
+  await act(async () => press(tree, 'Ver aportes y retiros'));
+  await flush(() => expect(text(tree.toJSON())).toContain('Retiro · 20 COP'));
+  expect(text(tree.toJSON())).toContain('Aporte · 100 COP');
+  mocks.hidden = true;
+  await act(async () =>
+    tree.update(
+      <QueryClientProvider client={client}>
+        <SavingDetail />
+      </QueryClientProvider>,
+    ),
+  );
+  expect(text(tree.toJSON())).toContain('Retiro · ••••••');
+  expect(text(tree.toJSON())).not.toContain('100 COP');
+});
+
+it('withdraws from a completed goal with its current version and never creates an expense', async () => {
+  goals = [{ ...firstGoal, version: 3, currentAmount: 1000, progress: 100, completed: true }];
+  const tree = await render(<SavingDetail />);
+  await act(async () => press(tree, 'Retirar de esta meta'));
+  await fill(tree, 'Monto del retiro', '20');
+  await act(async () => press(tree, 'Registrar retiro'));
+  await flush(() => expect(mocks.post).toHaveBeenCalledOnce());
+  expect(mocks.post).toHaveBeenCalledWith(
+    '/savings/goals/1/withdrawals',
+    expect.objectContaining({ amount: 20, version: 3 }),
+  );
+});
+
+it('requires confirmation before closing and keeps an archived goal visible', async () => {
+  goals = [{ ...firstGoal, version: 0, status: 'ACTIVE' }];
+  const { registerAlertPresenter } = await import('@/feedback/app-alert');
+  let confirmation: import('@/feedback/app-alert').AppAlertRequest | undefined;
+  const release = registerAlertPresenter((value) => {
+    confirmation = value;
+  });
+  try {
+    const tree = await render(<SavingDetail />);
+    await act(async () => press(tree, 'Cerrar meta'));
+    expect(mocks.patch).not.toHaveBeenCalled();
+    await act(async () => confirmation!.buttons.find((button) => button.text === 'Confirmar')!.onPress!());
+    await flush(() => expect(mocks.patch).toHaveBeenCalledOnce());
+    expect(mocks.patch).toHaveBeenCalledWith('/savings/goals/1/status', { status: 'CLOSED', version: 0 });
+    await flush(() => expect(text(tree.toJSON())).toContain('Reabrir meta'));
+    expect(text(tree.toJSON())).not.toContain('Aportar a esta meta');
+  } finally {
+    release();
+  }
+});
+
+it('never offers deletion for a zero-balance goal whose movements are preserved', async () => {
+  goals = [{ ...firstGoal, version: 0, currentAmount: 0, status: 'CLOSED' }];
+  const tree = await render(<SavingDetail />);
+  await flush(() => expect(mocks.get).toHaveBeenCalledWith('/savings/goals/1/movements'));
+  expect(text(tree.toJSON())).not.toContain('Eliminar meta sin movimientos');
 });

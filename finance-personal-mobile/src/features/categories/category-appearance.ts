@@ -1,5 +1,6 @@
 import type Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
+import { colors, lightPalette } from '@/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 export const categoryIcons = [
@@ -30,6 +31,28 @@ export const categoryColors = [
   { key: 'pink', label: 'Rosa', soft: '#FFE9F4', ink: '#9B4870' },
 ] as const;
 
+export type CategoryColorKey = (typeof categoryColors)[number]['key'];
+
+const darkCategoryColors: Record<CategoryColorKey, { soft: string; ink: string }> = {
+  mint: { soft: '#193F35', ink: '#80DFC0' },
+  amber: { soft: '#413622', ink: '#F2CA83' },
+  blue: { soft: '#1B394A', ink: '#8FCFEF' },
+  violet: { soft: '#342E4D', ink: '#C3B4F6' },
+  coral: { soft: '#472E34', ink: '#F3A6B0' },
+  pink: { soft: '#442D40', ink: '#EEAED3' },
+};
+
+/** Category identity stays constant; only its readable colors follow the app theme. */
+export function categoryColorAppearance(key: CategoryColorKey) {
+  const color = categoryColors.find((item) => item.key === key) ?? categoryColors[0];
+  return {
+    colorKey: color.key,
+    ...(colors.background === lightPalette.background
+      ? { soft: color.soft, ink: color.ink }
+      : darkCategoryColors[color.key]),
+  };
+}
+
 export function savedCategoryAppearance(category: {
   name?: string;
   type?: string;
@@ -38,8 +61,8 @@ export function savedCategoryAppearance(category: {
 }) {
   const fallback = categoryAppearance(category.name, category.type);
   const icon = categoryIcons.find((item) => item.key === category.iconKey)?.key ?? fallback.icon;
-  const color = categoryColors.find((item) => item.key === category.colorKey);
-  return { icon, soft: color?.soft ?? fallback.soft, ink: color?.ink ?? fallback.ink };
+  const color = categoryColors.find((item) => item.key === category.colorKey)?.key ?? fallback.colorKey;
+  return { icon, ...categoryColorAppearance(color) };
 }
 
 export const categorySuggestions = {
@@ -54,23 +77,23 @@ export function categoryAppearance(name = '', type = 'EXPENSE') {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
   if (/comida|aliment|restaur|supermerc|mercado/.test(text))
-    return { icon: 'restaurant-outline' as const, soft: '#FFF0DB', ink: '#946016' };
+    return { icon: 'restaurant-outline' as const, ...categoryColorAppearance('amber') };
   if (/transport|auto|gasolina|taxi|moto/.test(text))
-    return { icon: 'car-sport-outline' as const, soft: '#DDF4FF', ink: '#196386' };
+    return { icon: 'car-sport-outline' as const, ...categoryColorAppearance('blue') };
   if (/vivienda|hogar|casa|arriendo|alquiler|servicio/.test(text))
-    return { icon: 'home-outline' as const, soft: '#E9E4FF', ink: '#66509E' };
+    return { icon: 'home-outline' as const, ...categoryColorAppearance('violet') };
   if (/salud|medic|farmac/.test(text))
-    return { icon: 'medkit-outline' as const, soft: '#FFE5E8', ink: '#A74455' };
+    return { icon: 'medkit-outline' as const, ...categoryColorAppearance('coral') };
   if (/ocio|salida|viaje|diversion/.test(text))
-    return { icon: 'balloon-outline' as const, soft: '#FFE9F4', ink: '#9B4870' };
+    return { icon: 'balloon-outline' as const, ...categoryColorAppearance('pink') };
   if (/educ|estudio|curso|libro/.test(text))
-    return { icon: 'school-outline' as const, soft: '#E2F0FF', ink: '#365F96' };
+    return { icon: 'school-outline' as const, ...categoryColorAppearance('blue') };
   if (/nomina|sueldo|salario|trabajo/.test(text))
-    return { icon: 'briefcase-outline' as const, soft: '#DDF7EA', ink: '#167657' };
-  if (/venta/.test(text)) return { icon: 'storefront-outline' as const, soft: '#FFF0DB', ink: '#946016' };
+    return { icon: 'briefcase-outline' as const, ...categoryColorAppearance('mint') };
+  if (/venta/.test(text)) return { icon: 'storefront-outline' as const, ...categoryColorAppearance('amber') };
   if (/rendimiento|inversion|interes/.test(text))
-    return { icon: 'trending-up-outline' as const, soft: '#DDF7EA', ink: '#167657' };
+    return { icon: 'trending-up-outline' as const, ...categoryColorAppearance('mint') };
   return type === 'INCOME'
-    ? { icon: 'cash-outline' as const, soft: '#DDF7EA', ink: '#167657' }
-    : { icon: 'pricetag-outline' as const, soft: '#FFE9E6', ink: '#AD4852' };
+    ? { icon: 'cash-outline' as const, ...categoryColorAppearance('mint') }
+    : { icon: 'pricetag-outline' as const, ...categoryColorAppearance('coral') };
 }

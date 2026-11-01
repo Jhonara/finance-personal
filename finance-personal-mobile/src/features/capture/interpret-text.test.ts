@@ -80,4 +80,187 @@ describe('common financial text interpreter', () => {
     expect(sms?.dedupId).toBe(image?.dedupId);
     expect(sms?.dedupId).toMatch(/^possible-[0-9a-f]{8}$/);
   });
+
+  it.each(['IMAGE', 'PDF'] as const)('reads a Colombian dataphone voucher from %s', (source) => {
+    const text = [
+      'Redeban',
+      'OCT 24 2026 19:30:32 NOV-11.61',
+      'MERCAFRUVER EL CAMPESTINO',
+      'TV 28E 72F3',
+      'MASTERCARD **4025',
+      'VENTA',
+      'COMPRA NETA $ 78.300',
+      'IVA $ 0',
+      'INC $ 0',
+      'TOTAL $ 78.300',
+      'PAGO SIN CONTACTO',
+    ].join('\n');
+
+    expect(interpretFinancialText(text, source)).toMatchObject({
+      kind: 'EXPENSE',
+      amount: '78300',
+      currency: 'COP',
+      effectiveDate: '2026-10-24',
+      occurredAt: '2026-10-24T19:30:00',
+      description: 'MERCAFRUVER EL CAMPESTINO',
+      confidence: 'HIGH',
+      source,
+    });
+  });
+
+  it.each(['IMAGE', 'PDF'] as const)(
+    'reads the total and date from an itemized Colombian invoice via %s',
+    (source) => {
+      const text = [
+        'MERCAFRUVER EL CAMPESINO',
+        'NIT: 105884244-3',
+        'Sede: Principal',
+        'Calle 72f3 no.28e-05 barrio Calipso',
+        '24/10/2026 19:30',
+        'No. BVO-50431',
+        'CHOCORAMO *65G x 1 $ 3.000',
+        'LECHE SANFERNANDO $ 5.900',
+        'CARNES x 1 $ 38.200',
+        'Subtotal $ 78.300',
+        'Total venta $ 78.300',
+        'Tipo de pago · Tarjeta débito',
+      ].join('\n');
+
+      expect(interpretFinancialText(text, source)).toMatchObject({
+        kind: 'EXPENSE',
+        amount: '78300',
+        currency: 'COP',
+        effectiveDate: '2026-10-24',
+        occurredAt: '2026-10-24T19:30:00',
+        description: 'MERCAFRUVER EL CAMPESINO',
+        confidence: 'HIGH',
+        source,
+      });
+    },
+  );
+
+  it('uses the final total on a long receipt page and refuses conflicting totals', () => {
+    const longReceipt = [
+      'MERCAFRUVER EL CAMPESINO',
+      'NIT 105884244-3',
+      '24/10/2026',
+      ...Array.from({ length: 500 }, (_, index) => `PRODUCTO ${index + 1} $ 1.000`),
+      'Subtotal $ 500.000',
+      'Total venta $ 500.000',
+    ].join('\n');
+    expect(interpretFinancialText(longReceipt, 'PDF')).toMatchObject({
+      kind: 'EXPENSE',
+      amount: '500000',
+      effectiveDate: '2026-10-24',
+    });
+
+    expect(
+      interpretFinancialText('REDEBAN\nMERCAFRUVER\n24/10/2026\nTOTAL $ 78.300\nTOTAL $ 87.300', 'IMAGE'),
+    ).toMatchObject({ kind: 'EXPENSE', amount: undefined, confidence: 'LOW' });
+  });
+
+  it.each(['QA31 MERCADO DE PRUEBA', '7 ELEVEN', 'SUPER 99'])(
+    'preserves short digits in merchant names such as %s without selecting currency metadata',
+    (merchant) => {
+      const receipt = [
+        merchant,
+        'NIT: 123456789-0',
+        'Fecha: 31/10/2026',
+        'Moneda: COP',
+        'Total venta $ 78.300',
+      ].join('\n');
+      expect(interpretFinancialText(receipt, 'PDF')).toMatchObject({
+        description: merchant,
+        counterparty: merchant,
+        amount: '78300',
+        currency: 'COP',
+        effectiveDate: '2026-10-31',
+      });
+    },
+  );
+
+  it('does not use currency metadata or long identifiers as a receipt merchant', () => {
+    const receipt = [
+      'NIT: 123456789-0',
+      'Moneda: COP',
+      'Currency USD',
+      'COP',
+      'Local 12345678',
+      'Total venta $ 78.300',
+    ].join('\n');
+    expect(interpretFinancialText(receipt, 'PDF')?.description).toBeUndefined();
+  });
+
+  it('prefers the merchant above the tax identifier over a misread decorative logo', () => {
+    const receipt = [
+      '&AMPESND',
+      'MERCAFRUVER EL CAMPESINO',
+      'NIT: 123456789-0',
+      'Sede: Principal',
+      '24/10/2026 19:30',
+      'Subtotal $ 78.300',
+      'Total venta $ 78.300',
+      'Tipo de pago Tarjeta débito',
+    ].join('\n');
+    expect(interpretFinancialText(receipt, 'IMAGE')).toMatchObject({
+      description: 'MERCAFRUVER EL CAMPESINO',
+      amount: '78300',
+      currency: 'COP',
+      effectiveDate: '2026-10-24',
+    });
+  });
+});
+
+describe('Receipt total robustness', () => {
+  it.each(['IMAGE', 'PDF'] as const)(
+    'ignores tax and change totals while joining split numeric separators in %s',
+    (source) => {
+      const receipt =
+        'TIENDA DEL BARRIO\nNIT 123456789-0\n31/10/2026\nIVA $ 5.000\nTOTAL IVA $ 5.000\nTOTAL $ 78. 300, 00\nEFECTIVO $ 100.000\nCAMBIO $ 21.700';
+      expect(interpretFinancialText(receipt, source)).toMatchObject({ amount: '78300.00', currency: 'COP' });
+    },
+  );
+  it('does not use a subtotal or a following tax line as an unreadable final total', () => {
+    expect(
+      interpretFinancialText(
+        'TIENDA CENTRAL\nNIT 123456789-0\n31/10/2026\nSUBTOTAL $ 20.000\nTOTAL\nIVA $ 1.000',
+        'IMAGE',
+      )?.amount,
+    ).toBeUndefined();
+  });
+  it('keeps conflicting currencies and totals incomplete for review', () => {
+    expect(
+      interpretFinancialText('REDEBAN\nTIENDA CENTRAL\n31/10/2026\nTOTAL COP 80.000\nTOTAL USD 20', 'PDF'),
+    ).toMatchObject({ amount: undefined, currency: undefined, confidence: 'LOW' });
+  });
+  it('does not suggest a cancelled voucher as a new expense', () => {
+    const result = interpretFinancialText(
+      'REDEBAN\nTIENDA CENTRAL\n31/10/2026\nANULACIÓN DE COMPRA\nTOTAL $ 78.300',
+      'IMAGE',
+    );
+    expect(result).toMatchObject({ kind: 'REVERSAL', amount: '78300' });
+    expect(result?.warnings.join(' ')).toContain('original');
+  });
+});
+
+it.each(['Bancolombia', 'Davivienda', 'Nequi', 'BBVA', 'Daviplata', 'Nu Colombia'])(
+  'reads a synthetic %s notification with explicit COP, dollar sign and ISO year-first date',
+  (bank) => {
+    expect(
+      interpretFinancialText(
+        `${bank}: Compraste COP $ 18.250,00 en Café el 2026/10/31. Saldo disponible COP $ 1.000.000`,
+        'NOTIFICATION',
+      ),
+    ).toMatchObject({ kind: 'EXPENSE', currency: 'COP', amount: '18250.00', effectiveDate: '2026-10-31' });
+  },
+);
+it('accepts invoice QR identifiers while still rejecting authentication codes on the same receipt', () => {
+  const receipt =
+    'TIENDA CENTRAL\nFACTURA DIAN\nCódigo QR 123456789\nNIT 123456789-0\nFecha 2026/10/31\nTOTAL COP $ 78 . 300, 00';
+  expect(interpretFinancialText(receipt, 'PDF')).toMatchObject({
+    amount: '78300.00',
+    currency: 'COP',
+    effectiveDate: '2026-10-31',
+  });
+  expect(interpretFinancialText(receipt + '\nCódigo OTP de seguridad 123456', 'PDF')).toBeNull();
 });

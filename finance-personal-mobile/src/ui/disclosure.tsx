@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, radius, spacing, typography } from '@/theme';
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import { MotionEntry, MotionPressable } from './motion';
 
 export function Disclosure({
@@ -19,10 +20,11 @@ export function Disclosure({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }>) {
+  const { palette } = useAppTheme();
   const [localOpen, setOpen] = useState(defaultOpen);
   const open = controlledOpen ?? localOpen;
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={title}
@@ -33,9 +35,9 @@ export function Disclosure({
         }}
         style={styles.toggle}
       >
-        <Ionicons name={icon} size={20} color={colors.primary} />
-        <Text style={styles.title}>{title}</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={17} color={colors.textMuted} />
+        <Ionicons name={icon} size={20} color={palette.primary} />
+        <Text style={[styles.title, { color: palette.primary }]}>{title}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={17} color={palette.textMuted} />
       </MotionPressable>
       {open ? (
         <MotionEntry>

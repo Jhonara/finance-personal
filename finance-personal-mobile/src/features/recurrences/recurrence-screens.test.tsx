@@ -1,3 +1,4 @@
+vi.mock('@/ui/category-hierarchy-field', () => ({ CategoryHierarchyField: 'CategoryHierarchyField' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,7 +63,7 @@ vi.mock('@/ui/transaction-detail-sheet', () => ({ TransactionDetailSheet: 'Trans
 vi.mock('@/features/credits/credit-payment-form', () => ({ CreditPaymentForm: 'CreditPaymentForm' }));
 import RecurrencesScreen from '@/app/(app)/recurrences';
 import RecurringForm from '@/app/(app)/recurring-form';
-import { scheduleLabel } from './recurrence-presentation';
+import { frequencyLabel, monthlyAmountFromPayment, scheduleLabel } from './recurrence-presentation';
 import { presentAlert } from '@/features/alerts/alert-presentation';
 import { alertDestination } from '@/features/alerts/alert-navigation';
 
@@ -87,6 +88,15 @@ async function flush() {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 15));
   });
+}
+function textContent() {
+  return renderer.root
+    .findAll((node) => String(node.type) === 'Text')
+    .map(({ props }) => {
+      const children = props.children;
+      return Array.isArray(children) ? children.map(String).join('') : String(children ?? '');
+    })
+    .join(' ');
 }
 async function waitForPreview() {
   // Let the debounce commit before waiting for the resulting query render.
@@ -145,16 +155,24 @@ beforeEach(() => {
   }));
   mocks.post.mockImplementation(
     async (url: string, data: { amount: number; amountBasis?: string; frequency?: string }) => {
+      const paymentsPerYear =
+        data.frequency === 'MONTHLY'
+          ? 12
+          : data.frequency === 'SEMIMONTHLY'
+            ? 24
+            : data.frequency === 'BIWEEKLY'
+              ? 26
+              : 52;
       const payment =
-        data?.amountBasis === 'MONTHLY_TOTAL' && data.frequency === 'SEMIMONTHLY'
-          ? data.amount / 2
+        data?.amountBasis === 'MONTHLY_TOTAL'
+          ? Math.round(((data.amount * 12) / paymentsPerYear) * 10_000) / 10_000
           : data?.amount;
       return {
         data:
           url === '/recurrences/preview'
             ? {
                 amountPerPayment: payment,
-                fullMonthTotal: data.frequency === 'SEMIMONTHLY' ? payment * 2 : payment,
+                fullMonthTotal: data.amountBasis === 'MONTHLY_TOTAL' ? data.amount : payment,
                 months: [],
               }
             : {},
@@ -223,7 +241,7 @@ describe('recurring payments', () => {
     await mount(<RecurringForm />);
     await act(async () => {
       find('Input', 'label', 'Nombre').props.onChangeText('Mi salario');
-      find('MoneyInput', 'label', 'Importe de cada pago').props.onChangeText('1500000');
+      find('MoneyInput', 'label', 'Total mensual del ingreso').props.onChangeText('1500000');
       find('FinancialDateField', 'label', 'Empezar a partir de').props.onChange(future);
       find('SelectField', 'label', 'Cuenta que recibe el dinero').props.onPress();
     });
@@ -259,20 +277,23 @@ describe('recurring payments', () => {
       '15 y último día de cada mes',
     );
     expect(scheduleLabel({ frequency: 'BIWEEKLY', firstDay: 15, secondDay: null })).toBe('Cada 14 días');
+    expect(frequencyLabel('SEMIMONTHLY')).toBe('Dos veces al mes');
+    expect(monthlyAmountFromPayment(1500000, 'SEMIMONTHLY')).toBe(3000000);
+    expect(monthlyAmountFromPayment(1000000, 'WEEKLY')).toBe(4333333.3333);
   });
-  it('previews a monthly salary and saves the per-payment amount without the UI-only choice', async () => {
+  it('previews monthly income and saves the per-payment amount without an amount-basis choice', async () => {
     await mount(<RecurringForm />);
     await act(async () => find('SelectField', 'label', '¿Cada cuánto?').props.onPress());
     await act(async () => find('ModalSelector', 'visible', true).props.onSelect(1));
-    await press('Total mensual');
     await act(async () => {
       find('Input', 'label', 'Nombre').props.onChangeText('Mi salario');
-      find('MoneyInput', 'label', 'Total que recibes al mes').props.onChangeText('3000000');
+      find('MoneyInput', 'label', 'Total mensual del ingreso').props.onChangeText('3000000');
       find('FinancialDateField', 'label', 'Empezar a partir de').props.onChange(future);
       find('SelectField', 'label', 'Cuenta que recibe el dinero').props.onPress();
     });
     await act(async () => find('ModalSelector', 'visible', true).props.onSelect(1));
     await waitForPreview();
+    expect(textContent()).toContain('Frecuencia de pago: Dos veces al mes');
     await press('Guardar programación');
     const save = mocks.post.mock.calls.find(([url]) => url === '/recurrences');
     expect(save?.[1]).toMatchObject({
@@ -301,7 +322,7 @@ describe('recurring payments', () => {
     expect(renderer.root.findByType('TransactionDetailSheet' as never).props.transaction.id).toBe(99);
     expect(mocks.push).not.toHaveBeenCalled();
   });
-  it('keeps an existing twice-monthly salary as its original per-payment amount', async () => {
+  it('shows an existing twice-monthly rule as a monthly amount and preserves each payment', async () => {
     mocks.params = { id: '1', type: 'INCOME' };
     const original = mocks.get.getMockImplementation()!;
     mocks.get.mockImplementation((url: string) =>
@@ -329,12 +350,42 @@ describe('recurring payments', () => {
     mocks.put.mockResolvedValue({ data: {} });
     await mount(<RecurringForm />);
     await waitForPreview();
-    expect(find('MoneyInput', 'label', 'Importe de cada pago').props.value).toBe('3000000');
+    expect(find('MoneyInput', 'label', 'Total mensual del ingreso').props.value).toBe('6000000');
     await press('Guardar programación');
     expect(mocks.put).toHaveBeenCalledWith(
       '/recurrences/1',
       expect.objectContaining({ amount: 3000000, frequency: 'SEMIMONTHLY', version: 1 }),
     );
+  });
+  it('divides a monthly fixed expense into weekly payments before saving', async () => {
+    mocks.params = { type: 'EXPENSE' };
+    await mount(<RecurringForm />);
+    await act(async () => find('SelectField', 'label', '¿Cada cuánto?').props.onPress());
+    await act(async () => find('ModalSelector', 'visible', true).props.onSelect(2));
+    await act(async () => {
+      find('Input', 'label', 'Nombre').props.onChangeText('Mercado semanal');
+      find('MoneyInput', 'label', 'Total mensual del gasto').props.onChangeText('4000000');
+      find('FinancialDateField', 'label', 'Primer pago').props.onChange(future);
+      find('SelectField', 'label', 'Cuenta de pago').props.onPress();
+    });
+    await act(async () => find('ModalSelector', 'visible', true).props.onSelect(1));
+    await act(async () =>
+      renderer.root
+        .findAll((node) => (node.type as unknown) === 'CategoryHierarchyField')[0]!
+        .props.onChange(2),
+    );
+    await waitForPreview();
+    expect(textContent()).toContain('Frecuencia de pago: Cada semana');
+    const preview = client
+      .getQueriesData({ queryKey: ['recurrences', 'preview'] })
+      .find(([, value]) => value)?.[1];
+    expect(preview).toMatchObject({
+      amountPerPayment: 923076.9231,
+      fullMonthTotal: 4000000,
+    });
+    await press('Guardar programación');
+    const save = mocks.post.mock.calls.find(([url]) => url === '/recurrences');
+    expect(save?.[1]).toMatchObject({ amount: 923076.9231, frequency: 'WEEKLY' });
   });
   it('offers changing the end date instead of resuming an expired rule', async () => {
     const original = mocks.get.getMockImplementation()!;

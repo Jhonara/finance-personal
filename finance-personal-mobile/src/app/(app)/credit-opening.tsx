@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useEffect, useState } from 'react';
 import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -18,6 +19,7 @@ import { ScreenHeader } from '@/ui/headers';
 import { ErrorState, Skeleton } from '@/ui/states';
 
 export default function CreditOpeningScreen() {
+  useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const creditId = Number(id);
   const credit = useCredit(creditId);

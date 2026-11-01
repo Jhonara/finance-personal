@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import { useModalMotion } from './use-modal-motion';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -41,6 +42,7 @@ export function ModalSelector({
   onClose(): void;
   onSelect(id: number): void;
 }) {
+  const { palette: colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const sheetMotion = useModalMotion(visible, onClose);

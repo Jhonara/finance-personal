@@ -3,7 +3,7 @@ import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCategories } from '@/features/categories/use-categories';
-import { useCreateBudget, useUpdateBudget } from '@/features/secondary/use-secondary';
+import { useBudgets, useCreateBudget, useUpdateBudget } from '@/features/secondary/use-secondary';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { useTour } from '@/features/onboarding/tour-context';
 import {
@@ -18,15 +18,29 @@ import { Button, Card, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
 import { Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { categoryAppearance } from '@/features/categories/category-appearance';
+import { savedCategoryAppearance } from '@/features/categories/category-appearance';
 import { colors, radius, spacing, typography } from '@/theme';
+import { themedStyleSheet } from '@/theme/themed-styles';
 function BudgetForm() {
-  const { id, version, limit, categoryId, categoryName, year, month, source } = useLocalSearchParams<{
+  const {
+    id,
+    version,
+    limit,
+    categoryId,
+    categoryName,
+    parentCategoryId,
+    parentCategoryName,
+    year,
+    month,
+    source,
+  } = useLocalSearchParams<{
     id?: string;
     version?: string;
     limit?: string;
     categoryId?: string;
     categoryName?: string;
+    parentCategoryId?: string;
+    parentCategoryName?: string;
     year?: string;
     month?: string;
     source?: string;
@@ -35,8 +49,12 @@ function BudgetForm() {
   const [category, setCategory] = useState<number>(id ? Number(categoryId) : 0);
   const active = useFormSessionActive();
   const submitting = useRef(false);
-  const [open, setOpen] = useState(false);
-  const [quickCategory, setQuickCategory] = useState(false);
+  const [open, setOpen] = useState<'parent' | 'child' | null>(null);
+  const [quickCategory, setQuickCategory] = useState<'parent' | 'child' | null>(null);
+  const [parent, setParent] = useState(Number(parentCategoryId) || 0);
+  const [scope, setScope] = useState<'subcategory' | 'group'>(
+    id && !parentCategoryId ? 'group' : 'subcategory',
+  );
   const [categoryError, setCategoryError] = useState('');
   const [amountError, setAmountError] = useState('');
   const categories = useCategories('EXPENSE');
@@ -45,6 +63,17 @@ function BudgetForm() {
   const feedback = useFeedback();
   const tour = useTour();
   const [period] = useState(() => dashboardPeriodFromParams(year, month) ?? currentDashboardPeriod());
+  const budgets = useBudgets(period.year, period.month, true);
+  const selectedCategory = categories.data?.find((item) => item.id === category);
+  const selectedParentId = parent || (id ? (selectedCategory?.parentCategoryId ?? category) : 0);
+  const selectedParent = categories.data?.find((item) => item.id === selectedParentId);
+  const selectedScope = id
+    ? selectedCategory?.parentCategoryId || Number(parentCategoryId)
+      ? 'subcategory'
+      : 'group'
+    : scope;
+  const children = (categories.data ?? []).filter((item) => item.parentCategoryId === selectedParentId);
+  const existingBudget = !id ? budgets.data?.find((item) => item.categoryId === category) : undefined;
   const { width, fontScale } = useWindowDimensions();
   const compact = width <= 360 || fontScale >= 1.2;
   const leave = () => {
@@ -61,9 +90,12 @@ function BudgetForm() {
     else router.back();
   };
   const guard = useUnsavedForm({
-    dirty: amount !== (id ? (limit ?? '') : '') || category !== (id ? Number(categoryId) : 0),
+    dirty:
+      amount !== (id ? (limit ?? '') : '') ||
+      category !== (id ? Number(categoryId) : 0) ||
+      (!id && parent !== (Number(parentCategoryId) || 0)),
     busy: mutation.isPending || update.isPending,
-    suspended: open || quickCategory,
+    suspended: Boolean(open || quickCategory),
     onBack: leave,
   });
   return (
@@ -82,73 +114,139 @@ function BudgetForm() {
           <Text style={typography.cardTitle}>{id ? 'Ajusta tu límite' : 'Dale dirección a tus gastos'}</Text>
           <Text style={typography.bodySecondary}>
             {compact
-              ? 'Elige una categoría y un límite mensual en COP.'
-              : 'Elige una categoría y un límite mensual en COP. Verás el avance con tus movimientos reales.'}
+              ? 'Categoría padre → subcategoría → límite mensual.'
+              : 'Elige una categoría padre, después una subcategoría y su límite mensual. Verás el gasto real de cada una.'}
           </Text>
         </View>
       </Card>
       <Card style={styles.section}>
-        <Text style={typography.cardTitle}>1. ¿Qué quieres planear?</Text>
-        {!id && Boolean(categories.data?.length) && (
-          <>
-            <Text style={typography.bodySecondary}>Elige una de tus categorías de gasto.</Text>
-            <View style={styles.categoryGrid}>
-              {categories.data
-                ?.filter((item) => item.id !== undefined)
-                .slice(0, 4)
-                .map((item) => (
-                  <MotionPressable
-                    key={item.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Seleccionar ${item.name ?? 'categoría'}`}
-                    accessibilityState={{ selected: category === item.id }}
-                    onPress={() => {
-                      setCategory(item.id!);
-                      setCategoryError('');
-                    }}
-                    style={[styles.categoryChoice, category === item.id && styles.categorySelected]}
-                  >
-                    <View style={[styles.choiceIcon, category === item.id && styles.choiceIconSelected]}>
-                      <Ionicons
-                        name={category === item.id ? 'checkmark-circle' : categoryAppearance(item.name).icon}
-                        size={18}
-                        color={colors.primary}
-                      />
-                    </View>
-                    <Text numberOfLines={2} style={typography.label}>
-                      {item.name ?? 'Categoría'}
-                    </Text>
-                  </MotionPressable>
-                ))}
-            </View>
-          </>
-        )}
+        <Text style={typography.cardTitle}>1. Categoría padre</Text>
+        <Text style={typography.bodySecondary}>
+          Es el grupo general, por ejemplo Alimentación o Transporte.
+        </Text>
         <SelectField
-          label={id ? 'Categoría de gasto' : 'Ver todas las categorías'}
+          label="Categoría padre"
           value={
-            id
-              ? categoryName || categories.data?.find((x) => x.id === category)?.name
-              : categories.data?.find((x) => x.id === category)?.name
+            selectedParent?.name ??
+            parentCategoryName ??
+            (id && selectedScope === 'group' ? categoryName : undefined)
           }
           disabled={!!id}
-          onPress={() => setOpen(true)}
+          onPress={() => setOpen('parent')}
         />
-        {categoryError ? (
-          <Text accessibilityLiveRegion="polite" style={styles.guidance}>
-            {categoryError}
-          </Text>
-        ) : null}
-        {!categories.isPending && !(categories.data ?? []).length ? (
-          <Text style={styles.guidance}>Crea una categoría de gasto antes de definir un presupuesto.</Text>
-        ) : null}
         {!id ? (
-          <Button variant="ghost" size="compact" onPress={() => setQuickCategory(true)}>
-            + Crear categoría de gasto
+          <Button variant="ghost" size="compact" onPress={() => setQuickCategory('parent')}>
+            + Crear categoría padre
           </Button>
         ) : null}
       </Card>
+      {selectedParentId ? (
+        <Card style={styles.section}>
+          <Text style={typography.cardTitle}>2. ¿Qué límite quieres definir?</Text>
+          {!id ? (
+            <View style={styles.scopeChoices}>
+              {(
+                [
+                  [
+                    'subcategory',
+                    'Una subcategoría',
+                    'Ej. Desayunos dentro de Alimentación',
+                    'pricetag-outline',
+                  ],
+                  ['group', 'Todo el grupo', 'Un techo general para sus subcategorías', 'folder-outline'],
+                ] as const
+              ).map(([value, title, hint, icon]) => (
+                <MotionPressable
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityLabel={title}
+                  accessibilityState={{ checked: scope === value }}
+                  onPress={() => {
+                    setScope(value);
+                    setCategory(value === 'group' ? selectedParentId : 0);
+                    setCategoryError('');
+                  }}
+                  style={[styles.scopeChoice, scope === value && styles.categorySelected]}
+                >
+                  <Ionicons name={icon} color={colors.primary} size={21} />
+                  <View style={styles.grow}>
+                    <Text style={typography.label}>{title}</Text>
+                    <Text style={typography.caption}>{hint}</Text>
+                  </View>
+                  <Ionicons
+                    name={scope === value ? 'radio-button-on' : 'radio-button-off'}
+                    color={colors.primary}
+                    size={20}
+                  />
+                </MotionPressable>
+              ))}
+            </View>
+          ) : null}
+          {selectedScope === 'subcategory' ? (
+            <>
+              <SelectField
+                label="Subcategoría"
+                value={selectedCategory?.name ?? (id ? categoryName : undefined)}
+                disabled={!!id}
+                onPress={() => setOpen('child')}
+              />
+              {!id ? (
+                <>
+                  {!children.length && !categories.isPending ? (
+                    <Text style={typography.caption}>
+                      Este grupo aún no tiene subcategorías. Crea la primera para definir su límite.
+                    </Text>
+                  ) : null}
+                  <Button variant="ghost" size="compact" onPress={() => setQuickCategory('child')}>
+                    + Crear subcategoría en {selectedParent?.name ?? 'este grupo'}
+                  </Button>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <Text style={typography.bodySecondary}>
+              El techo de {selectedParent?.name ?? categoryName ?? 'este grupo'} cuenta sus gastos y los de
+              sus subcategorías. Los límites individuales sirven de detalle y no se suman encima.
+            </Text>
+          )}
+          {id && selectedScope === 'group' && !children.length ? (
+            <Text style={typography.caption}>
+              Esta categoría existente todavía no tiene subcategorías. Conserva su presupuesto y sus
+              movimientos.
+            </Text>
+          ) : null}
+        </Card>
+      ) : null}
+      {categoryError ? (
+        <Text accessibilityLiveRegion="polite" style={styles.guidance}>
+          {categoryError}
+        </Text>
+      ) : null}
+      {existingBudget ? (
+        <Card tone="info" style={styles.section}>
+          <Text style={typography.cardTitle}>Este presupuesto ya existe</Text>
+          <Text style={typography.bodySecondary}>
+            Puedes consultar y editar el límite de {existingBudget.categoryName} para este mes sin crear otro.
+          </Text>
+          <Button
+            variant="secondary"
+            onPress={() =>
+              router.replace({
+                pathname: '/(app)/budget-detail',
+                params: {
+                  id: String(existingBudget.id),
+                  year: String(period.year),
+                  month: String(period.month),
+                },
+              })
+            }
+          >
+            Ver presupuesto existente
+          </Button>
+        </Card>
+      ) : null}
       <Card style={styles.section}>
-        <Text style={typography.cardTitle}>2. Define tu límite</Text>
+        <Text style={typography.cardTitle}>3. Límite mensual</Text>
         <MoneyInput
           label="Límite mensual"
           currency="COP"
@@ -158,7 +256,11 @@ function BudgetForm() {
             setAmountError('');
           }}
           error={amountError}
-          helperText="Puedes cambiarlo cuando lo necesites."
+          helperText={
+            category
+              ? `${selectedParent?.name ?? categoryName ?? 'Categoría'}${selectedScope === 'subcategory' ? ` › ${selectedCategory?.name ?? categoryName ?? 'Subcategoría'}` : ' · techo del grupo'}. Puedes ajustarlo después.`
+              : 'Selecciona la categoría padre y la subcategoría que quieres presupuestar.'
+          }
         />
       </Card>
       <Text style={typography.caption}>
@@ -167,17 +269,22 @@ function BudgetForm() {
       </Text>
       <Button
         loading={mutation.isPending || update.isPending}
-        disabled={mutation.isPending || update.isPending}
+        disabled={mutation.isPending || update.isPending || Boolean(existingBudget)}
         onPress={() => {
           if (submitting.current) return;
           if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
             setAmountError('Ingresa un límite mayor que cero.');
             return;
           }
-          if (!id && !category) {
-            setCategoryError('Selecciona una categoría de gasto.');
+          if (!id && (!selectedParentId || !category)) {
+            setCategoryError(
+              !selectedParentId
+                ? 'Selecciona una categoría padre.'
+                : 'Selecciona o crea una subcategoría, o elige Todo el grupo.',
+            );
             return;
           }
+          if (existingBudget) return;
           if (id && version !== undefined && version !== '') {
             submitting.current = true;
             update.mutate(
@@ -234,38 +341,64 @@ function BudgetForm() {
         {id ? 'Guardar cambios' : 'Crear presupuesto'}
       </Button>
       <ModalSelector
-        visible={open}
-        label="Categoría de gasto"
+        visible={open !== null}
+        label={open === 'child' ? 'Subcategoría' : 'Categoría padre'}
+        subtitle={
+          open === 'child'
+            ? `Elige dentro de ${selectedParent?.name ?? 'este grupo'}.`
+            : 'Primero elige el grupo general de tu presupuesto.'
+        }
         loading={categories.isPending}
+        selectedId={open === 'child' ? category : selectedParentId}
         options={(categories.data ?? [])
-          .filter((x) => x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría' }))}
-        onClose={() => setOpen(false)}
+          .filter(
+            (x) =>
+              x.id !== undefined &&
+              (open === 'child' ? x.parentCategoryId === selectedParentId : x.parentCategoryId == null),
+          )
+          .map((x) => ({
+            id: x.id!,
+            label: x.name ?? 'Categoría',
+            subtitle:
+              open === 'child'
+                ? `Dentro de ${selectedParent?.name ?? 'este grupo'}${budgets.data?.some((budget) => budget.categoryId === x.id) ? ' · ya tiene presupuesto este mes' : ''}`
+                : `${(categories.data ?? []).filter((child) => child.parentCategoryId === x.id).length} subcategorías`,
+            icon: savedCategoryAppearance(x).icon,
+          }))}
+        onClose={() => setOpen(null)}
         onSelect={(value) => {
-          setCategory(value);
+          if (open === 'parent') {
+            setParent(value);
+            setCategory(scope === 'group' ? value : 0);
+          } else setCategory(value);
           setCategoryError('');
         }}
-        emptyActionLabel="Crear categoría de gasto"
+        emptyActionLabel={open === 'child' ? 'Crear subcategoría' : 'Crear categoría padre'}
         onEmptyAction={() => {
-          setOpen(false);
-          setQuickCategory(true);
+          setQuickCategory(open === 'child' ? 'child' : 'parent');
+          setOpen(null);
         }}
       />
       <QuickCategoryModal
-        visible={quickCategory}
+        visible={quickCategory !== null}
         type="EXPENSE"
-        onClose={() => setQuickCategory(false)}
+        lockedParentCategoryId={quickCategory === 'child' ? selectedParentId : undefined}
+        rootOnly={quickCategory === 'parent'}
+        onClose={() => setQuickCategory(null)}
         onCreated={(categoryId) => {
-          setCategory(categoryId);
+          if (quickCategory === 'parent') {
+            setParent(categoryId);
+            setCategory(scope === 'group' ? categoryId : 0);
+          } else setCategory(categoryId);
           setCategoryError('');
-          setQuickCategory(false);
+          setQuickCategory(null);
         }}
       />
     </Screen>
   );
 }
 
-const styles = {
+const styles = themedStyleSheet(() => ({
   intro: {
     flexDirection: 'row' as const,
     gap: spacing.md,
@@ -283,13 +416,11 @@ const styles = {
   },
   grow: { flex: 1, gap: spacing.xs },
   section: { padding: spacing.lg, gap: spacing.lg },
-  categoryGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: spacing.sm },
-  categoryChoice: {
-    flexBasis: '47%' as const,
-    flexGrow: 1,
-    minWidth: 118,
-    minHeight: 82,
-    gap: spacing.xs,
+  scopeChoices: { gap: spacing.sm },
+  scopeChoice: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.medium,
     borderWidth: 1,
@@ -297,16 +428,7 @@ const styles = {
     backgroundColor: colors.background,
   },
   categorySelected: { borderColor: colors.success, backgroundColor: colors.successSoft },
-  choiceIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.pill,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: colors.surface,
-  },
-  choiceIconSelected: { backgroundColor: colors.mint },
   guidance: { ...typography.caption, color: colors.warning },
-};
+}));
 
 export default withFormSession(BudgetForm);

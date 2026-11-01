@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import {
   createContext,
   useCallback,
@@ -30,6 +31,7 @@ export function useQuickActions() {
 }
 
 export function QuickActionProvider({ children }: PropsWithChildren) {
+  useAppTheme();
   const accounts = useAccounts();
   const currentUser = useCurrentUser();
   const feedback = useFeedback();

@@ -88,8 +88,8 @@ export function SavingGoalCard({
           size="compact"
           variant="secondary"
           tone={goal.completed ? 'success' : 'primary'}
-          onPress={goal.completed || !goal.currency ? onOpen : onContribute}
-          accessibilityLabel={`${!goal.currency ? 'Definir moneda de' : goal.completed ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
+          onPress={goal.completed || goal.archived || !goal.currency ? onOpen : onContribute}
+          accessibilityLabel={`${!goal.currency ? 'Definir moneda de' : goal.completed || goal.archived ? 'Ver meta' : 'Aportar a'} ${goal.name}`}
         >
           {!goal.currency ? 'Definir moneda' : goal.completed ? 'Ver meta' : 'Añadir aporte'}
         </Button>

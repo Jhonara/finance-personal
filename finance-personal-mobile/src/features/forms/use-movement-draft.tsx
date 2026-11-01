@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 import { Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -34,6 +34,7 @@ export function MovementDraftGate({
   children: (userId: number) => ReactNode;
 }) {
   const { state, logout } = useAuth();
+  const verifiedOwner = useRef<number | undefined>(undefined);
   const owner = useQuery({
     queryKey: currentUserKeys.current(),
     queryFn: getCurrentUser,
@@ -45,14 +46,21 @@ export function MovementDraftGate({
   useEffect(() => {
     if (owner.error && toApiError(owner.error).status === 401) void logout();
   }, [owner.error, logout]);
-  if (state.status !== 'authenticated' || owner.isPending || owner.isFetching)
+  const userId = owner.data?.id;
+  const validOwner = Number.isSafeInteger(userId) && Boolean(userId && userId > 0);
+  const expired = Boolean(owner.error && toApiError(owner.error).status === 401);
+  if (state.status !== 'authenticated' || !validOwner || expired) verifiedOwner.current = undefined;
+  else if (owner.isSuccess && !owner.isFetching) verifiedOwner.current = userId;
+  const alreadyVerified = validOwner && verifiedOwner.current === userId;
+  // Verify before the first mount. Later profile refreshes for that same owner
+  // must not unmount a filled form or reset its pending-submission guard.
+  if (state.status !== 'authenticated' || owner.isPending || (owner.isFetching && !alreadyVerified))
     return (
       <Screen>
         <SkeletonRow />
       </Screen>
     );
-  const userId = owner.data?.id;
-  if (owner.isError || !Number.isSafeInteger(userId) || !userId || userId <= 0)
+  if (!validOwner || expired || (owner.isError && !alreadyVerified))
     return (
       <Screen>
         <EmptyState
@@ -64,7 +72,7 @@ export function MovementDraftGate({
     );
   return (
     <View key={`${userId}:${kind}`} style={styles.gate}>
-      {children(userId)}
+      {children(userId!)}
     </View>
   );
 }

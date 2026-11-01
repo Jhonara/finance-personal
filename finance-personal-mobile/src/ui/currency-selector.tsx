@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { ModalSelector } from './modal-selector';
 import { SelectField } from './primitives';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useAppTheme } from '@/theme/theme-provider';
 
 const currencies = [
   { code: 'COP', name: 'Peso colombiano' },
@@ -21,6 +22,7 @@ export function CurrencySelector({
   disabled?: boolean;
   error?: string;
 }) {
+  const { palette: colors } = useAppTheme();
   const [open, setOpen] = useState(false);
   const selected = currencies.findIndex((item) => item.code === value);
   return (

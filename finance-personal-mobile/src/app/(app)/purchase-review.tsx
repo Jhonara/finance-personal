@@ -27,6 +27,8 @@ import { Button, Card, Input, MoneyInput, Screen, SelectField } from '@/ui/primi
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
+import { CategoryHierarchyField } from '@/ui/category-hierarchy-field';
+import { categoryLabel } from '@/features/categories/categories-api';
 import { Disclosure } from '@/ui/disclosure';
 import { colors, spacing, typography } from '@/theme';
 import { WalletCaptureCard } from '@/features/shortcuts/wallet-capture-card';
@@ -85,7 +87,8 @@ export function PurchaseEditor({
   const [analyzed, setAnalyzed] = useState(Boolean(imported));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [selector, setSelector] = useState<'account' | 'category' | 'currency' | 'kind' | null>(null);
+  const [selector, setSelector] = useState<'account' | 'currency' | 'kind' | null>(null);
+  const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [transaction, setTransaction] = useState<number>();
   const lock = useRef(false);
   const operationEpoch = useRef(0);
@@ -111,7 +114,7 @@ export function PurchaseEditor({
   const guard = useUnsavedForm({
     dirty: !previewOnly && !closed && (dirty || Boolean(imported && !saved)),
     busy,
-    suspended: selector !== null,
+    suspended: selector !== null || hierarchyOpen,
   });
   const account = accounts.data?.find((item) => item.id === values.accountId);
   const currencies = [
@@ -472,11 +475,16 @@ export function PurchaseEditor({
               {accounts.isError && <ErrorState onRetry={() => void accounts.refetch()} />}
               {values.kind === 'EXPENSE' && (
                 <>
-                  <SelectField
-                    label="Categoría"
-                    value={categories.data?.find((item) => item.id === values.categoryId)?.name}
-                    disabled={busy}
-                    onPress={() => setSelector('category')}
+                  <CategoryHierarchyField
+                    categories={categories.data ?? []}
+                    type="EXPENSE"
+                    value={values.categoryId}
+                    loading={categories.isPending}
+                    allowCreate={!busy}
+                    onSelectorOpenChange={setHierarchyOpen}
+                    onChange={(id) => {
+                      if (!busy) form.setValue('categoryId', id, { shouldDirty: true });
+                    }}
                   />
                   {categories.isError && <ErrorState onRetry={() => void categories.refetch()} />}
                   {saved?.categorySuggestion && !values.categoryId && (
@@ -523,7 +531,7 @@ export function PurchaseEditor({
             </Text>
             {saved?.fields?.kind === 'EXPENSE' && (
               <Text style={typography.caption}>
-                {categories.data?.find((item) => item.id === saved?.fields?.categoryId)?.name ??
+                {categoryLabel(categories.data?.find((item) => item.id === saved?.fields?.categoryId)) ??
                   'Categoría por completar'}
               </Text>
             )}
@@ -747,19 +755,6 @@ export function PurchaseEditor({
         onSelect={(id) => {
           form.setValue('accountId', id);
           form.setValue('currency', accounts.data?.find((item) => item.id === id)?.currency ?? '');
-          setSelector(null);
-        }}
-        onClose={() => setSelector(null)}
-      />
-      <ModalSelector
-        visible={selector === 'category'}
-        label="Categoría"
-        loading={categories.isPending}
-        options={(categories.data ?? [])
-          .filter((item) => item.active !== false && item.id !== undefined)
-          .map((item) => ({ id: item.id!, label: item.name ?? 'Categoría' }))}
-        onSelect={(id) => {
-          form.setValue('categoryId', id);
           setSelector(null);
         }}
         onClose={() => setSelector(null)}

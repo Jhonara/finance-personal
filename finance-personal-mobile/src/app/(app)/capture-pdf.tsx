@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -30,6 +31,7 @@ function deletePickerCopy(uri?: string) {
 }
 
 export default function CapturePdfScreen() {
+  useAppTheme();
   const { state } = useAuth();
   const { hidden } = usePrivacy();
   const [busy, setBusy] = useState(false);

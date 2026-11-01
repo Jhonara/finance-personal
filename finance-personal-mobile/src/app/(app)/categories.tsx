@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,7 +8,6 @@ import { Text, View, useWindowDimensions } from 'react-native';
 import { openForm } from '@/features/forms/form-session';
 import {
   categoryAppearance,
-  categoryColors,
   categorySuggestions,
   savedCategoryAppearance,
 } from '@/features/categories/category-appearance';
@@ -25,11 +25,14 @@ import { TourTarget } from '@/ui/tour-target';
 type CategoryType = 'EXPENSE' | 'INCOME';
 
 export default function Categories() {
+  useAppTheme();
   const { width, fontScale } = useWindowDimensions();
   const tileWidth = width / fontScale < 320 ? '100%' : '48%';
   const [type, setType] = useState<CategoryType>('EXPENSE');
   const [selected, setSelected] = useState<string[]>([]);
+  const [expandedRoots, setExpandedRoots] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
+  const [showIdeas, setShowIdeas] = useState(false);
   const activeQuery = useCategories(type, true);
   const inactiveQuery = useCategories(type, false);
   const update = useUpdateCategory();
@@ -37,6 +40,7 @@ export default function Categories() {
   const feedback = useFeedback();
   const tour = useTour();
   const active = activeQuery.data ?? [];
+  const roots = active.filter((item) => item.parentCategoryId == null);
   const inactive = inactiveQuery.data ?? [];
   const existing = new Set([...active, ...inactive].map((item) => item.name?.trim().toLocaleLowerCase('es')));
   const suggestions = categorySuggestions[type].filter((name) => !existing.has(name.toLocaleLowerCase('es')));
@@ -54,7 +58,7 @@ export default function Categories() {
           name,
           type,
           iconKey: look.icon,
-          colorKey: categoryColors.find((color) => color.soft === look.soft)?.key,
+          colorKey: look.colorKey,
         });
         created++;
       } catch {
@@ -96,7 +100,7 @@ export default function Categories() {
     >
       <ScreenHeader
         title="Categorías"
-        subtitle="Elige cómo quieres ver tus movimientos."
+        subtitle="Organiza tus gastos e ingresos en dos niveles."
         back
         onBack={() => router.back()}
       />
@@ -105,9 +109,9 @@ export default function Categories() {
           <Ionicons name="shapes-outline" size={29} color={colors.success} />
         </View>
         <View style={styles.heroCopy}>
-          <Text style={typography.sectionTitle}>Tu dinero, a tu manera</Text>
+          <Text style={typography.sectionTitle}>Categoría padre → subcategoría</Text>
           <Text style={typography.bodySecondary}>
-            Empieza con ideas o crea las tuyas. Podrás cambiarlas cuando quieras.
+            El padre reúne el grupo; la subcategoría guarda el detalle. Por ejemplo: Alimentación → Almuerzos.
           </Text>
           <Text style={typography.caption}>
             {activeQuery.isPending
@@ -125,13 +129,14 @@ export default function Categories() {
             onPress={() => {
               setType(value);
               setSelected([]);
+              setShowIdeas(false);
             }}
             style={[styles.tab, type === value && styles.tabActive]}
           >
             <Ionicons
               name={value === 'EXPENSE' ? 'bag-handle-outline' : 'trending-up-outline'}
               size={18}
-              color={type === value ? colors.surface : colors.primary}
+              color={type === value ? '#FFFFFF' : colors.primary}
             />
             <Text style={[styles.tabText, type === value && styles.tabTextActive]}>
               {value === 'EXPENSE' ? 'Gastos' : 'Ingresos'}
@@ -145,7 +150,19 @@ export default function Categories() {
         <ErrorState onRetry={() => void activeQuery.refetch()} />
       ) : (
         <MotionEntry revision={type} style={styles.content}>
-          {suggestions.length > 0 && (
+          {suggestions.length > 0 ? (
+            <MotionPressable
+              accessibilityRole="button"
+              onPress={() => setShowIdeas((current) => !current)}
+              style={styles.ideasToggle}
+            >
+              <Text style={styles.reactivateText}>
+                {showIdeas ? 'Ocultar ideas de categorías padre' : 'Ver ideas de categorías padre'}
+              </Text>
+              <Ionicons name={showIdeas ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
+            </MotionPressable>
+          ) : null}
+          {showIdeas && suggestions.length > 0 && (
             <View style={styles.section}>
               <View style={styles.heading}>
                 <View style={styles.grow}>
@@ -211,15 +228,15 @@ export default function Categories() {
             <MotionPressable
               accessibilityRole="button"
               accessibilityLabel="Crear categoría personalizada"
-              onPress={() => openForm('/(app)/category-form', { type })}
+              onPress={() => openForm('/(app)/category-form', { type, role: 'parent' })}
               style={styles.create}
             >
               <View style={styles.createIcon}>
                 <Ionicons name="add" size={25} color={colors.primary} />
               </View>
               <View style={styles.grow}>
-                <Text style={typography.cardTitle}>Crear una a tu estilo</Text>
-                <Text style={typography.caption}>Nombre, ícono y color propios</Text>
+                <Text style={typography.cardTitle}>Crear categoría padre</Text>
+                <Text style={typography.caption}>Un grupo con nombre, ícono y color propios</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.primary} />
             </MotionPressable>
@@ -227,44 +244,129 @@ export default function Categories() {
           <View style={styles.section}>
             <View style={styles.heading}>
               <Text accessibilityRole="header" style={typography.sectionTitle}>
-                Tus categorías
+                Tus categorías padre
               </Text>
-              <Text style={typography.caption}>{active.length} activas</Text>
+              <Text style={typography.caption}>
+                {roots.length} {roots.length === 1 ? 'grupo' : 'grupos'}
+              </Text>
             </View>
             {active.length ? (
-              <View style={styles.grid}>
-                {active.map((item) => {
+              <View style={styles.categoryGroups}>
+                {roots.map((item) => {
                   const look = savedCategoryAppearance(item);
+                  const children = active.filter((child) => child.parentCategoryId === item.id);
+                  const expanded = item.id !== undefined && (expandedRoots[item.id] ?? true);
                   return (
-                    <MotionPressable
-                      key={item.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Editar ${item.name}`}
-                      onPress={() => openForm('/(app)/category-form', { id: String(item.id), type })}
-                      style={[styles.savedTile, { width: tileWidth, borderColor: look.soft }]}
-                    >
-                      <View style={[styles.tileIcon, { backgroundColor: look.soft }]}>
-                        <Ionicons name={look.icon} size={27} color={look.ink} />
-                      </View>
-                      <Text numberOfLines={2} style={styles.tileName}>
-                        {item.name}
-                      </Text>
-                      <View style={styles.savedBottom}>
-                        <Text style={typography.caption}>Editar</Text>
+                    <View key={item.id} style={styles.categoryGroup}>
+                      <View style={[styles.rootCategory, { borderColor: look.soft }]}>
+                        <MotionPressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Editar categoría principal ${item.name}`}
+                          onPress={() => openForm('/(app)/category-form', { id: String(item.id), type })}
+                          style={styles.rootCategoryMain}
+                        >
+                          <View style={[styles.tileIcon, { backgroundColor: look.soft }]}>
+                            <Ionicons name={look.icon} size={25} color={look.ink} />
+                          </View>
+                          <View style={styles.grow}>
+                            <Text numberOfLines={2} style={styles.tileName}>
+                              {item.name}
+                            </Text>
+                            <Text style={typography.caption}>
+                              Categoría padre
+                              {children.length
+                                ? ` · ${children.length} ${children.length === 1 ? 'subcategoría' : 'subcategorías'}`
+                                : ''}
+                            </Text>
+                          </View>
+                        </MotionPressable>
+                        <MotionPressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${expanded ? 'Contraer' : 'Desplegar'} ${item.name}`}
+                          accessibilityState={{ expanded }}
+                          onPress={() =>
+                            item.id !== undefined &&
+                            setExpandedRoots((current) => ({ ...current, [item.id!]: !expanded }))
+                          }
+                          style={styles.miniButton}
+                        >
+                          <Ionicons
+                            name={expanded ? 'chevron-up' : 'chevron-down'}
+                            size={19}
+                            color={colors.primary}
+                          />
+                        </MotionPressable>
                         <MotionPressable
                           accessibilityRole="button"
                           accessibilityLabel={`Desactivar ${item.name}`}
-                          disabled={update.isPending}
-                          onPress={(event) => {
-                            event.stopPropagation();
-                            changeActive(item, false);
-                          }}
-                          style={styles.miniButton}
+                          accessibilityHint={
+                            children.length ? 'Primero mueve o desactiva sus subcategorías.' : undefined
+                          }
+                          disabled={update.isPending || children.length > 0}
+                          onPress={() => changeActive(item, false)}
+                          style={[styles.miniButton, children.length > 0 && styles.disabledButton]}
                         >
                           <Ionicons name="pause-outline" size={17} color={colors.textSecondary} />
                         </MotionPressable>
                       </View>
-                    </MotionPressable>
+                      {expanded && children.length ? (
+                        <View style={styles.children}>
+                          {children.map((child) => {
+                            const childLook = savedCategoryAppearance(child);
+                            return (
+                              <View key={child.id} style={styles.childCategory}>
+                                <MotionPressable
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Editar subcategoría ${child.name} de ${item.name}`}
+                                  onPress={() =>
+                                    openForm('/(app)/category-form', { id: String(child.id), type })
+                                  }
+                                  style={styles.childMain}
+                                >
+                                  <View style={[styles.childIcon, { backgroundColor: childLook.soft }]}>
+                                    <Ionicons name={childLook.icon} size={18} color={childLook.ink} />
+                                  </View>
+                                  <View style={styles.grow}>
+                                    <Text style={styles.childName}>{child.name}</Text>
+                                    <Text style={typography.caption}>Subcategoría de {item.name}</Text>
+                                  </View>
+                                </MotionPressable>
+                                <MotionPressable
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Desactivar ${child.name}`}
+                                  disabled={update.isPending}
+                                  onPress={() => changeActive(child, false)}
+                                  style={styles.miniButton}
+                                >
+                                  <Ionicons name="pause-outline" size={17} color={colors.textSecondary} />
+                                </MotionPressable>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : expanded ? (
+                        <Text style={styles.emptyChildren}>
+                          Aún no tiene subcategorías. Agrega el detalle de este grupo.
+                        </Text>
+                      ) : null}
+                      {expanded ? (
+                        <MotionPressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Agregar subcategoría a ${item.name}`}
+                          onPress={() =>
+                            openForm('/(app)/category-form', {
+                              type,
+                              role: 'child',
+                              parentCategoryId: String(item.id),
+                            })
+                          }
+                          style={styles.addChild}
+                        >
+                          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                          <Text style={styles.reactivateText}>Agregar subcategoría</Text>
+                        </MotionPressable>
+                      ) : null}
+                    </View>
                   );
                 })}
               </View>
@@ -286,7 +388,14 @@ export default function Categories() {
                 return (
                   <View key={item.id} style={styles.inactiveRow}>
                     <Ionicons name={look.icon} size={24} color={look.ink} />
-                    <Text style={[typography.cardTitle, styles.grow]}>{item.name}</Text>
+                    <View style={styles.grow}>
+                      <Text style={typography.cardTitle}>{item.name}</Text>
+                      <Text style={typography.caption}>
+                        {item.parentCategoryName
+                          ? `Subcategoría de ${item.parentCategoryName}`
+                          : 'Categoría padre'}
+                      </Text>
+                    </View>
                     <MotionPressable
                       accessibilityRole="button"
                       accessibilityLabel={`Reactivar ${item.name}`}
@@ -311,6 +420,21 @@ const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
   content: { gap: spacing.xl },
   grow: { flex: 1, minWidth: 0 },
+  ideasToggle: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  addChild: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginLeft: spacing.lg,
+  },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -348,6 +472,38 @@ const styles = themedStyleSheet(() => ({
   tabText: { ...typography.label, color: colors.textPrimary },
   tabTextActive: { color: '#FFFFFF' },
   section: { gap: spacing.md },
+  categoryGroups: { gap: spacing.md },
+  categoryGroup: { gap: spacing.xs },
+  rootCategory: {
+    minHeight: 86,
+    padding: spacing.md,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  rootCategoryMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minWidth: 0 },
+  children: {
+    marginLeft: spacing.xl,
+    paddingLeft: spacing.md,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+    gap: spacing.xs,
+  },
+  childCategory: {
+    minHeight: 64,
+    paddingLeft: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  childMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minWidth: 0 },
+  childIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  childName: { ...typography.label, color: colors.textPrimary },
+  emptyChildren: { ...typography.caption, paddingLeft: spacing.sm, color: colors.textSecondary },
+  disabledButton: { opacity: 0.45 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   counter: { ...typography.caption, color: colors.success, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

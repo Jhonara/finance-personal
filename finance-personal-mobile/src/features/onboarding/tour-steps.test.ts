@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseTourProgress, tourKey, tourSteps } from './tour-steps';
 import { dockIndex } from '@/ui/navigation-model';
+vi.mock('react-native', () => ({
+  Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
+}));
 import { categoryAppearance } from '@/features/categories/category-appearance';
 
 describe('interactive tour preferences', () => {

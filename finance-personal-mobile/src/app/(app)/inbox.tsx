@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Platform, Text, View } from 'react-native';
@@ -14,6 +15,7 @@ import { Disclosure } from '@/ui/disclosure';
 import { spacing, typography } from '@/theme';
 
 export default function InboxScreen() {
+  useAppTheme();
   const [history, setHistory] = useState(false);
   const query = useInbox(history);
   const { hidden } = usePrivacy();

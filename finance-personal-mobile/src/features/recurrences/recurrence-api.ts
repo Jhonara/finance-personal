@@ -18,12 +18,12 @@ export type RecurringKind = SaveRecurringRule['kind'];
 export type RecurringMode = SaveRecurringRule['mode'];
 export type RecurringRule = NullableFields<
   components['schemas']['RecurringRuleResponse'],
-  'categoryId' | 'endDate' | 'secondDay'
+  'categoryId' | 'endDate' | 'secondDay' | 'creditId' | 'creditName'
 >;
 export type RecurringEntry = Omit<
   NullableFields<
     components['schemas']['RecurringEntryResponse'],
-    'id' | 'issue' | 'transactionId' | 'recordedDate'
+    'id' | 'issue' | 'transactionId' | 'recordedDate' | 'creditId' | 'creditName'
   >,
   'status'
 > & {

@@ -1,8 +1,10 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { Redirect, Stack } from 'expo-router';
 
 import { useAuth } from '@/auth/auth-provider';
 
 export default function AuthLayout() {
+  useAppTheme();
   const { state } = useAuth();
   if (state.status === 'authenticated') {
     return <Redirect href="/(app)" />;

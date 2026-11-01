@@ -7,6 +7,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useAppTheme } from '@/theme/theme-provider';
 
 type FormRoute =
   | '/(app)/purchase-review'
@@ -33,7 +34,11 @@ export function openForm(pathname: FormRoute, params: Record<string, string | un
       version: '',
       limit: '',
       categoryId: '',
+      parentCategoryId: '',
+      parentCategoryName: '',
       categoryName: '',
+      role: '',
+      suggestedName: '',
       year: '',
       month: '',
       type: 'EXPENSE',
@@ -62,6 +67,8 @@ function Session({ children }: PropsWithChildren) {
 /** Tabs retain routes. Remount only the draft, for a new explicit entry/entity. */
 export function withFormSession(Form: ComponentType) {
   return function FormSessionRoute() {
+    // Refresh palette-derived styles without replacing the current form session.
+    useAppTheme();
     const {
       formSession = 'initial',
       id = '',

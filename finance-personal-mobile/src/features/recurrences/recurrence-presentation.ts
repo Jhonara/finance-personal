@@ -15,6 +15,23 @@ export const frequencies: { value: Frequency; label: string; detail: string }[] 
     detail: 'Cada dos semanas. No coincide siempre con el 15 y fin de mes.',
   },
 ];
+const paymentsPerYear: Record<Frequency, number> = {
+  MONTHLY: 12,
+  SEMIMONTHLY: 24,
+  WEEKLY: 52,
+  BIWEEKLY: 26,
+};
+
+const roundAmount = (amount: number) => Math.round((amount + Number.EPSILON) * 10_000) / 10_000;
+
+export function frequencyLabel(frequency: Frequency) {
+  return frequencies.find((item) => item.value === frequency)?.label ?? '';
+}
+
+export function monthlyAmountFromPayment(amount: number, frequency: Frequency) {
+  return roundAmount((amount * paymentsPerYear[frequency]) / 12);
+}
+
 export function scheduleLabel(rule: Pick<RecurringRule, 'frequency' | 'firstDay' | 'secondDay'>) {
   const day = (value: number | null) => (value === 31 ? 'último día' : `${value}`);
   if (rule.frequency === 'MONTHLY') return `Cada mes · ${day(rule.firstDay)}`;

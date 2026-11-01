@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   state: { status: 'unauthenticated' } as { status: string },
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   draft: vi.fn(),
   replace: vi.fn(),
   openForm: vi.fn(),
+  exit: vi.fn(),
   lastResponse: vi.fn(),
   clearResponse: vi.fn(),
   listener: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('@/auth/auth-provider', () => ({
 vi.mock('@/api/errors', () => ({ toApiError: (error: { status?: number }) => error }));
 vi.mock('@/features/profile/profile-api', () => ({ getCurrentUser: mocks.user }));
 vi.mock('@/features/inbox/inbox-api', () => ({ getDraft: mocks.draft, inboxKeys: { all: ['inbox'] } }));
+vi.mock('@/features/forms/use-unsaved-form', () => ({ requestFormExit: mocks.exit }));
 vi.mock('@/features/forms/form-session', () => ({ openForm: mocks.openForm }));
 vi.mock('@/features/capture/notification-bridge', () => ({ notificationBridge: { available: false } }));
 vi.mock('@/features/capture/detected-intake', () => ({ createDetectedDraft: vi.fn() }));
@@ -54,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   mocks.state = { status: 'unauthenticated' };
+  mocks.exit.mockImplementation((leave: () => void) => leave());
   mocks.user.mockResolvedValue({ id: 7 });
   mocks.draft.mockResolvedValue({ id: 41, status: 'PENDING' });
   mocks.loadTarget.mockResolvedValue(null);
@@ -137,4 +140,56 @@ it('keeps the target when the network fails instead of opening unverified data',
   expect(mocks.saveTarget).toHaveBeenCalledWith({ ownerId: '7', draftId: 41 });
   expect(mocks.saveTarget).not.toHaveBeenCalledWith(null);
   expect(mocks.openForm).not.toHaveBeenCalled();
+});
+
+afterEach(async () => {
+  await act(async () => tree?.unmount());
+});
+
+it('does not navigate when the session changes while loading the tapped draft', async () => {
+  let resolve!: (value: object) => void;
+  mocks.state = { status: 'authenticated' };
+  mocks.draft.mockImplementation(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  await act(async () => {
+    tree = create(
+      <DetectedNoticeProvider>
+        <React.Fragment />
+      </DetectedNoticeProvider>,
+    );
+  });
+  expect(mocks.draft).toHaveBeenCalledWith(41);
+  mocks.state = { status: 'unauthenticated' };
+  await act(async () =>
+    tree.update(
+      <DetectedNoticeProvider>
+        <React.Fragment />
+      </DetectedNoticeProvider>,
+    ),
+  );
+  await act(async () => resolve({ id: 41, status: 'PENDING' }));
+  expect(mocks.openForm).not.toHaveBeenCalled();
+});
+
+it('waits for the active form guard before consuming and opening a notification', async () => {
+  mocks.state = { status: 'authenticated' };
+  let leave!: () => void;
+  mocks.exit.mockImplementation((action: () => void) => {
+    leave = action;
+  });
+  await act(async () => {
+    tree = create(
+      <DetectedNoticeProvider>
+        <React.Fragment />
+      </DetectedNoticeProvider>,
+    );
+  });
+  expect(mocks.openForm).not.toHaveBeenCalled();
+  expect(mocks.saveTarget).not.toHaveBeenCalledWith(null);
+  await act(async () => leave());
+  expect(mocks.openForm).toHaveBeenCalledWith('/(app)/purchase-review', { id: '41' });
 });

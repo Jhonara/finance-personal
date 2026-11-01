@@ -1,3 +1,4 @@
+import { FinancialDateField } from '@/ui/financial-date-field';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
 import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { useRef, useState } from 'react';
@@ -23,7 +24,7 @@ function SavingForm() {
   const params = useLocalSearchParams<{ suggestedName?: string }>();
   const active = useFormSessionActive();
   const form = useForm({
-    defaultValues: { name: params.suggestedName ?? '', targetAmount: '' },
+    defaultValues: { name: params.suggestedName ?? '', targetAmount: '', description: '', targetDate: '' },
     resolver: zodResolver(savingGoalSchema),
   });
   const mutation = useCreateSaving();
@@ -56,9 +57,14 @@ function SavingForm() {
         const first = goals.data?.length === 0;
         setError('');
         try {
-          await mutation.mutateAsync({ name: data.name, targetAmount, currency });
+          await mutation.mutateAsync({
+            name: data.name,
+            targetAmount,
+            currency,
+            ...(data.description?.trim() ? { description: data.description.trim() } : {}),
+            ...(data.targetDate ? { targetDate: data.targetDate } : {}),
+          });
           if (!active()) return;
-          form.reset();
           setSaved(true);
           feedback.show('Meta de ahorro creada.', 'success');
           tour?.completeStep?.('add-saving');
@@ -71,7 +77,10 @@ function SavingForm() {
               title: 'Tu primera meta está lista',
               message: 'Ahora cada aporte te acercará un poco más.',
             });
-          else router.back();
+          else {
+            form.reset();
+            router.back();
+          }
         } catch (cause) {
           if (!active()) return;
           const failure = cause instanceof ApiError ? cause : toApiError(cause);
@@ -132,6 +141,40 @@ function SavingForm() {
           />
         )}
       />
+      <Controller
+        control={form.control}
+        name="description"
+        render={({ field }) => (
+          <Input
+            label="Descripci�n � opcional"
+            value={field.value}
+            onChangeText={field.onChange}
+            maxLength={500}
+            disabled={mutation.isPending || saved}
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="targetDate"
+        render={({ field }) => (
+          <FinancialDateField
+            label="Fecha objetivo � opcional"
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            error={form.formState.errors.targetDate?.message}
+          />
+        )}
+      />
+      {form.watch('targetDate') && (
+        <Button
+          variant="ghost"
+          disabled={mutation.isPending || saved}
+          onPress={() => form.setValue('targetDate', '')}
+        >
+          Quitar fecha objetivo
+        </Button>
+      )}
       <CurrencySelector value={currency} onChange={setCurrency} disabled={mutation.isPending || saved} />
       <Text style={typography.bodySecondary}>
         Los aportes de esta meta estarán en {currency}. La app no convierte monedas.
@@ -154,6 +197,7 @@ function SavingForm() {
         celebration={celebration}
         onClose={() => {
           setCelebration(undefined);
+          form.reset();
           router.back();
         }}
       />

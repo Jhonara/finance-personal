@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
@@ -28,6 +29,7 @@ import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 
 export default function TransactionsScreen() {
+  useAppTheme();
   const { width } = useWindowDimensions();
   const { open: openQuickActions } = useQuickActions();
   const [filtersOpen, setFiltersOpen] = useState(false);

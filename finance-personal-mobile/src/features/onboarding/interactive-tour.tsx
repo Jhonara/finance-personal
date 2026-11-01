@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import { useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { BackHandler, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { router, usePathname } from 'expo-router';
@@ -24,6 +25,7 @@ export function InteractiveTourProvider({ children }: PropsWithChildren) {
 }
 
 function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) {
+  useAppTheme();
   const [step, setStep] = useState(0);
   const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -178,9 +180,13 @@ function UserTour({ userId, children }: PropsWithChildren<{ userId?: number }>) 
                 <Text style={typography.caption}>
                   {completedTarget === current.target
                     ? 'Tu cambio quedó guardado. El recorrido sigue cuando tú decidas.'
-                    : target === current.target
-                      ? 'Toca la zona resaltada para explorar. El recorrido se pausa y puedes retomarlo desde Inicio.'
-                      : 'Si aún no tienes datos aquí, puedes continuar. El recorrido no exige crear registros.'}
+                    : target !== current.target
+                      ? 'Ubicamos esta parte de la pantalla. Usa Siguiente para continuar cuando estés listo.'
+                      : current.target === 'alerts-heading'
+                        ? 'Aquí podrás revisar avisos sobre tus finanzas. No necesitas crear nada para seguir.'
+                        : current.target === 'profile-guide'
+                          ? 'Desde aquí puedes volver a consultar la guía cuando la necesites.'
+                          : 'El aro parpadea sobre el control que vas a usar. Tócalo para probarlo; la guía se pausa mientras completas el paso.'}
                 </Text>
                 {!!error && (
                   <Text

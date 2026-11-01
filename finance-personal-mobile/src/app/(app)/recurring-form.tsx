@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, View, Switch } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Controller, useForm, type PathValue } from 'react-hook-form';
 import { applyApiFieldErrors } from '@/auth/form-errors';
 import { useAccounts } from '@/features/accounts/use-accounts';
 import { useCategories } from '@/features/categories/use-categories';
+import { useCredits } from '@/features/secondary/use-secondary';
 import { openForm, useFormSessionActive, withFormSession } from '@/features/forms/form-session';
 import {
   useRecurringActions,
@@ -13,7 +14,13 @@ import {
 } from '@/features/recurrences/use-recurrences';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { hasFormChanges, useUnsavedForm } from '@/features/forms/use-unsaved-form';
-import { deviceTimeZone, frequencies, recurrenceError } from '@/features/recurrences/recurrence-presentation';
+import {
+  deviceTimeZone,
+  frequencies,
+  frequencyLabel,
+  monthlyAmountFromPayment,
+  recurrenceError,
+} from '@/features/recurrences/recurrence-presentation';
 import type {
   Frequency,
   RecurringKind,
@@ -24,7 +31,7 @@ import { useFeedback } from '@/feedback/feedback-provider';
 import { Button, Card, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
-import { QuickCategoryModal } from '@/ui/quick-category-modal';
+import { CategoryHierarchyField } from '@/ui/category-hierarchy-field';
 import { ScreenHeader } from '@/ui/headers';
 import { Disclosure } from '@/ui/disclosure';
 import { ErrorState, SkeletonRow } from '@/ui/states';
@@ -39,11 +46,11 @@ type Values = {
   mode: RecurringMode;
   accountId?: number;
   categoryId?: number;
+  creditId?: number;
   startDate: string;
   endDate: string;
   firstDay: number;
   secondDay: number;
-  amountBasis: 'PER_PAYMENT' | 'MONTHLY_TOTAL';
 };
 function RecurringFormRoute() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -64,10 +71,11 @@ function RecurringFormRoute() {
   return <RecurringForm initial={rules.data?.find((rule) => rule.id === Number(id))} />;
 }
 function RecurringForm({ initial }: { initial?: RecurringRule }) {
-  const { type, accountId, editEnd } = useLocalSearchParams<{
+  const { type, accountId, editEnd, creditId } = useLocalSearchParams<{
     type?: string;
     accountId?: string;
     editEnd?: string;
+    creditId?: string;
   }>();
   const today = localDateFromNative(new Date());
   const activeSession = useFormSessionActive();
@@ -78,36 +86,54 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
   const [editingVersion] = useState(initial?.version);
   const [error, setError] = useState('');
   const [selector, setSelector] = useState<
-    'account' | 'category' | 'frequency' | 'firstDay' | 'secondDay' | null
+    'account' | 'credit' | 'frequency' | 'firstDay' | 'secondDay' | null
   >(null);
-  const [quickCategory, setQuickCategory] = useState(false);
+  const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const form = useForm<Values>({
     defaultValues: {
       name: initial?.name ?? '',
-      amount: initial ? String(initial.amount) : '',
+      amount: initial ? String(monthlyAmountFromPayment(initial.amount, initial.frequency)) : '',
       kind: initial?.kind ?? (type === 'INCOME' ? 'INCOME' : 'EXPENSE'),
       frequency: initial?.frequency ?? 'MONTHLY',
       mode: initial?.mode ?? (type === 'INCOME' ? 'AUTOMATIC' : 'CONFIRM'),
       accountId: initial?.accountId ?? (accountId ? Number(accountId) : undefined),
       categoryId: initial?.categoryId ?? undefined,
+      creditId: initial?.creditId ?? (creditId ? Number(creditId) : undefined),
       startDate: initial ? (initial.nextDate < today ? today : initial.nextDate) : today,
       endDate: initial?.endDate ?? '',
       firstDay: initial?.firstDay ?? Number(today.slice(8)),
       secondDay: initial?.secondDay ?? 31,
-      amountBasis: 'PER_PAYMENT',
     },
   });
   const values = form.watch();
   const accounts = useAccounts();
+  const credits = useCredits();
   const categories = useCategories(values.kind);
   const { save } = useRecurringActions();
   const feedback = useFeedback();
   const account = accounts.data?.find((item) => item.id === values.accountId);
-  const category = categories.data?.find((item) => item.id === values.categoryId);
+  const linkedCredit = credits.data?.find((item) => item.id === values.creditId);
+  const presetApplied = useRef(false);
+  useEffect(() => {
+    if (initial || !creditId || !credits.data || presetApplied.current) return;
+    const credit = credits.data.find((item) => item.id === Number(creditId));
+    if (!credit) return;
+    presetApplied.current = true;
+    const dueDate =
+      credit.nextPaymentDate && credit.nextPaymentDate >= today ? credit.nextPaymentDate : today;
+    form.setValue('kind', 'EXPENSE');
+    form.setValue('mode', 'CONFIRM');
+    form.setValue('creditId', credit.id);
+    form.setValue('name', `Cuota de ${credit.name ?? 'crédito'}`);
+    form.setValue('amount', credit.expectedPaymentAmount == null ? '' : String(credit.expectedPaymentAmount));
+    form.setValue('frequency', 'MONTHLY');
+    form.setValue('firstDay', Number(dueDate.slice(8)));
+    form.setValue('startDate', dueDate);
+  }, [initial, creditId, credits.data, form, today]);
   const monthly = values.frequency === 'MONTHLY' || values.frequency === 'SEMIMONTHLY';
   const preview = useRecurringPreview({
     frequency: values.frequency,
-    amountBasis: values.amountBasis,
+    amountBasis: 'MONTHLY_TOTAL',
     amount: Number(values.amount),
     firstDay: values.firstDay,
     secondDay: values.secondDay,
@@ -119,30 +145,13 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
   const guard = useUnsavedForm({
     dirty: hasFormChanges(values, form.formState.defaultValues),
     busy: save.isPending,
-    suspended: selector !== null || quickCategory,
+    suspended: selector !== null || hierarchyOpen,
     onBack: leave,
   });
   function change<K extends keyof Values>(key: K, value: PathValue<Values, K>) {
     form.setValue(key, value);
     form.clearErrors(key);
     setError('');
-  }
-  function changeAmountBasis(basis: Values['amountBasis']) {
-    if (basis === values.amountBasis) return true;
-    if (Number(values.amount) > 0) {
-      if (!preview.data || preview.waiting || preview.isError) {
-        setError(
-          'Revisa el importe y las fechas de la vista previa antes de cambiar cómo se reparte el pago.',
-        );
-        return false;
-      }
-      change(
-        'amount',
-        String(basis === 'MONTHLY_TOTAL' ? preview.data.fullMonthTotal : preview.data.amountPerPayment),
-      );
-    }
-    change('amountBasis', basis);
-    return true;
   }
   const submit = form.handleSubmit(async (data) => {
     if (submitting.current) return;
@@ -155,8 +164,15 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
     if (!Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0)
       invalidField('amount', 'Ingresa un importe mayor que cero.');
     if (!account?.active) invalidField('accountId', 'Selecciona una cuenta activa.');
-    if (data.kind === 'EXPENSE' && !data.categoryId)
+    if (data.kind === 'EXPENSE' && !data.categoryId && !data.creditId)
       invalidField('categoryId', 'Selecciona una categoría de gasto.');
+    if (data.creditId && !linkedCredit)
+      invalidField('creditId', 'El crédito ya no está disponible. Actualiza la lista e inténtalo de nuevo.');
+    if (linkedCredit?.status === 'PAID') invalidField('creditId', 'Este crédito ya está pagado.');
+    if (linkedCredit && linkedCredit.currency !== account?.currency)
+      invalidField('accountId', 'Elige una cuenta con la misma moneda que el crédito.');
+    if (data.creditId && data.frequency !== 'MONTHLY')
+      invalidField('frequency', 'Las cuotas de crédito se programan una vez al mes.');
     if (data.startDate < today) invalidField('startDate', 'Elige hoy o una fecha posterior.');
     if (data.endDate && data.endDate < data.startDate)
       invalidField('endDate', 'El fin debe ser posterior al inicio.');
@@ -179,6 +195,7 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
           amount: preview.data.amountPerPayment,
           accountId: data.accountId!,
           categoryId: data.categoryId,
+          creditId: data.creditId,
           endDate: data.endDate || undefined,
           secondDay: data.frequency === 'SEMIMONTHLY' ? data.secondDay : undefined,
           timeZone: initial?.timeZone ?? deviceTimeZone(),
@@ -210,7 +227,7 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
               ? 'Nuevo ingreso fijo'
               : 'Nuevo gasto fijo'
         }
-        subtitle="Elige el importe, la cuenta y las fechas."
+        subtitle="Indica el total mensual, la frecuencia y la cuenta."
         back
         backFallback="/(app)/recurrences"
         onBack={() => guard.request(leave)}
@@ -223,10 +240,8 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
             variant={values.kind === kind ? 'primary' : 'secondary'}
             disabled={save.isPending}
             onPress={() => {
-              if (kind === 'EXPENSE' && values.amountBasis === 'MONTHLY_TOTAL') {
-                if (!changeAmountBasis('PER_PAYMENT')) return;
-              }
               change('kind', kind);
+              if (kind === 'INCOME') change('creditId', undefined);
               change('categoryId', undefined);
               change('mode', kind === 'INCOME' ? 'AUTOMATIC' : 'CONFIRM');
             }}
@@ -258,71 +273,71 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
       {fieldError('accountId') && (
         <Text style={{ ...typography.caption, color: colors.danger }}>{fieldError('accountId')}</Text>
       )}
-      {values.kind === 'INCOME' && monthly && (
-        <View style={{ gap: spacing.xs }}>
-          <Text style={typography.label}>¿Qué importe vas a escribir?</Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {(['PER_PAYMENT', 'MONTHLY_TOTAL'] as const).map((basis) => (
-              <Button
-                key={basis}
-                size="compact"
-                style={{ flex: 1 }}
-                disabled={preview.waiting || save.isPending}
-                variant={values.amountBasis === basis ? 'primary' : 'secondary'}
-                onPress={() => {
-                  changeAmountBasis(basis);
-                }}
-              >
-                {basis === 'PER_PAYMENT' ? 'Por pago' : 'Total mensual'}
-              </Button>
-            ))}
-          </View>
-        </View>
-      )}
       <Controller
         control={form.control}
         name="amount"
         render={({ field }) => (
           <MoneyInput
-            label={
-              values.amountBasis === 'MONTHLY_TOTAL' ? 'Total que recibes al mes' : 'Importe de cada pago'
-            }
+            label={values.kind === 'INCOME' ? 'Total mensual del ingreso' : 'Total mensual del gasto'}
             currency={account?.currency ?? 'COP'}
             value={field.value}
             onChangeText={(v) => change('amount', v)}
             placeholder="0"
             error={fieldError('amount')}
-            helperText={
-              values.amountBasis === 'MONTHLY_TOTAL'
-                ? 'Se divide entre los pagos de cada mes.'
-                : values.kind === 'INCOME'
-                  ? 'Si recibes 2 pagos de 1.500.000, escribe 1.500.000 aquí.'
-                  : values.mode === 'CONFIRM'
-                    ? 'Podrás ajustar el importe al confirmar cada factura.'
-                    : 'Se registrará este importe en cada fecha.'
-            }
+            helperText="Escribe el total de todo un mes; lo repartimos entre las fechas que elijas."
           />
         )}
       />
-      <View style={{ gap: spacing.xs }}>
-        <SelectField
-          label={values.kind === 'INCOME' ? 'Categoría · opcional' : 'Categoría'}
-          value={category?.name}
-          onPress={() => setSelector('category')}
-        />
-        {categories.isError && <ErrorState onRetry={() => void categories.refetch()} />}
-        {fieldError('categoryId') && (
-          <Text style={{ ...typography.caption, color: colors.danger }}>{fieldError('categoryId')}</Text>
-        )}
-        <Button
-          variant="ghost"
-          size="compact"
-          style={{ alignSelf: 'flex-end' }}
-          onPress={() => setQuickCategory(true)}
-        >
-          + Crear categoría
-        </Button>
-      </View>
+      {values.kind === 'EXPENSE' && (
+        <View style={{ gap: spacing.sm }}>
+          <SelectField
+            label="Vincular con una cuota de crédito · opcional"
+            value={linkedCredit?.name}
+            onPress={() => setSelector('credit')}
+          />
+          {credits.isError && <ErrorState onRetry={() => void credits.refetch()} />}
+          {linkedCredit && (
+            <Card tone="info" style={{ padding: spacing.md, gap: spacing.xs }}>
+              <Text style={typography.label}>Pago del crédito · {linkedCredit.name}</Text>
+              <Text style={typography.caption}>
+                La cuenta elegida se descontará y el pago también reducirá esta deuda. No se creará otro
+                gasto.
+              </Text>
+              <Text style={typography.caption}>
+                Cuota estimada:{' '}
+                {linkedCredit.expectedPaymentAmount == null
+                  ? 'El importe se define al registrar el pago.'
+                  : formatPrivateMoney(
+                      linkedCredit.expectedPaymentAmount,
+                      linkedCredit.currency ?? 'COP',
+                      false,
+                    )}
+                {linkedCredit.nextPaymentDate
+                  ? ` · Próximo pago ${formatLocalDate(linkedCredit.nextPaymentDate)}`
+                  : ''}
+              </Text>
+            </Card>
+          )}
+          {fieldError('creditId') && (
+            <Text style={{ ...typography.caption, color: colors.danger }}>{fieldError('creditId')}</Text>
+          )}
+        </View>
+      )}
+      {!values.creditId && (
+        <View style={{ gap: spacing.sm }}>
+          <CategoryHierarchyField
+            categories={categories.data ?? []}
+            type={values.kind}
+            optional={values.kind === 'INCOME'}
+            value={values.categoryId}
+            loading={categories.isPending}
+            error={fieldError('categoryId')}
+            onSelectorOpenChange={setHierarchyOpen}
+            onChange={(id) => change('categoryId', id)}
+          />
+          {categories.isError && <ErrorState onRetry={() => void categories.refetch()} />}
+        </View>
+      )}
       <Card style={{ padding: spacing.lg, gap: spacing.md }}>
         <Text style={typography.cardTitle}>Calendario de pagos</Text>
         <View style={{ gap: spacing.xs }}>
@@ -362,10 +377,14 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View style={{ flex: 1 }}>
-            <Text style={typography.cardTitle}>Registro automático</Text>
+            <Text style={typography.cardTitle}>
+              {values.creditId ? 'Registro del pago del crédito' : 'Registro automático'}
+            </Text>
             <Text style={typography.caption}>
               {values.mode === 'AUTOMATIC'
-                ? 'Se registra al llegar el día de pago.'
+                ? values.creditId
+                  ? 'Al llegar la fecha, se anotará el pago del crédito y se descontará de la cuenta.'
+                  : 'Se registra al llegar el día de pago.'
                 : 'Tú confirmas el importe y la fecha reales.'}
             </Text>
           </View>
@@ -380,7 +399,7 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
         </View>
         <Text style={typography.caption}>
           {values.mode === 'AUTOMATIC'
-            ? 'Solo registra el movimiento; no realiza pagos en tu banco.'
+            ? 'La app no realiza pagos en tu banco. Si el valor puede cambiar, elige confirmar cada pago.'
             : 'Hasta confirmar, no cambia tus saldos ni reportes.'}
         </Text>
       </Card>
@@ -436,14 +455,21 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
             </>
           ) : preview.data ? (
             <>
+              <Text style={typography.label}>Frecuencia de pago: {frequencyLabel(values.frequency)}</Text>
               <Text style={typography.label}>{money(preview.data.amountPerPayment)} por pago</Text>
               {preview.data.fullMonthTotal != null ? (
                 <Text style={typography.caption}>
-                  {money(preview.data.fullMonthTotal)} en un mes completo.
+                  {monthly ? 'Total mensual programado' : 'Promedio mensual'}:{' '}
+                  {money(preview.data.fullMonthTotal)}.
                 </Text>
               ) : (
                 <Text style={typography.caption}>
                   El total mensual varía según cuántas fechas de pago tenga el mes.
+                </Text>
+              )}
+              {(values.frequency === 'WEEKLY' || values.frequency === 'BIWEEKLY') && (
+                <Text style={typography.caption}>
+                  Los pagos se calculan con el promedio anual; algunos meses tienen más fechas que otros.
                 </Text>
               )}
               {preview.data.months.map((month) => (
@@ -488,8 +514,8 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
         selectedId={
           selector === 'account'
             ? values.accountId
-            : selector === 'category'
-              ? values.categoryId
+            : selector === 'credit'
+              ? (values.creditId ?? 0)
               : selector === 'frequency'
                 ? frequencies.findIndex((f) => f.value === values.frequency)
                 : selector === 'firstDay'
@@ -499,8 +525,8 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
         label={
           selector === 'account'
             ? 'Cuenta'
-            : selector === 'category'
-              ? 'Categoría'
+            : selector === 'credit'
+              ? 'Crédito relacionado'
               : selector === 'frequency'
                 ? 'Frecuencia'
                 : 'Día del mes'
@@ -508,12 +534,25 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
         options={
           selector === 'account'
             ? (accounts.data ?? [])
-                .filter((a) => a.active && a.id !== undefined)
+                .filter(
+                  (a) =>
+                    a.active && a.id !== undefined && (!linkedCredit || a.currency === linkedCredit.currency),
+                )
                 .map((a) => ({ id: a.id!, label: `${a.name} · ${a.currency}` }))
-            : selector === 'category'
-              ? (categories.data ?? [])
-                  .filter((c) => c.active !== false && c.id !== undefined)
-                  .map((c) => ({ id: c.id!, label: c.name ?? 'Categoría' }))
+            : selector === 'credit'
+              ? [
+                  { id: 0, label: 'No asociar a un crédito' },
+                  ...(credits.data ?? [])
+                    .filter((credit) => credit.status !== 'PAID' && credit.id !== undefined)
+                    .map((credit) => ({
+                      id: credit.id!,
+                      label: credit.name ?? 'Crédito',
+                      subtitle:
+                        credit.expectedPaymentAmount == null
+                          ? (credit.currency ?? 'Moneda no definida')
+                          : `${formatPrivateMoney(credit.expectedPaymentAmount, credit.currency ?? 'COP', false)} · ${credit.currency ?? 'COP'}`,
+                    })),
+                ]
               : selector === 'frequency'
                 ? frequencies.map((f, id) => ({ id, label: f.label, subtitle: f.detail }))
                 : Array.from(
@@ -522,24 +561,35 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
                   ).filter((d) => selector !== 'secondDay' || d.id > values.firstDay)
         }
         loading={
-          selector === 'account' ? accounts.isPending : selector === 'category' ? categories.isPending : false
+          selector === 'account' ? accounts.isPending : selector === 'credit' ? credits.isPending : false
         }
         onClose={() => setSelector(null)}
         onSelect={(id) => {
           if (selector === 'account') change('accountId', id);
-          else if (selector === 'category') change('categoryId', id);
-          else if (selector === 'frequency') {
+          else if (selector === 'credit') {
+            const nextCredit = id === 0 ? undefined : credits.data?.find((item) => item.id === id);
+            change('creditId', nextCredit?.id);
+            if (nextCredit) {
+              change('kind', 'EXPENSE');
+              change('categoryId', undefined);
+              change('mode', 'CONFIRM');
+              change('name', `Cuota de ${nextCredit.name ?? 'crédito'}`);
+              change(
+                'amount',
+                nextCredit.expectedPaymentAmount == null ? '' : String(nextCredit.expectedPaymentAmount),
+              );
+              change('frequency', 'MONTHLY');
+              const dueDate =
+                nextCredit.nextPaymentDate && nextCredit.nextPaymentDate >= today
+                  ? nextCredit.nextPaymentDate
+                  : today;
+              change('firstDay', Number(dueDate.slice(8)));
+              change('startDate', dueDate);
+              if (account && account.currency !== nextCredit.currency) change('accountId', undefined);
+            }
+          } else if (selector === 'frequency') {
             const frequency = frequencies[id];
             if (!frequency) return;
-            if (
-              (frequency.value === 'WEEKLY' || frequency.value === 'BIWEEKLY') &&
-              values.amountBasis === 'MONTHLY_TOTAL'
-            ) {
-              if (!changeAmountBasis('PER_PAYMENT')) {
-                setSelector(null);
-                return;
-              }
-            }
             change('frequency', frequency.value);
             if (frequency.value === 'SEMIMONTHLY') {
               change('firstDay', 15);
@@ -551,27 +601,15 @@ function RecurringForm({ initial }: { initial?: RecurringRule }) {
           } else change('secondDay', id);
           setSelector(null);
         }}
-        emptyActionLabel={
-          selector === 'account' ? 'Crear cuenta' : selector === 'category' ? 'Crear categoría' : undefined
-        }
+        emptyActionLabel={selector === 'account' ? 'Crear cuenta' : undefined}
         onEmptyAction={
-          selector === 'account' || selector === 'category'
+          selector === 'account'
             ? () => {
                 setSelector(null);
-                if (selector === 'account') openForm('/(app)/account-form');
-                else setQuickCategory(true);
+                openForm('/(app)/account-form');
               }
             : undefined
         }
-      />
-      <QuickCategoryModal
-        visible={quickCategory}
-        type={values.kind}
-        onClose={() => setQuickCategory(false)}
-        onCreated={(created) => {
-          change('categoryId', created);
-          setQuickCategory(false);
-        }}
       />
     </Screen>
   );

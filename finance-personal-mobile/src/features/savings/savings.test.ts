@@ -64,7 +64,8 @@ describe('Savings contract and decimal presentation', () => {
     ]);
     expect(summary.active).toHaveLength(1);
     expect(summary.completed).toHaveLength(1);
-    expect(Object.keys(summary)).toEqual(['active', 'completed']);
+    expect(Object.keys(summary)).toEqual(['active', 'completed', 'archived']);
+    expect(summary.archived).toEqual([]);
   });
   it('keeps long names intact and masks amounts in accessible copy', () => {
     const name = 'Un fondo de emergencia para los próximos proyectos y planes de toda mi familia';
@@ -156,4 +157,13 @@ it('describes the milestone when actual progress exceeds 75 percent', async () =
   );
   expect(result?.title).toBe('¡Nuevo hito: 75%!');
   expect(result?.badges).toEqual(['75%']);
+});
+
+it('keeps closed and cancelled goals visible without counting them as active', () => {
+  const summary = savingsSummary([
+    { id: 1, status: 'CLOSED', currentAmount: 30, targetAmount: 100, currency: 'COP' },
+    { id: 2, status: 'CANCELLED', currentAmount: 0, targetAmount: 100, currency: 'USD' },
+  ]);
+  expect(summary.active).toHaveLength(0);
+  expect(summary.archived.map((goal) => goal.status)).toEqual(['Cerrada', 'Cancelada']);
 });

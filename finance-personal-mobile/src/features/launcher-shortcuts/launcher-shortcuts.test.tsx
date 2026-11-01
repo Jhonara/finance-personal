@@ -1,3 +1,4 @@
+vi.mock('@/theme/theme-provider', () => ({ useAppTheme: () => ({}) }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

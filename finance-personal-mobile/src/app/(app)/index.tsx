@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { HomeMetrics, FinancialPanorama } from '@/features/dashboard/home-metrics';
@@ -53,6 +54,7 @@ import { GuidedSetupCard } from '@/ui/guided-setup-card';
 import { Disclosure } from '@/ui/disclosure';
 
 export default function HomeScreen() {
+  useAppTheme();
   const reducedMotion = useReducedMotion();
   const { width, fontScale } = useWindowDimensions();
   const [period, setPeriod] = useState(currentDashboardPeriod);

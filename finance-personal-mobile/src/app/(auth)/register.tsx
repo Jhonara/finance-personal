@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
@@ -12,6 +13,7 @@ import { colors, spacing, typography } from '@/theme';
 import { Button, Input, Screen } from '@/ui/primitives';
 
 export default function RegisterScreen() {
+  useAppTheme();
   const intro = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(intro, {

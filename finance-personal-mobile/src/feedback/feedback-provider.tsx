@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import {
   createContext,
   useCallback,
@@ -22,17 +23,19 @@ type Feedback = { message: string; tone: FeedbackTone };
 
 const C = createContext<{ show(message: string, tone?: FeedbackTone): void } | null>(null);
 
-const toneDetails: Record<
+const feedbackToneDetails = (): Record<
   FeedbackTone,
   { title: string; icon: keyof typeof Ionicons.glyphMap; color: string; soft: string }
-> = {
+> => ({
   success: { title: 'Listo', icon: 'checkmark-circle', color: colors.success, soft: colors.successSoft },
   error: { title: 'Algo salió mal', icon: 'close-circle', color: colors.danger, soft: colors.dangerSoft },
   warning: { title: 'Ten en cuenta', icon: 'warning', color: colors.warning, soft: colors.warningSoft },
   info: { title: 'Información', icon: 'information-circle', color: colors.info, soft: colors.infoSoft },
-};
+});
 
 export const FeedbackProvider = ({ children }: PropsWithChildren) => {
+  useAppTheme();
+  const toneDetails = feedbackToneDetails();
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   const entrance = useRef(new Animated.Value(0)).current;

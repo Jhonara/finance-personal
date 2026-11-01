@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/auth/auth-provider';
@@ -8,6 +9,7 @@ import { EmptyState, SkeletonRow } from '@/ui/states';
 
 /** A public landing route checks the session before mounting any financial queries. */
 export default function ShortcutScreen() {
+  useAppTheme();
   const { state } = useAuth();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
   if (state.status === 'bootstrapping')

@@ -5,6 +5,7 @@ import { Button } from '@/ui/primitives';
 import { useReducedMotion } from '@/ui/use-reduced-motion';
 import { colors, radius, spacing, typography } from '@/theme';
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import { registerAlertPresenter, type AppAlertRequest } from './app-alert';
 
 function dismiss(request: AppAlertRequest) {
@@ -13,6 +14,7 @@ function dismiss(request: AppAlertRequest) {
 }
 
 export function ConfirmationProvider({ children }: PropsWithChildren) {
+  useAppTheme();
   const reduced = useReducedMotion();
   const active = useRef<AppAlertRequest | null>(null);
   const [request, setRequest] = useState<AppAlertRequest | null>(null);

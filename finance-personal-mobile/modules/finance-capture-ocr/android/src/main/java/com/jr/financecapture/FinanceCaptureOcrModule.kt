@@ -2,7 +2,14 @@ package com.jr.financecapture
 
 import android.graphics.BitmapFactory
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.pdf.PdfRenderer
+import android.media.ExifInterface
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
@@ -13,6 +20,7 @@ import android.provider.Settings
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -26,6 +34,88 @@ import kotlin.concurrent.thread
 class FinanceCaptureOcrModule : Module() {
   private val maxBytes = 10L * 1024L * 1024L
   private val maxPixels = 25_000_000L
+  private val maxOcrDimension = 2_400
+
+  private fun textInReadingOrder(result: Text): String {
+    val lines = result.textBlocks.flatMap { it.lines }.mapNotNull { line ->
+      val box = line.boundingBox ?: return@mapNotNull null
+      OcrTextLayout.Line(line.text, box.left, box.top, box.right, box.bottom, line.angle.toDouble())
+    }
+    return OcrTextLayout.reconstruct(lines).ifBlank { result.text }.take(12_000)
+  }
+
+  private fun needsOcrRetry(text: String): Boolean = OcrTextQuality.needsRetry(text)
+
+  private fun chooseBetterOcr(first: String, second: String): String = OcrTextQuality.choose(first, second)
+
+  private fun enhanceBitmap(source: Bitmap): Bitmap {
+    val contrast = ColorMatrix(floatArrayOf(
+      1.55f, 0f, 0f, 0f, -48f,
+      0f, 1.55f, 0f, 0f, -48f,
+      0f, 0f, 1.55f, 0f, -48f,
+      0f, 0f, 0f, 1f, 0f,
+    ))
+    val colors = ColorMatrix().apply {
+      setSaturation(0f)
+      postConcat(contrast)
+    }
+    val enhanced = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(enhanced)
+    canvas.drawColor(Color.WHITE)
+    canvas.drawBitmap(
+      source,
+      0f,
+      0f,
+      Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        isFilterBitmap = true
+        colorFilter = ColorMatrixColorFilter(colors)
+      },
+    )
+    return enhanced
+  }
+
+  private fun enhancedImage(context: android.content.Context, uri: Uri): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+      ?: return null
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0 ||
+      bounds.outWidth.toLong() * bounds.outHeight.toLong() > maxPixels) return null
+    val sample = maxOf(1, kotlin.math.ceil(maxOf(
+      bounds.outWidth.toDouble() / maxOcrDimension,
+      bounds.outHeight.toDouble() / maxOcrDimension,
+    )).toInt())
+    val decoded = context.contentResolver.openInputStream(uri)?.use { input ->
+      BitmapFactory.decodeStream(
+        input,
+        null,
+        BitmapFactory.Options().apply {
+          inSampleSize = sample
+          inPreferredConfig = Bitmap.Config.ARGB_8888
+        },
+      )
+    } ?: return null
+    val orientation = try {
+      context.contentResolver.openInputStream(uri)?.use { input ->
+        ExifInterface(input).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+      } ?: ExifInterface.ORIENTATION_NORMAL
+    } catch (_: Exception) {
+      ExifInterface.ORIENTATION_NORMAL
+    }
+    val rotation = when (orientation) {
+      ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+      ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+      ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+      else -> 0f
+    }
+    val matrix = Matrix().apply { if (rotation != 0f) postRotate(rotation) }
+    val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+    if (oriented !== decoded) decoded.recycle()
+    return try {
+      enhanceBitmap(oriented)
+    } finally {
+      oriented.recycle()
+    }
+  }
 
   private fun listenerAccess(): Boolean {
     val context = requireNotNull(appContext.reactContext).applicationContext
@@ -114,12 +204,28 @@ class FinanceCaptureOcrModule : Module() {
           return@AsyncFunction
         }
 
-        val image = InputImage.fromFilePath(context, uri)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        recognizer.process(image)
-          .addOnSuccessListener { result -> promise.resolve(result.text.take(12_000)) }
-          .addOnFailureListener { promise.reject("OCR_FAILED", "No pudimos leer el comprobante. Prueba con una foto más nítida.", null) }
-          .addOnCompleteListener { recognizer.close() }
+        thread(name = "finance-capture-image") {
+          try {
+            val original = textInReadingOrder(Tasks.await(recognizer.process(InputImage.fromFilePath(context, uri))))
+            val text = if (needsOcrRetry(original)) {
+              val enhanced = try { enhancedImage(context, uri) } catch (_: Exception) { null }
+              if (enhanced == null) original else try {
+                val retry = textInReadingOrder(Tasks.await(recognizer.process(InputImage.fromBitmap(enhanced, 0))))
+                chooseBetterOcr(original, retry)
+              } catch (_: Exception) {
+                original
+              } finally {
+                enhanced.recycle()
+              }
+            } else original
+            promise.resolve(text)
+          } catch (_: Exception) {
+            promise.reject("OCR_FAILED", "No pudimos leer el comprobante. Prueba con una foto más nítida.", null)
+          } finally {
+            recognizer.close()
+          }
+        }
       } catch (_: Exception) {
         promise.reject("OCR_FAILED", "No pudimos abrir el comprobante. Elige otra imagen.", null)
       }
@@ -174,7 +280,7 @@ class FinanceCaptureOcrModule : Module() {
               val pages = mutableListOf<Map<String, Any>>()
               for (index in 0 until renderer.pageCount) {
                 renderer.openPage(index).use { page ->
-                  val scale = minOf(1800.0 / page.width, 1800.0 / page.height, 2.0)
+                  val scale = minOf(2400.0 / page.width, 2400.0 / page.height, 3.0)
                   val width = (page.width * scale).toInt().coerceAtLeast(1)
                   val height = (page.height * scale).toInt().coerceAtLeast(1)
                   val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -182,7 +288,18 @@ class FinanceCaptureOcrModule : Module() {
                     bitmap.eraseColor(android.graphics.Color.WHITE)
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     val image = InputImage.fromBitmap(bitmap, 0)
-                    val text = Tasks.await(recognizer.process(image)).text.take(12_000)
+                    val original = textInReadingOrder(Tasks.await(recognizer.process(image)))
+                    val text = if (needsOcrRetry(original)) {
+                      val enhanced = try { enhanceBitmap(bitmap) } catch (_: Exception) { null }
+                      if (enhanced == null) original else try {
+                        val retry = textInReadingOrder(Tasks.await(recognizer.process(InputImage.fromBitmap(enhanced, 0))))
+                        chooseBetterOcr(original, retry)
+                      } catch (_: Exception) {
+                        original
+                      } finally {
+                        enhanced.recycle()
+                      }
+                    } else original
                     pages.add(mapOf("page" to index + 1, "text" to text))
                   } finally {
                     bitmap.recycle()

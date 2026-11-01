@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
@@ -12,6 +13,7 @@ import LoginScreen from './(auth)/login';
 
 /** Public gate: the action stays in the route during login; financial screens mount only after /me. */
 export default function AndroidShortcutScreen() {
+  useAppTheme();
   const { action } = useLocalSearchParams<{ action?: string | string[] }>();
   const destination = Platform.OS === 'android' ? launcherDestination(action) : undefined;
   const { state, logout } = useAuth();

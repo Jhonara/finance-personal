@@ -1,23 +1,175 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
+import Animated, { useAnimatedProps, type SharedValue } from 'react-native-reanimated';
+import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { colors, spacing } from '@/theme';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
-import { GrowingArc, GrowingBar, useChartReveal } from '@/ui/chart-motion';
+import { GrowingBar, useChartReveal } from '@/ui/chart-motion';
 import { formatDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { shortReportMonth, type TrendPoint } from './report-model';
 import { reportStyles as s, ReportNotice } from './report-ui';
+import { reportBarScale, ringSegmentAtPoint, ringSegmentPath, ringSegments } from './chart-geometry';
 
-export const chartColors = () => [
-  colors.success,
-  colors.info,
-  colors.lavender,
-  colors.warning,
-  colors.expense,
-  colors.textMuted,
-];
-export type RingPart = { name: string; value: number; color: string };
+export { chartColors, reportPalette } from './chart-palette';
+export type RingPart = { key?: string; name: string; value: number; color: string };
+
+export type ReportBarItem = {
+  key: string;
+  name: string;
+  value: number;
+  color: string;
+  reference?: number;
+  caption?: string;
+  icon?: ReactNode;
+  footer?: ReactNode;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+};
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+function RingSector({
+  path,
+  color,
+  progress,
+}: {
+  path: string;
+  color: string;
+  progress: SharedValue<number>;
+}) {
+  // Fade complete sectors: rotating/growing dashed circles changes hit areas
+  // during reveal, which can make a tap select a different category.
+  const animatedProps = useAnimatedProps(() => ({ opacity: progress.value }));
+  return <AnimatedPath d={path} fill={color} animatedProps={animatedProps} />;
+}
+
+function HorizontalBar({
+  zero,
+  target,
+  y,
+  color,
+  progress,
+}: {
+  zero: number;
+  target: number;
+  y: number;
+  color: string;
+  progress: SharedValue<number>;
+}) {
+  const animatedProps = useAnimatedProps(() => ({
+    x: zero + Math.min(0, target - zero) * progress.value,
+    width: Math.abs(target - zero) * progress.value,
+  }));
+  return <AnimatedRect animatedProps={animatedProps} y={y} height={8} rx={4} fill={color} />;
+}
+
+/** One common, signed scale: refunds never become positive expense slices. */
+export function ReportAmountBars({
+  items,
+  currency,
+  hidden,
+  referenceLabel,
+  valueLabel,
+  scale,
+}: {
+  items: ReportBarItem[];
+  currency: string;
+  hidden: boolean;
+  referenceLabel?: string;
+  valueLabel?: string;
+  scale?: 'shared' | 'individual';
+}) {
+  const progress = useChartReveal(
+    items.map((item) => `${item.key}:${item.value}:${item.reference}`).join('|'),
+    !hidden,
+  );
+  const money = (value: number) => formatPrivateMoney(value, currency, hidden);
+  return (
+    <View style={s.stack}>
+      {referenceLabel ? (
+        <View style={s.chips}>
+          <View style={s.row}>
+            <View style={[s.dot, { backgroundColor: colors.info }]} />
+            <Text style={s.caption}>{referenceLabel}</Text>
+          </View>
+          <View style={s.row}>
+            <View style={[s.dot, { backgroundColor: colors.expense }]} />
+            <Text style={s.caption}>{valueLabel ?? 'Gastado'}</Text>
+          </View>
+        </View>
+      ) : null}
+      {hidden ? <ReportNotice>Gráfica oculta mientras ocultas tus importes.</ReportNotice> : null}
+      {items.map((item) => {
+        const { min, x } = reportBarScale(items, item, scale ?? (referenceLabel ? 'individual' : 'shared'));
+        const zero = x(0);
+        return (
+          <MotionPressable
+            key={item.key}
+            accessibilityRole={item.onPress ? 'button' : undefined}
+            accessibilityLabel={item.accessibilityLabel}
+            onPress={item.onPress}
+            disabled={!item.onPress}
+            style={[s.item, { paddingVertical: spacing.sm }]}
+          >
+            <View style={s.between}>
+              <View style={[s.row, { flex: 1, minWidth: 120 }]}>
+                {item.icon ?? <View style={[s.dot, { backgroundColor: item.color }]} />}
+                <Text style={[s.label, { flex: 1 }]}>{item.name}</Text>
+              </View>
+              <Text style={s.label}>{money(item.value)}</Text>
+            </View>
+            {item.reference !== undefined ? (
+              <View style={s.between}>
+                <Text style={s.caption}>{referenceLabel ?? 'Presupuesto'}</Text>
+                <Text style={s.caption}>{money(item.reference)}</Text>
+              </View>
+            ) : null}
+            {!hidden ? (
+              <Svg
+                width="100%"
+                height={item.reference === undefined ? 14 : 28}
+                viewBox={`0 0 300 ${item.reference === undefined ? 14 : 28}`}
+                preserveAspectRatio="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Rect
+                  x={0}
+                  y={item.reference === undefined ? 3 : 17}
+                  width={300}
+                  height={8}
+                  rx={4}
+                  fill={colors.surfaceSecondary}
+                />
+                {item.reference !== undefined ? (
+                  <HorizontalBar
+                    zero={zero}
+                    target={x(item.reference)}
+                    y={3}
+                    color={colors.info}
+                    progress={progress}
+                  />
+                ) : null}
+                <HorizontalBar
+                  zero={zero}
+                  target={x(item.value)}
+                  y={item.reference === undefined ? 3 : 17}
+                  color={item.color}
+                  progress={progress}
+                />
+                {min < 0 ? <Line x1={zero} x2={zero} y1={0} y2={28} stroke={colors.textMuted} /> : null}
+              </Svg>
+            ) : null}
+            {item.caption ? <Text style={s.caption}>{item.caption}</Text> : null}
+            {item.footer}
+          </MotionPressable>
+        );
+      })}
+    </View>
+  );
+}
 
 export function ReportRing({
   parts,
@@ -26,6 +178,9 @@ export function ReportRing({
   value,
   selected,
   onSelect,
+  selectedKey,
+  onSelectKey,
+  showLegend = true,
 }: {
   parts: RingPart[];
   hidden: boolean;
@@ -33,59 +188,72 @@ export function ReportRing({
   value: string;
   selected?: number;
   onSelect?: (index: number) => void;
+  selectedKey?: string;
+  onSelectKey?: (key: string) => void;
+  showLegend?: boolean;
 }) {
-  const progress = useChartReveal(parts.map((part) => `${part.name}:${part.value}`).join('|'), !hidden);
+  const progress = useChartReveal(
+    parts.map((part) => `${part.key ?? part.name}:${part.value}`).join('|'),
+    !hidden,
+  );
   if (hidden) return <ReportNotice>Gráfica oculta mientras ocultas tus importes.</ReportNotice>;
-  const total = parts.reduce((sum, part) => sum + Math.max(0, part.value), 0);
-  const circumference = 2 * Math.PI * 70;
-  let offset = 0;
+  const segments = ringSegments(
+    parts.map((part, index) => ({ key: part.key ?? `${index}:${part.name}`, value: part.value })),
+  );
+  const interactive = Boolean(onSelectKey || onSelect);
+  const select = (key: string, index: number) => (onSelectKey ? onSelectKey(key) : onSelect?.(index));
+  const percent = (fraction: number) =>
+    fraction > 0 && fraction < 0.001
+      ? '<0,1%'
+      : `${(fraction * 100).toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`;
   return (
     <MotionEntry>
       <View style={{ alignItems: 'center', gap: spacing.sm }}>
-        <View style={{ width: 184, height: 184 }}>
+        <MotionPressable
+          accessible={false}
+          feedback={false}
+          disabled={!interactive}
+          testID="report-ring-hit-surface"
+          onPress={(event) => {
+            const { locationX, locationY } = event.nativeEvent;
+            const segment = ringSegmentAtPoint(segments, locationX, locationY);
+            if (segment) select(segment.key, segment.index);
+          }}
+          style={{ width: 208, height: 208 }}
+        >
           <Svg
-            width={184}
-            height={184}
-            viewBox="0 0 184 184"
+            width={208}
+            height={208}
+            viewBox="0 0 208 208"
+            pointerEvents="none"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
           >
-            <Circle cx={92} cy={92} r={70} fill="none" stroke={colors.surfaceSecondary} strokeWidth={21} />
-            <G rotation={-90} origin="92,92">
-              {total > 0
-                ? parts.map((part, index) => {
-                    const length = (Math.max(0, part.value) / total) * circumference;
-                    const start = offset;
-                    offset += length;
-                    return (
-                      <GrowingArc
-                        key={part.name}
-                        cx={92}
-                        cy={92}
-                        r={70}
-                        fill="none"
-                        stroke={part.color}
-                        strokeWidth={selected === index ? 27 : 21}
-                        opacity={selected === undefined || selected === index ? 1 : 0.4}
-                        progress={progress}
-                        length={Math.max(0, length - (parts.length > 1 ? 3 : 0))}
-                        circumference={circumference}
-                        start={start}
-                        onPress={() => onSelect?.(index)}
-                      />
-                    );
-                  })
-                : null}
-            </G>
+            <Circle cx={104} cy={104} r={84} fill="none" stroke={colors.surfaceSecondary} strokeWidth={24} />
+            {segments.map((segment) => (
+              <RingSector
+                key={segment.key}
+                path={ringSegmentPath(
+                  segment.startAngle,
+                  segment.endAngle,
+                  104,
+                  104,
+                  72,
+                  selectedKey === segment.key || selected === segment.index ? 100 : 96,
+                )}
+                color={parts[segment.index]!.color}
+                progress={progress}
+              />
+            ))}
           </Svg>
           <View
             pointerEvents="none"
             style={{
               position: 'absolute',
-              left: 33,
-              right: 33,
-              top: 57,
-              bottom: 48,
+              left: 39,
+              right: 39,
+              top: 62,
+              bottom: 62,
               justifyContent: 'center',
               alignItems: 'center',
               gap: 4,
@@ -101,7 +269,25 @@ export function ReportRing({
               {value}
             </Text>
           </View>
-        </View>
+        </MotionPressable>
+        {interactive && showLegend ? (
+          <View style={[s.chips, { justifyContent: 'center', alignSelf: 'stretch' }]}>
+            {segments.map((segment) => (
+              <MotionPressable
+                key={segment.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${parts[segment.index]!.name}: ${percent(segment.fraction)}. Ver detalle`}
+                onPress={() => select(segment.key, segment.index)}
+                style={[s.row, { minHeight: 48, paddingHorizontal: spacing.sm }]}
+              >
+                <View style={[s.dot, { backgroundColor: parts[segment.index]!.color }]} />
+                <Text style={s.caption}>
+                  {parts[segment.index]!.name} · {percent(segment.fraction)}
+                </Text>
+              </MotionPressable>
+            ))}
+          </View>
+        ) : null}
       </View>
     </MotionEntry>
   );
@@ -111,13 +297,27 @@ export function ReportTrend({
   points,
   currency,
   hidden,
+  selectedMonth: controlledMonth,
+  onSelectMonth,
 }: {
   points: TrendPoint[];
   currency: string;
   hidden: boolean;
+  selectedMonth?: string;
+  onSelectMonth?: (month: string | undefined) => void;
 }) {
-  const [selectedIndex, setSelectedIndex] = useState(points.length - 1);
-  const activeIndex = Math.max(0, Math.min(selectedIndex, points.length - 1));
+  const pointKey = (point: TrendPoint | undefined) => point && `${point.year}-${point.month}`;
+  const [localMonth, setLocalMonth] = useState(() => pointKey(points.at(-1)));
+  const selectedMonth = onSelectMonth ? controlledMonth : localMonth;
+  const matchingIndex = points.findIndex((point) => pointKey(point) === selectedMonth);
+  const activeIndex = matchingIndex >= 0 ? matchingIndex : Math.max(0, points.length - 1);
+  const activeMonth = pointKey(points[activeIndex]);
+  useEffect(() => {
+    if (matchingIndex < 0) {
+      if (onSelectMonth) onSelectMonth(activeMonth);
+      else setLocalMonth(activeMonth);
+    }
+  }, [matchingIndex, activeMonth, onSelectMonth]);
   const selected = points[activeIndex];
   const progress = useChartReveal(
     points.map((point) => `${point.year}-${point.month}:${point.income}:${point.expense}`).join('|'),
@@ -213,7 +413,11 @@ export function ReportTrend({
                 accessibilityRole="button"
                 accessibilityLabel={`${formatDashboardPeriod(point)}. Ingresos ${money(point.income)}. Gastos ${money(point.expense)}`}
                 accessibilityState={{ selected: index === activeIndex }}
-                onPress={() => setSelectedIndex(index)}
+                onPress={() => {
+                  const month = pointKey(point);
+                  if (onSelectMonth) onSelectMonth(month);
+                  else setLocalMonth(month);
+                }}
                 style={{
                   width: columnWidth,
                   justifyContent: 'flex-end',

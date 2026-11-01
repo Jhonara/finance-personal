@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { DashboardMonth } from '@/api/dashboard-api';
 import type { Budget, Credit } from '@/features/secondary/secondary-api';
+import type { BudgetComparison } from './reports-api';
 import { creditMoney, creditProgress, creditStatus } from '@/features/credits/credit-presentation';
 import type { DashboardPeriod } from '@/features/dashboard/dashboard-period';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
@@ -11,6 +12,7 @@ import { Button } from '@/ui/primitives';
 import { Progress } from '@/ui/progress';
 import { MotionPressable } from '@/ui/motion';
 import { ReportEmpty, ReportNotice, ReportPanel, reportStyles as s } from './report-ui';
+import { BudgetComparisonReport } from './budget-comparison-report';
 
 const money = (value: number | undefined, currency: string, hidden: boolean) =>
   value !== undefined && Number.isFinite(value)
@@ -19,11 +21,17 @@ const money = (value: number | undefined, currency: string, hidden: boolean) =>
 
 export function BudgetReport({
   budgets,
+  comparison,
+  comparisonError = false,
+  onRetryComparison,
   period,
   currency,
   hidden,
 }: {
   budgets: Budget[];
+  comparison?: BudgetComparison;
+  comparisonError?: boolean;
+  onRetryComparison?: () => void;
   period: DashboardPeriod;
   currency: string;
   hidden: boolean;
@@ -37,6 +45,8 @@ export function BudgetReport({
         </ReportNotice>
       </ReportPanel>
     );
+  if (comparison)
+    return <BudgetComparisonReport data={comparison} budgets={budgets} period={period} hidden={hidden} />;
   const items = budgets
     .filter((item) => item.year === period.year && item.month === period.month)
     .sort((a, b) => (b.percentageUsed ?? -1) - (a.percentageUsed ?? -1));
@@ -48,6 +58,18 @@ export function BudgetReport({
       subtitle="Primero aparecen las categorías más utilizadas."
       icon="speedometer-outline"
     >
+      {comparisonError ? (
+        <View style={s.note}>
+          <Text style={s.caption}>
+            No pudimos actualizar la comparación. Tus límites y gastos del mes siguen disponibles.
+          </Text>
+          {onRetryComparison ? (
+            <Button variant="ghost" size="compact" onPress={onRetryComparison}>
+              Reintentar comparación
+            </Button>
+          ) : null}
+        </View>
+      ) : null}
       {items.length ? (
         <>
           <ReportNotice>

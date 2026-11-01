@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -18,6 +19,8 @@ export function FinancialDateField({
   error?: string;
   maximumDate?: string;
 }) {
+  const { palette: colors } = useAppTheme();
+
   const [open, setOpen] = useState(false);
   const pickerValue = value || localDateFromNative(new Date());
   return (

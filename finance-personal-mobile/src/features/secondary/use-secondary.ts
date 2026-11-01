@@ -3,7 +3,10 @@ import { accountKeys } from '@/features/accounts/use-accounts';
 import { dashboardKeys } from '@/features/dashboard/use-dashboard-month';
 import { transactionKeys } from '@/features/transactions/use-transactions';
 import {
+  deactivateBudget,
+  restoreBudget,
   addSavingContribution,
+  withdrawSaving,
   assignSavingCurrency,
   createBudget,
   createCredit,
@@ -44,8 +47,13 @@ const invalidate = (client: ReturnType<typeof useQueryClient>, keys: ReadonlyArr
     ...keys.map((queryKey) => client.invalidateQueries({ queryKey })),
     client.invalidateQueries({ queryKey: dashboardKeys.all }),
   ]);
-export const useBudgets = (year: number, month: number) =>
-  useQuery({ queryKey: secondaryKeys.budgets(year, month), queryFn: () => getBudgets(year, month) });
+export const useBudgets = (year: number, month: number, includeInactive = false) =>
+  useQuery({
+    queryKey: includeInactive
+      ? [...secondaryKeys.budgets(year, month), 'all']
+      : secondaryKeys.budgets(year, month),
+    queryFn: () => getBudgets(year, month, includeInactive),
+  });
 export const useAlerts = () => useQuery({ queryKey: secondaryKeys.alerts, queryFn: getAlerts });
 export const useAlertHistory = (enabled: boolean) =>
   useQuery({ queryKey: [...secondaryKeys.alerts, 'history'], queryFn: getAlertHistory, enabled });
@@ -89,7 +97,7 @@ export const useCreateBudget = () => {
   return useMutation({
     mutationFn: createBudget,
     retry: false,
-    onSuccess: () => invalidate(c, [['budgets'], secondaryKeys.alerts]),
+    onSuccess: () => invalidate(c, [['budgets'], ['reports'], secondaryKeys.alerts]),
   });
 };
 export const useUpdateBudget = () => {
@@ -98,7 +106,7 @@ export const useUpdateBudget = () => {
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateBudget>[1] }) =>
       updateBudget(id, data),
     retry: false,
-    onSuccess: () => invalidate(c, [['budgets'], secondaryKeys.alerts]),
+    onSuccess: () => invalidate(c, [['budgets'], ['reports'], secondaryKeys.alerts]),
   });
 };
 export const useSeenAlert = (afterSuccess?: () => Promise<void>) => {
@@ -131,8 +139,15 @@ export const useCreateSaving = () => {
 export const useContributeSaving = () => {
   const c = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof addSavingContribution>[1] }) =>
-      addSavingContribution(id, data),
+    mutationFn: ({
+      id,
+      data,
+      withdraw,
+    }: {
+      id: number;
+      data: Parameters<typeof addSavingContribution>[1];
+      withdraw?: boolean;
+    }) => (withdraw ? withdrawSaving(id, data) : addSavingContribution(id, data)),
     retry: false,
     onSuccess: async (goal, variables) => {
       c.setQueryData<SavingGoal[]>(secondaryKeys.savings, (current) =>
@@ -143,6 +158,7 @@ export const useContributeSaving = () => {
       await Promise.all([
         c.invalidateQueries({ queryKey: secondaryKeys.savings, exact: true }),
         c.invalidateQueries({ queryKey: secondaryKeys.savingProgress(variables.id), exact: true }),
+        c.invalidateQueries({ queryKey: ['savings', variables.id, 'movements'] }),
         c.invalidateQueries({ queryKey: dashboardKeys.all }),
       ]);
     },
@@ -273,7 +289,24 @@ export const refreshCredit = (client: ReturnType<typeof useQueryClient>, id?: nu
           client.invalidateQueries({ queryKey: secondaryKeys.plan(id), exact: true }),
           client.invalidateQueries({ queryKey: secondaryKeys.amortization(id), exact: true }),
         ]),
-    ...[accountKeys.all, dashboardKeys.all, transactionKeys.all, secondaryKeys.alerts].map((queryKey) =>
-      client.invalidateQueries({ queryKey }),
-    ),
+    ...[
+      accountKeys.all,
+      dashboardKeys.all,
+      transactionKeys.all,
+      ['reports'],
+      ['budgets'],
+      secondaryKeys.alerts,
+    ].map((queryKey) => client.invalidateQueries({ queryKey })),
   ]);
+
+export const useChangeBudgetState = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, version, active }: { id: number; version: number; active: boolean }) => {
+      if (active) await restoreBudget(id, version);
+      else await deactivateBudget(id, version);
+    },
+    retry: false,
+    onSuccess: () => invalidate(client, [['budgets'], ['reports'], secondaryKeys.alerts]),
+  });
+};

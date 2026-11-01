@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useCallback, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { AppAlert as Alert } from '@/feedback/app-alert';
@@ -10,7 +11,11 @@ import {
   useRecurringAgenda,
   useRecurringRules,
 } from '@/features/recurrences/use-recurrences';
-import { recurrenceError, scheduleLabel } from '@/features/recurrences/recurrence-presentation';
+import {
+  frequencyLabel,
+  recurrenceError,
+  scheduleLabel,
+} from '@/features/recurrences/recurrence-presentation';
 import type { RecurringEntry, RecurringRule } from '@/features/recurrences/recurrence-api';
 import { openForm } from '@/features/forms/form-session';
 import {
@@ -35,6 +40,7 @@ import { formatLocalDate, localDateFromNative } from '@/utils/local-date';
 import { colors, spacing, typography } from '@/theme';
 
 export default function RecurrencesScreen() {
+  useAppTheme();
   const params = useLocalSearchParams<{ agendaMonth?: string; agendaYear?: string; agendaEntry?: string }>();
   const [tab, setTab] = useState<'agenda' | 'rules'>('agenda');
   const [period, setPeriod] = useState(currentDashboardPeriod);
@@ -74,6 +80,12 @@ export default function RecurrencesScreen() {
     void credits.refetch();
   };
   const entries = agenda.data?.entries ?? [];
+  const linkedCreditIds = new Set(
+    (rules.data ?? []).filter((rule) => rule.active && rule.creditId != null).map((rule) => rule.creditId!),
+  );
+  const creditsWithoutSchedule = (credits.data ?? []).filter(
+    (item) => item.status !== 'PAID' && !linkedCreditIds.has(item.id!),
+  );
   const pending = entries.filter((item) => item.status === 'PENDING');
   const planned = entries.filter((item) => item.status === 'PLANNED');
   const history = entries.filter((item) => ['POSTED', 'SKIPPED', 'REVERSED'].includes(item.status));
@@ -225,48 +237,56 @@ export default function RecurrencesScreen() {
           )}
           <Disclosure title="Próximas cuotas de tus créditos" icon="card-outline">
             <Text style={typography.caption}>
-              Son las próximas cuotas actuales, independientes del mes de la agenda. Registra cada pago aquí
-              para actualizar también la deuda; no crees otro gasto fijo para la misma cuota.
+              Vincula una cuota con su crédito para descontar la cuenta y actualizar la deuda en el mismo
+              registro. Las cuotas ya programadas aparecen en la agenda.
             </Text>
             {credits.isPending ? (
               <SkeletonRow />
             ) : credits.isError ? (
               <ErrorState onRetry={() => void credits.refetch()} />
-            ) : !(credits.data ?? []).some((c) => c.status !== 'PAID') ? (
-              <Text style={typography.bodySecondary}>No tienes créditos pendientes.</Text>
+            ) : creditsWithoutSchedule.length === 0 ? (
+              <Text style={typography.bodySecondary}>
+                {(credits.data ?? []).some((item) => item.status !== 'PAID')
+                  ? 'Todas tus cuotas pendientes ya tienen una programación.'
+                  : 'No tienes créditos pendientes.'}
+              </Text>
             ) : (
-              (credits.data ?? [])
-                .filter((c) => c.status !== 'PAID')
-                .map((item) => (
-                  <Card key={item.id} tone="info" style={{ padding: spacing.lg, gap: spacing.md }}>
-                    <Text style={typography.cardTitle}>{item.name}</Text>
-                    <Text style={typography.bodySecondary}>
-                      {item.nextPaymentDate
-                        ? formatLocalDate(item.nextPaymentDate)
-                        : 'Consulta la fecha en el crédito'}
+              creditsWithoutSchedule.map((item) => (
+                <Card key={item.id} tone="info" style={{ padding: spacing.lg, gap: spacing.md }}>
+                  <Text style={typography.cardTitle}>{item.name}</Text>
+                  <Text style={typography.bodySecondary}>
+                    {item.nextPaymentDate
+                      ? formatLocalDate(item.nextPaymentDate)
+                      : 'Consulta la fecha en el crédito'}
+                  </Text>
+                  <Text style={typography.moneySmall}>
+                    {creditMoney(item.expectedPaymentAmount, item.currency, hidden)}
+                  </Text>
+                  {item.status === 'LATE' && (
+                    <Text style={{ ...typography.caption, color: colors.warning }}>
+                      Hay pagos del calendario por revisar.
                     </Text>
-                    <Text style={typography.moneySmall}>
-                      {creditMoney(item.expectedPaymentAmount, item.currency, hidden)}
-                    </Text>
-                    {item.status === 'LATE' && (
-                      <Text style={{ ...typography.caption, color: colors.warning }}>
-                        Hay pagos del calendario por revisar.
-                      </Text>
-                    )}
-                    <Button variant="secondary" onPress={() => setCredit(item)}>
-                      Registrar pago de crédito
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="compact"
-                      onPress={() =>
-                        router.push({ pathname: '/(app)/credit-detail', params: { id: item.id } })
-                      }
-                    >
-                      Ver crédito y pagos
-                    </Button>
-                  </Card>
-                ))
+                  )}
+                  <Button variant="secondary" onPress={() => setCredit(item)}>
+                    Registrar pago de crédito
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onPress={() =>
+                      openForm('/(app)/recurring-form', { type: 'EXPENSE', creditId: String(item.id) })
+                    }
+                  >
+                    Programar esta cuota
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    onPress={() => router.push({ pathname: '/(app)/credit-detail', params: { id: item.id } })}
+                  >
+                    Ver crédito y pagos
+                  </Button>
+                </Card>
+              ))
             )}
           </Disclosure>
         </>
@@ -300,10 +320,15 @@ export default function RecurrencesScreen() {
               <Text style={typography.caption}> por pago</Text>
             </Text>
             <Text style={typography.bodySecondary}>
-              {scheduleLabel(rule)} · {rule.accountName}
+              {rule.creditId ? `Cuota de ${rule.creditName ?? 'crédito'} · ` : ''}
+              Frecuencia: {frequencyLabel(rule.frequency)} · {scheduleLabel(rule)} · {rule.accountName}
             </Text>
             <Text style={typography.caption}>
-              {rule.mode === 'AUTOMATIC' ? 'Registro automático' : 'Confirmar cada pago'}
+              {rule.mode === 'AUTOMATIC'
+                ? rule.creditId
+                  ? 'La app anota la cuota en su fecha; no paga al banco.'
+                  : 'La app anota el movimiento en su fecha; no paga la factura.'
+                : 'Tú confirmas cada pago'}
               {rule.state === 'FINISHED'
                 ? ` · Terminó: ${formatLocalDate(rule.endDate ?? undefined)}`
                 : rule.active
@@ -346,7 +371,8 @@ export default function RecurrencesScreen() {
           te deja ajustar el importe.
         </Text>
         <Text style={typography.caption}>
-          No se conecta a tu banco ni realiza cobros. Evita registrar manualmente lo que ya aparece en el
+          La app no se conecta a tu banco ni realiza pagos. Un pago de crédito vinculado descuenta la cuenta y
+          actualiza la deuda en una sola operación. Evita registrar manualmente lo que ya aparece en el
           historial. Si ya anotaste un pendiente por otra vía, usa «Omitir este pago».
         </Text>
       </Disclosure>
@@ -407,8 +433,12 @@ function EntryCard({
     >
       <Text style={typography.cardTitle}>{entry.name}</Text>
       <Text style={typography.caption}>
-        {entry.kind === 'INCOME' ? 'Ingreso' : 'Gasto'} · {formatLocalDate(entry.dueDate)} ·{' '}
-        {awaitingAutomatic ? 'En proceso' : status}
+        {entry.creditId
+          ? `Cuota de ${entry.creditName ?? 'crédito'}`
+          : entry.kind === 'INCOME'
+            ? 'Ingreso'
+            : 'Gasto'}{' '}
+        · {formatLocalDate(entry.dueDate)} · {awaitingAutomatic ? 'En proceso' : status}
       </Text>
       <Text
         style={{
@@ -421,7 +451,7 @@ function EntryCard({
       <Text style={typography.caption}>
         {entry.accountName}
         {entry.status === 'PLANNED'
-          ? ` · ${entry.mode === 'AUTOMATIC' ? 'Automático al llegar el día' : 'Requiere confirmación'}`
+          ? ` · ${entry.mode === 'AUTOMATIC' ? 'Se anotará en esta fecha; no se paga en el banco' : 'Esperando que confirmes'}`
           : ''}
       </Text>
       {entry.issue && <Text style={typography.bodySecondary}>{entry.issue}</Text>}
@@ -437,12 +467,18 @@ function EntryCard({
       )}
       {awaitingAutomatic && (
         <Text style={typography.caption}>
-          Se registrará automáticamente. La agenda se actualiza cada minuto.
+          {entry.creditId
+            ? 'Se registrará el pago y se actualizará la deuda automáticamente. La app no paga en tu banco.'
+            : 'Se registrará automáticamente. La agenda se actualiza cada minuto.'}
         </Text>
       )}
       {onConfirm && !awaitingAutomatic && (
         <Button variant="secondary" onPress={onConfirm}>
-          {entry.kind === 'INCOME' ? 'Confirmar ingreso' : 'Confirmar pago'}
+          {entry.creditId
+            ? 'Confirmar cuota del crédito'
+            : entry.kind === 'INCOME'
+              ? 'Confirmar ingreso'
+              : 'Confirmar pago'}
         </Button>
       )}
     </Card>
@@ -497,7 +533,13 @@ function ConfirmEntry({ entry, onClose }: { entry: RecurringEntry; onClose(): vo
     >
       <Screen scroll keyboard>
         <ScreenHeader
-          title={entry.kind === 'INCOME' ? 'Confirmar ingreso' : 'Confirmar pago'}
+          title={
+            entry.creditId
+              ? 'Confirmar cuota del crédito'
+              : entry.kind === 'INCOME'
+                ? 'Confirmar ingreso'
+                : 'Confirmar pago'
+          }
           subtitle={entry.name}
           back
           onBack={() => {
@@ -505,7 +547,9 @@ function ConfirmEntry({ entry, onClose }: { entry: RecurringEntry; onClose(): vo
           }}
         />
         <Text style={typography.bodySecondary}>
-          Confirma únicamente si ya ocurrió. Se registrará en {entry.accountName}.
+          {entry.creditId
+            ? `Confirma solo si ya pagaste. Se descontará de ${entry.accountName} y se actualizará el saldo de ${entry.creditName ?? 'tu crédito'} en una sola operación.`
+            : `Confirma únicamente si ya ocurrió. Se registrará en ${entry.accountName}.`}
         </Text>
         <MoneyInput
           label="Importe real"
@@ -526,7 +570,7 @@ function ConfirmEntry({ entry, onClose }: { entry: RecurringEntry; onClose(): vo
           </Text>
         )}
         <Button loading={busy} disabled={busy} onPress={() => void act()}>
-          Registrar movimiento
+          {entry.creditId ? 'Registrar pago' : 'Registrar movimiento'}
         </Button>
         <Disclosure title="Ya lo registré por otra vía o no ocurrió">
           <Text style={typography.caption}>Omitir no mueve dinero ni cancela las siguientes fechas.</Text>

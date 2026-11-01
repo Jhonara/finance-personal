@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionModal as Modal } from '@/ui/motion-modal';
 import { openForm } from '@/features/forms/form-session';
@@ -33,6 +34,7 @@ import { BrandSurface } from '@/ui/brand-surface';
 import { colors, radius, spacing, typography } from '@/theme';
 
 export default function CreditDetail() {
+  useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   return <CreditDetailContent key={id} id={Number(id)} />;
 }

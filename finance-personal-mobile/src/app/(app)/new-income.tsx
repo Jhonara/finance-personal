@@ -8,7 +8,7 @@ import {
   MovementDraftStatus,
   useMovementDraft,
 } from '@/features/forms/use-movement-draft';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,7 +22,7 @@ import { useFeedback } from '@/feedback/feedback-provider';
 import { useTour } from '@/features/onboarding/tour-context';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
-import { QuickCategoryModal } from '@/ui/quick-category-modal';
+import { CategoryHierarchyField } from '@/ui/category-hierarchy-field';
 import { Button, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import {
   MovementAmountPanel,
@@ -48,10 +48,12 @@ function NewIncomeScreen({ userId }: { userId: number }) {
     defaultValues: { amount: '', incomeDate: initialDate, description: '' },
   });
   const draft = useMovementDraft(form, userId, 'income', 'incomeDate', initialDate);
-  const [selector, setSelector] = useState<'account' | 'category' | 'quickCategory' | null>(null);
+  const [selector, setSelector] = useState<'account' | null>(null);
   const [createdCategoryId, setCreatedCategoryId] = useState<number>();
+  const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const submitting = useRef(false);
   const accounts = useAccounts();
   const categories = useCategories('INCOME');
   const mutation = useIncomeMutation();
@@ -61,7 +63,7 @@ function NewIncomeScreen({ userId }: { userId: number }) {
   const guard = useUnsavedForm({
     dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
     busy: mutation.isPending || completing,
-    suspended: selector !== null,
+    suspended: selector !== null || hierarchyOpen,
     enabled: draft.mode === 'editing',
     onBack: leaveForm,
     leaveTitle: '¿Salir del ingreso?',
@@ -70,7 +72,7 @@ function NewIncomeScreen({ userId }: { userId: number }) {
     beforeLeave: draft.flush,
   });
   const submit = form.handleSubmit((data) => {
-    if (mutation.isPending || completing) return;
+    if (submitting.current || mutation.isPending || completing) return;
     const parsedAmount = Number(data.amount);
     const validAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
     const validCategory =
@@ -82,6 +84,7 @@ function NewIncomeScreen({ userId }: { userId: number }) {
       if (!validCategory) form.setError('categoryId', { message: 'Elige una categoría para este ingreso.' });
       return;
     }
+    submitting.current = true;
     mutation.mutate(
       {
         amount: parsedAmount,
@@ -114,6 +117,7 @@ function NewIncomeScreen({ userId }: { userId: number }) {
           leaveForm();
         },
         onError: (error) => {
+          submitting.current = false;
           if (!activeSession()) return;
           applyApiFieldErrors(error, form.setError);
           const resource = unavailableResource(error);
@@ -134,7 +138,6 @@ function NewIncomeScreen({ userId }: { userId: number }) {
     );
   });
   const account = accounts.data?.find((x) => x.id === form.watch('accountId'));
-  const category = categories.data?.find((x) => x.id === form.watch('categoryId'));
   if (draft.mode !== 'editing')
     return (
       <MovementDraftStatus
@@ -194,26 +197,25 @@ function NewIncomeScreen({ userId }: { userId: number }) {
           ) : null}
         </MovementFormSection>
         <MovementFormSection
-          title="Categoría"
-          subtitle="Necesaria para organizar tus ingresos."
-          icon="pricetag-outline"
+          title="Organiza este ingreso"
+          subtitle="Elige el grupo y luego su subcategoría."
+          icon="folder-open-outline"
         >
-          <SelectField
-            label="Categoría"
-            value={
-              category?.name ??
-              (createdCategoryId !== undefined && form.watch('categoryId') === createdCategoryId
-                ? 'Categoría nueva'
-                : undefined)
-            }
-            placeholder="Elegir categoría"
-            onPress={() => setSelector('category')}
+          <CategoryHierarchyField
+            categories={categories.data ?? []}
+            type="INCOME"
+            value={form.watch('categoryId')}
+            loading={categories.isPending}
+            error={form.formState.errors.categoryId?.message}
+            onSelectorOpenChange={setHierarchyOpen}
+            onChange={(id) => {
+              setCreatedCategoryId(
+                id !== undefined && !categories.data?.some((item) => item.id === id) ? id : undefined,
+              );
+              form.setValue('categoryId', id, { shouldDirty: true });
+              form.clearErrors('categoryId');
+            }}
           />
-          {form.formState.errors.categoryId?.message ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {form.formState.errors.categoryId.message}
-            </Text>
-          ) : null}
         </MovementFormSection>
         <MovementOptionalDetails open={detailsOpen} onToggle={() => setDetailsOpen((open) => !open)}>
           <MovementFormSection
@@ -285,36 +287,6 @@ function NewIncomeScreen({ userId }: { userId: number }) {
         onSelect={(id) => {
           form.setValue('accountId', id);
           form.clearErrors('accountId');
-        }}
-      />
-      <ModalSelector
-        visible={selector === 'category'}
-        label="Categoría"
-        loading={categories.isPending}
-        options={(categories.data ?? [])
-          .filter((x) => x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría', icon: 'pricetag-outline' }))}
-        selectedId={form.watch('categoryId')}
-        onClose={() => setSelector(null)}
-        emptyActionLabel="+ Crear categoría"
-        onEmptyAction={() => {
-          setSelector('quickCategory');
-        }}
-        onSelect={(id) => {
-          setCreatedCategoryId(undefined);
-          form.setValue('categoryId', id);
-          form.clearErrors('categoryId');
-        }}
-      />
-      <QuickCategoryModal
-        visible={selector === 'quickCategory'}
-        type="INCOME"
-        onClose={() => setSelector(null)}
-        onCreated={(id) => {
-          setCreatedCategoryId(id);
-          form.setValue('categoryId', id);
-          form.clearErrors('categoryId');
-          setSelector(null);
         }}
       />
     </Screen>

@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/api/v1/savings/goals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail"];
+        put: operations["update"];
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/recurrences/{id}": {
         parameters: {
             query?: never;
@@ -28,7 +44,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get"];
-        put: operations["update"];
+        put: operations["update_1"];
         post?: never;
         delete: operations["discard"];
         options?: never;
@@ -64,9 +80,9 @@ export interface paths {
          * @description Obtiene la información de un crédito específico del usuario autenticado.
          */
         get: operations["findById"];
-        put: operations["update_1"];
+        put: operations["update_2"];
         post?: never;
-        delete: operations["delete"];
+        delete: operations["delete_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -108,6 +124,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/{id}/reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revertir gasto, ingreso o transferencia
+         * @description Registra asientos opuestos con fecha de hoy, sin borrar el original. Motivo opcional. Rechaza duplicados y saldo insuficiente.
+         */
+        post: operations["reverseTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/savings/goals": {
         parameters: {
             query?: never;
@@ -132,7 +168,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/savings/goals/{id}/movements": {
+    "/api/v1/savings/goals/{id}/withdrawals": {
         parameters: {
             query?: never;
             header?: never;
@@ -140,6 +176,26 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /**
+         * Anotar retiro de una meta
+         * @description Reduce el ahorro informativo; no mueve dinero entre cuentas. Conserva el historial y exige versión vigente.
+         */
+        post: operations["withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/savings/goals/{id}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["movements"];
         put?: never;
         /**
          * Registrar un aporte
@@ -639,7 +695,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Leer, posponer hasta mañana o reactivar un aviso sin resolverlo manualmente */
-        post: operations["update_2"];
+        post: operations["update_3"];
         delete?: never;
         options?: never;
         head?: never;
@@ -704,6 +760,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/savings/goals/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["status"];
+        trace?: never;
+    };
     "/api/v1/savings/goals/{id}/currency": {
         parameters: {
             query?: never;
@@ -751,11 +823,11 @@ export interface paths {
          * Eliminar una categoría
          * @description Desactiva una categoría perteneciente al usuario autenticado; el historial se conserva.
          */
-        delete: operations["delete_1"];
+        delete: operations["delete_2"];
         options?: never;
         head?: never;
         /** Actualizar nombre o estado de una categoría propia */
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/budgets/{id}": {
@@ -772,14 +844,34 @@ export interface paths {
         get: operations["get_2"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Desactivar un presupuesto
+         * @description Conserva el presupuesto, su límite, categorías y movimientos. Excluye su límite del plan activo. Se puede reactivar; no desactiva subcategorías.
+         */
+        delete: operations["deactivate"];
         options?: never;
         head?: never;
         /**
          * Actualizar presupuesto
          * @description Actualiza el límite usando la versión recibida para controlar concurrencia optimista.
          */
-        patch: operations["update_4"];
+        patch: operations["update_5"];
+        trace?: never;
+    };
+    "/api/v1/budgets/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["state"];
         trace?: never;
     };
     "/api/v1/accounts/{id}": {
@@ -797,7 +889,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Actualizar metadatos de una cuenta propia */
-        patch: operations["update_5"];
+        patch: operations["update_6"];
         trace?: never;
     };
     "/api/v1/users": {
@@ -901,6 +993,74 @@ export interface paths {
         };
         /** @description Operaciones que explican el gasto neto del reporte, incluidas reversiones. Filtra antes de paginar. */
         get: operations["getReportExpenseTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Totales mensuales por grupo y categoría */
+        get: operations["getHierarchicalCategoryReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/categories/{categoryId}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Movimientos de una categoría o de su grupo */
+        get: operations["getHierarchicalCategoryTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/categories/uncategorized/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Movimientos sin categoría del reporte */
+        get: operations["getUncategorizedReportTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/budget-vs-actual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comparación mensual de presupuestos y gastos */
+        get: operations["getBudgetVsActualReport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1188,7 +1348,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["delete_2"];
+        delete: operations["delete_3"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1208,7 +1368,7 @@ export interface paths {
          * Eliminar un gasto
          * @description Elimina físicamente un gasto legacy; para un gasto ledger crea una reversión contable.
          */
-        delete: operations["delete_3"];
+        delete: operations["delete_4"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1218,6 +1378,58 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        UpdateSavingGoalRequest: {
+            name: string;
+            description?: string;
+            targetAmount: number;
+            /** Format: date */
+            targetDate?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description Información de una meta de ahorro. */
+        SavingGoalResponse: {
+            /**
+             * Format: int64
+             * @description Identificador de la meta.
+             * @example 1
+             */
+            id?: number;
+            /**
+             * @description Nombre de la meta de ahorro.
+             * @example Comprar moto
+             */
+            name?: string;
+            description?: string;
+            /** Format: date */
+            targetDate?: string;
+            /** @enum {string} */
+            status?: "ACTIVE" | "CLOSED" | "CANCELLED";
+            /** Format: int64 */
+            version?: number;
+            /** @description Moneda de la meta. Es null en metas creadas antes de guardar la moneda. */
+            currency?: string;
+            /**
+             * @description Monto objetivo.
+             * @example 15000000
+             */
+            targetAmount?: number;
+            /**
+             * @description Monto ahorrado hasta el momento.
+             * @example 3200000
+             */
+            currentAmount?: number;
+            /**
+             * @description Indica si la meta ya fue cumplida.
+             * @example false
+             */
+            completed?: boolean;
+            /**
+             * @description Porcentaje de progreso de la meta.
+             * @example 21.33
+             */
+            progress?: number;
+        };
         SaveRecurringRuleRequest: {
             name: string;
             /** @enum {string} */
@@ -1240,6 +1452,8 @@ export interface components {
             firstDay?: number;
             /** Format: int32 */
             secondDay?: number;
+            /** Format: int64 */
+            creditId?: number;
             requestKey: string;
             /** Format: int64 */
             version?: number;
@@ -1277,6 +1491,9 @@ export interface components {
             version?: number;
             requestKey?: string;
             state?: string;
+            /** Format: int64 */
+            creditId?: number;
+            creditName?: string;
         };
         PurchaseDraftFields: {
             /** @enum {string} */
@@ -1518,6 +1735,41 @@ export interface components {
             /** Format: date */
             effectiveDate?: string;
         };
+        ReverseTransactionRequest: {
+            reason?: string;
+        };
+        TransactionResponse: {
+            /** Format: int64 */
+            id?: number;
+            type?: string;
+            status?: string;
+            /** Format: date */
+            effectiveDate?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            amount?: number;
+            currency?: string;
+            /** Format: int64 */
+            categoryId?: number;
+            categoryName?: string;
+            /** Format: int64 */
+            accountId?: number;
+            accountName?: string;
+            /** Format: int64 */
+            sourceAccountId?: number;
+            sourceAccountName?: string;
+            /** Format: int64 */
+            destinationAccountId?: number;
+            destinationAccountName?: string;
+            /** Format: int64 */
+            reversalOfId?: number;
+            /** Format: int64 */
+            reversalId?: number;
+            originalType?: string;
+            reversalReason?: string;
+            reversible?: boolean;
+        };
         /** @description Información necesaria para crear una nueva meta de ahorro. */
         CreateSavingGoalRequest: {
             /**
@@ -1525,48 +1777,15 @@ export interface components {
              * @example Viaje a Europa
              */
             name: string;
+            description?: string;
+            /** Format: date */
+            targetDate?: string;
             currency: string;
             /**
              * @description Monto objetivo que se desea alcanzar.
              * @example 10000000
              */
             targetAmount: number;
-        };
-        /** @description Información de una meta de ahorro. */
-        SavingGoalResponse: {
-            /**
-             * Format: int64
-             * @description Identificador de la meta.
-             * @example 1
-             */
-            id?: number;
-            /**
-             * @description Nombre de la meta de ahorro.
-             * @example Comprar moto
-             */
-            name?: string;
-            /** @description Moneda de la meta. Es null en metas creadas antes de guardar la moneda. */
-            currency?: string;
-            /**
-             * @description Monto objetivo.
-             * @example 15000000
-             */
-            targetAmount?: number;
-            /**
-             * @description Monto ahorrado hasta el momento.
-             * @example 3200000
-             */
-            currentAmount?: number;
-            /**
-             * @description Indica si la meta ya fue cumplida.
-             * @example false
-             */
-            completed?: boolean;
-            /**
-             * @description Porcentaje de progreso de la meta.
-             * @example 21.33
-             */
-            progress?: number;
         };
         /** @description Información necesaria para registrar un aporte a una meta de ahorro. */
         AddSavingMovementRequest: {
@@ -1575,6 +1794,10 @@ export interface components {
              * @example 250000
              */
             amount: number;
+            /** Format: int64 */
+            version?: number;
+            requestId?: string;
+            description?: string;
             /**
              * Format: date
              * @description Fecha en la que se realizó el aporte.
@@ -1606,6 +1829,9 @@ export interface components {
             transactionId?: number;
             /** Format: date */
             recordedDate?: string;
+            /** Format: int64 */
+            creditId?: number;
+            creditName?: string;
         };
         ConfirmRecurringEntryRequest: {
             amount: number;
@@ -2180,6 +2406,12 @@ export interface components {
             type: "EXPENSE" | "INCOME";
             iconKey?: string;
             colorKey?: string;
+            /**
+             * Format: int64
+             * @description Categoría padre opcional. Solo se admiten categorías raíz del mismo usuario y tipo.
+             * @example 4
+             */
+            parentCategoryId?: number;
         };
         /** @description Información de una categoría de ingreso o gasto. */
         CategoryResponse: {
@@ -2198,6 +2430,9 @@ export interface components {
             colorKey?: string;
             /** @enum {string} */
             type?: "EXPENSE" | "INCOME";
+            /** Format: int64 */
+            parentCategoryId?: number;
+            parentCategoryName?: string;
             active?: boolean;
             /** Format: date-time */
             createdAt?: string;
@@ -2234,6 +2469,10 @@ export interface components {
             status?: "OK" | "WARNING" | "EXCEEDED";
             /** Format: int64 */
             version?: number;
+            /** Format: int64 */
+            parentCategoryId?: number;
+            parentCategoryName?: string;
+            active?: boolean;
         };
         /** @description Información necesaria para registrar un usuario. */
         RegisterRequest: {
@@ -2389,6 +2628,12 @@ export interface components {
             effectiveDate?: string;
             description?: string;
         };
+        ChangeSavingStatusRequest: {
+            /** @enum {string} */
+            status: "ACTIVE" | "CLOSED" | "CANCELLED";
+            /** Format: int64 */
+            version: number;
+        };
         AssignSavingCurrencyRequest: {
             currency: string;
         };
@@ -2403,6 +2648,17 @@ export interface components {
             active?: boolean;
             iconKey?: string;
             colorKey?: string;
+            /**
+             * Format: int64
+             * @description Nuevo padre; se usa junto con clearParent=false para reasignar la subcategoría.
+             * @example 4
+             */
+            parentCategoryId?: number;
+            /**
+             * @description Indica que la categoría pasa a ser raíz. Tiene prioridad sobre parentCategoryId.
+             * @example true
+             */
+            clearParent?: boolean;
             /** @enum {string} */
             type?: "EXPENSE" | "INCOME";
             /** Format: int64 */
@@ -2410,6 +2666,11 @@ export interface components {
         };
         UpdateBudgetRequest: {
             limitAmount: number;
+            /** Format: int64 */
+            version: number;
+        };
+        BudgetStateRequest: {
+            active: boolean;
             /** Format: int64 */
             version: number;
         };
@@ -2444,32 +2705,15 @@ export interface components {
             first?: boolean;
             last?: boolean;
         };
-        TransactionResponse: {
+        SavingMovementResponse: {
             /** Format: int64 */
             id?: number;
-            type?: string;
-            status?: string;
-            /** Format: date */
-            effectiveDate?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            description?: string;
+            /** @enum {string} */
+            type?: "CONTRIBUTION" | "WITHDRAWAL";
             amount?: number;
-            currency?: string;
-            /** Format: int64 */
-            categoryId?: number;
-            categoryName?: string;
-            /** Format: int64 */
-            accountId?: number;
-            accountName?: string;
-            /** Format: int64 */
-            sourceAccountId?: number;
-            sourceAccountName?: string;
-            /** Format: int64 */
-            destinationAccountId?: number;
-            destinationAccountName?: string;
-            /** Format: int64 */
-            reversalOfId?: number;
+            /** Format: date */
+            movementDate?: string;
+            description?: string;
         };
         MonthlyCurrencyReport: {
             income?: number;
@@ -2477,6 +2721,80 @@ export interface components {
             expensesByCategory?: {
                 [key: string]: number;
             };
+        };
+        CategoryReportGroup: {
+            /** Format: int64 */
+            categoryId?: number;
+            categoryName?: string;
+            amount?: number;
+            directAmount?: number;
+            subcategories?: components["schemas"]["CategoryReportItem"][];
+        };
+        CategoryReportItem: {
+            /** Format: int64 */
+            categoryId?: number;
+            categoryName?: string;
+            amount?: number;
+        };
+        CategoryReportResponse: {
+            /** Format: int32 */
+            year?: number;
+            /** Format: int32 */
+            month?: number;
+            currency?: string;
+            /** @enum {string} */
+            type?: "EXPENSE" | "INCOME";
+            totalAmount?: number;
+            groups?: components["schemas"]["CategoryReportGroup"][];
+        };
+        BudgetComparisonGroup: {
+            /** Format: int64 */
+            categoryId?: number;
+            categoryName?: string;
+            limitAmount?: number;
+            spentAmount?: number;
+            budgetedSpentAmount?: number;
+            differenceAmount?: number;
+            percentageUsed?: number;
+            remainingAmount?: number;
+            excessAmount?: number;
+            hasBudget?: boolean;
+            hasParentBudget?: boolean;
+            directSpentAmount?: number;
+            subcategories?: components["schemas"]["BudgetComparisonItem"][];
+        };
+        BudgetComparisonItem: {
+            /** Format: int64 */
+            categoryId?: number;
+            categoryName?: string;
+            limitAmount?: number;
+            spentAmount?: number;
+            differenceAmount?: number;
+            percentageUsed?: number;
+            remainingAmount?: number;
+            excessAmount?: number;
+            hasBudget?: boolean;
+            coveredByParentBudget?: boolean;
+        };
+        BudgetComparisonResponse: {
+            /** Format: int32 */
+            year?: number;
+            /** Format: int32 */
+            month?: number;
+            currency?: string;
+            totalBudgetedAmount?: number;
+            totalSpentAmount?: number;
+            totalSpentOnBudgetedCategories?: number;
+            totalUnbudgetedAmount?: number;
+            groups?: components["schemas"]["BudgetComparisonGroup"][];
+            unbudgetedCategories?: components["schemas"]["UnbudgetedCategoryAmount"][];
+        };
+        UnbudgetedCategoryAmount: {
+            /** Format: int64 */
+            categoryId?: number;
+            categoryName?: string;
+            parentCategoryName?: string;
+            spentAmount?: number;
         };
         RecurringUpcomingResponse: {
             /** Format: date */
@@ -2805,6 +3123,7 @@ export interface components {
             colorKey?: string;
             /** @enum {string} */
             type?: "EXPENSE" | "INCOME";
+            parentCategory?: components["schemas"]["Category"];
             active?: boolean;
             /** @description Usuario propietario de la categoría. */
             readonly user?: components["schemas"]["User"];
@@ -2899,6 +3218,7 @@ export interface components {
             /** Format: int64 */
             legacyId?: number;
             reversalOf?: components["schemas"]["FinancialTransaction"];
+            reversalReason?: string;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -3113,6 +3433,76 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSavingGoalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     updateRecurringRule: {
         parameters: {
             query?: never;
@@ -3161,7 +3551,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3293,7 +3683,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -3319,7 +3709,7 @@ export interface operations {
             };
         };
     };
-    delete: {
+    delete_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -3407,6 +3797,32 @@ export interface operations {
             };
         };
     };
+    reverseTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReverseTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransactionResponse"];
+                };
+            };
+        };
+    };
     listGoals: {
         parameters: {
             query?: never;
@@ -3474,6 +3890,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddSavingMovementRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
+    movements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SavingMovementResponse"][];
                 };
             };
         };
@@ -3699,6 +4163,7 @@ export interface operations {
         parameters: {
             query?: {
                 page?: number;
+                history?: boolean;
             };
             header?: never;
             path?: never;
@@ -4274,6 +4739,7 @@ export interface operations {
             query?: {
                 year?: number;
                 month?: number;
+                includeInactive?: boolean;
             };
             header?: never;
             path?: never;
@@ -4500,7 +4966,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -4697,6 +5163,32 @@ export interface operations {
             };
         };
     };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSavingStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SavingGoalResponse"];
+                };
+            };
+        };
+    };
     assignCurrency: {
         parameters: {
             query?: never;
@@ -4771,7 +5263,7 @@ export interface operations {
             };
         };
     };
-    delete_1: {
+    delete_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4809,7 +5301,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -4884,7 +5376,29 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    deactivate: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -4928,6 +5442,32 @@ export interface operations {
             };
         };
     };
+    state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetStateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BudgetResponse"];
+                };
+            };
+        };
+    };
     get_3: {
         parameters: {
             query?: never;
@@ -4950,7 +5490,7 @@ export interface operations {
             };
         };
     };
-    update_5: {
+    update_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -5181,6 +5721,110 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TransactionPageResponse"];
+                };
+            };
+        };
+    };
+    getHierarchicalCategoryReport: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+                currency: string;
+                type: "EXPENSE" | "INCOME";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CategoryReportResponse"];
+                };
+            };
+        };
+    };
+    getHierarchicalCategoryTransactions: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+                currency: string;
+                type: "EXPENSE" | "INCOME";
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                categoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransactionPageResponse"];
+                };
+            };
+        };
+    };
+    getUncategorizedReportTransactions: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+                currency: string;
+                type: "EXPENSE" | "INCOME";
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TransactionPageResponse"];
+                };
+            };
+        };
+    };
+    getBudgetVsActualReport: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BudgetComparisonResponse"];
                 };
             };
         };
@@ -5670,7 +6314,7 @@ export interface operations {
             };
         };
     };
-    delete_2: {
+    delete_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -5690,7 +6334,7 @@ export interface operations {
             };
         };
     };
-    delete_3: {
+    delete_4: {
         parameters: {
             query?: never;
             header?: never;

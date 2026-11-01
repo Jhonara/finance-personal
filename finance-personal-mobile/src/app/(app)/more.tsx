@@ -1,6 +1,6 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState, type PropsWithChildren } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { Platform, Switch, Text, View } from 'react-native';
 import { AppAlert as Alert } from '@/feedback/app-alert';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -17,6 +17,7 @@ import { BrandMark } from '@/ui/brand-identity';
 import { ScreenHeader } from '@/ui/headers';
 import { Card, Screen } from '@/ui/primitives';
 import { SettingsRow } from '@/ui/settings-row';
+import { Disclosure } from '@/ui/disclosure';
 import { ErrorState, SkeletonRow } from '@/ui/states';
 import { colors, radius, spacing, typography } from '@/theme';
 import { useAppTheme, type AppearanceMode } from '@/theme/theme-provider';
@@ -145,26 +146,7 @@ export default function MoreScreen() {
           </>
         )}
       </BrandSurface>
-      <Section title="Organización">
-        <SettingsRow
-          icon="pricetags-outline"
-          title="Categorías"
-          subtitle="Organiza ingresos y gastos."
-          onPress={() => router.push('/(app)/categories')}
-        />
-      </Section>
-      <Section title="Preferencias">
-        <DetectedNoticeSettings />
-        {captureQaEnabled && (
-          <SettingsRow
-            icon="pulse-outline"
-            title="Diagnóstico de captura"
-            subtitle="Permisos, sincronización y pruebas ficticias. Solo desarrollo y QA."
-            onPress={() => router.push('/(app)/capture-diagnostics')}
-          />
-        )}
-        <HomePrioritySettings userId={profile.data?.id} />
-        <HomeUpcomingSettings userId={profile.data?.id} />
+      <Section title="Apariencia y privacidad">
         <View style={styles.appearance}>
           <View style={styles.appearanceTitle}>
             <View style={[styles.appearanceIcon, { backgroundColor: palette.infoSoft }]}>
@@ -254,6 +236,46 @@ export default function MoreScreen() {
             }
           />
         ) : null}
+      </Section>
+      <View style={{ gap: spacing.sm }}>
+        <Text accessibilityRole="header" style={[typography.sectionTitle, { color: palette.textPrimary }]}>
+          Personalización
+        </Text>
+        <Disclosure title="Opciones de Inicio" icon="home-outline">
+          <HomePrioritySettings userId={profile.data?.id} />
+          <HomeUpcomingSettings userId={profile.data?.id} />
+        </Disclosure>
+        {(Platform.OS === 'android' || captureQaEnabled) && (
+          <Disclosure title="Avisos y captura" icon="notifications-outline">
+            <DetectedNoticeSettings />
+            {Platform.OS === 'android' && (
+              <SettingsRow
+                icon="scan-outline"
+                title="Lectura de avisos bancarios"
+                subtitle="Elige qué avisos de compra quieres revisar."
+                onPress={() => router.push('/(app)/capture-notifications')}
+              />
+            )}
+            {captureQaEnabled && (
+              <SettingsRow
+                icon="pulse-outline"
+                title="Diagnóstico de captura"
+                subtitle="Permisos, sincronización y pruebas ficticias. Solo desarrollo y QA."
+                onPress={() => router.push('/(app)/capture-diagnostics')}
+              />
+            )}
+          </Disclosure>
+        )}
+      </View>
+      <Section title="Organización">
+        <SettingsRow
+          icon="pricetags-outline"
+          title="Categorías"
+          subtitle="Organiza ingresos y gastos."
+          onPress={() => router.push('/(app)/categories')}
+        />
+      </Section>
+      <Section title="Ayuda">
         <TourTarget id="profile-guide">
           <SettingsRow
             icon="navigate-circle-outline"

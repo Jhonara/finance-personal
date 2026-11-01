@@ -39,6 +39,7 @@ vi.mock('@/features/profile/profile-api', () => ({ getCurrentUser: access.user }
 
 import { MovementDraftGate, useMovementDraft } from './use-movement-draft';
 import { movementDraftKey } from './movement-draft-storage';
+import { currentUserKeys } from '@/features/profile/profile-keys';
 
 type Form = {
   amount: string;
@@ -161,5 +162,81 @@ it('verifies the owner before mounting a form and blocks expired or offline sess
   });
   expect(tree!.root.findAllByType('span')).toHaveLength(0);
   expect(access.logout).toHaveBeenCalledTimes(1);
+  client.clear();
+});
+
+function VerifiedForm({ userId }: { userId: number }) {
+  const [amount, setAmount] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  return React.createElement('VerifiedForm', { userId, amount, busy, setAmount, setBusy });
+}
+const verifiedForm = () => tree!.root.findAll((node) => (node.type as unknown) === 'VerifiedForm');
+function gate(client: QueryClient) {
+  return (
+    <QueryClientProvider client={client}>
+      <MovementDraftGate kind="expense">{(userId) => <VerifiedForm userId={userId} />}</MovementDraftGate>
+    </QueryClientProvider>
+  );
+}
+
+it('keeps the same verified form and submission guard during background refresh and a temporary connection failure', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await act(async () => {
+    tree = create(gate(client));
+  });
+  await act(async () => {
+    await vi.waitFor(() => expect(verifiedForm()).toHaveLength(1));
+  });
+  await act(async () => {
+    verifiedForm()[0]!.props.setAmount('25000');
+    verifiedForm()[0]!.props.setBusy(true);
+  });
+  let resolve!: (value: { id: number }) => void;
+  access.user.mockReturnValueOnce(new Promise((done) => (resolve = done)));
+  let refresh!: Promise<void>;
+  await act(async () => {
+    refresh = client.refetchQueries({ queryKey: currentUserKeys.current() });
+    await vi.waitFor(() =>
+      expect(client.getQueryState(currentUserKeys.current())?.fetchStatus).toBe('fetching'),
+    );
+  });
+  expect(verifiedForm()[0]!.props).toMatchObject({ userId: 1, amount: '25000', busy: true });
+  await act(async () => {
+    resolve({ id: 1 });
+    await refresh;
+  });
+  access.user.mockRejectedValueOnce(new Error('Offline'));
+  await act(async () => client.refetchQueries({ queryKey: currentUserKeys.current() }));
+  expect(verifiedForm()[0]!.props).toMatchObject({ userId: 1, amount: '25000', busy: true });
+  await unmount();
+  client.clear();
+});
+
+it('waits for initial verification even with a cached profile, isolates a changed owner and blocks a rejected session', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(currentUserKeys.current(), { id: 1 });
+  let resolve!: (value: { id: number }) => void;
+  access.user.mockReturnValueOnce(new Promise((done) => (resolve = done)));
+  await act(async () => {
+    tree = create(gate(client));
+  });
+  expect(verifiedForm()).toHaveLength(0);
+  await act(async () => resolve({ id: 1 }));
+  await act(async () => {
+    await vi.waitFor(() => expect(verifiedForm()).toHaveLength(1));
+  });
+  await act(async () => verifiedForm()[0]!.props.setAmount('90000'));
+  await act(async () => {
+    client.setQueryData(currentUserKeys.current(), { id: 2 });
+    await vi.waitFor(() => expect(verifiedForm()[0]!.props.userId).toBe(2));
+  });
+  expect(verifiedForm()[0]!.props.amount).toBe('');
+  access.user.mockRejectedValueOnce({ response: { status: 401 } });
+  await act(async () => {
+    await client.refetchQueries({ queryKey: currentUserKeys.current() });
+    await vi.waitFor(() => expect(verifiedForm()).toHaveLength(0));
+  });
+  expect(access.logout).toHaveBeenCalledOnce();
+  await unmount();
   client.clear();
 });

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Text, View, type ScrollViewInstance } from 'react-native';
@@ -27,6 +28,7 @@ import { colors, radius, shadows, spacing, typography } from '@/theme';
 type ScheduleMode = 'current' | 'original' | 'scenario';
 
 export default function CreditAmortizationScreen() {
+  useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   return <CreditAmortizationContent key={id} id={Number(id)} />;
 }

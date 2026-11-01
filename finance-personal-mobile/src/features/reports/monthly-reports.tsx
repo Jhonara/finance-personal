@@ -14,7 +14,8 @@ import {
   type DashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
 import { categoryRows, comparisonPercent, type CurrencyMonth, type TrendPoint } from './report-model';
-import { chartColors, ReportRing, ReportTrend } from './report-charts';
+import { chartColors, ReportRing } from './report-charts';
+import { InteractiveHistory } from './interactive-history';
 import { reportStyles as s, ReportChoice, ReportEmpty, ReportNotice, ReportPanel } from './report-ui';
 
 export function MonthlyOverview({
@@ -152,7 +153,7 @@ export function MonthlyOverview({
             </Button>
           </>
         ) : null}
-        <ReportTrend
+        <InteractiveHistory
           key={`${currency}-${period.year}-${period.month}-${count}`}
           points={points}
           currency={currency}

@@ -80,6 +80,9 @@ vi.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children }: React.PropsWithChildren) =>
     React.createElement('Gradient', undefined, children),
 }));
+vi.mock('react-native-gifted-charts', () => ({
+  LineChart: (props: object) => React.createElement('GiftedLineChart', props),
+}));
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, bottom: 24 }),
   SafeAreaView: ({ children }: React.PropsWithChildren) => children,
@@ -97,7 +100,13 @@ import ReportsScreen from '@/app/(app)/reports';
 import { ReportTrend } from './report-charts';
 import type { ReportMonth } from './report-model';
 import { ExpenseBreakdown } from './monthly-reports';
+import { BudgetReport } from './plan-reports';
+import type { BudgetComparison, CategoryReport } from './reports-api';
 import { AccountReport } from './account-report';
+import { CategoryHierarchyReport } from './category-hierarchy-report';
+import { ReportAmountBars } from './report-charts';
+import { ReportRing } from './report-charts';
+import { BudgetUtilizationCards } from './budget-utilization-cards';
 import { useUpdateCategory } from '@/features/categories/use-categories';
 import { Button } from '@/ui/primitives';
 let client: QueryClient;
@@ -109,6 +118,61 @@ const dashboard = {
   liabilitiesByCurrency: { COP: 5000 },
   accounts: [{ id: 1, name: 'Principal', currency: 'COP', balance: 8000, active: true }],
   savings: [{ id: 4, name: 'Estudios', currency: 'COP', target: 1000, current: 200, progressPercent: 20 }],
+};
+const budgetComparison: BudgetComparison = {
+  year: 2026,
+  month: 10,
+  currency: 'COP',
+  totalBudgetedAmount: 700,
+  totalSpentAmount: 450,
+  totalSpentOnBudgetedCategories: 420,
+  totalUnbudgetedAmount: 30,
+  groups: [
+    {
+      categoryId: 10,
+      categoryName: 'Alimentación',
+      limitAmount: 500,
+      spentAmount: 400,
+      budgetedSpentAmount: 400,
+      differenceAmount: 100,
+      percentageUsed: 80,
+      remainingAmount: 100,
+      excessAmount: 0,
+      hasBudget: true,
+      hasParentBudget: true,
+      directSpentAmount: 0,
+      subcategories: [
+        {
+          categoryId: 11,
+          categoryName: 'Mercado',
+          limitAmount: 100,
+          spentAmount: 75,
+          differenceAmount: 25,
+          percentageUsed: 75,
+          remainingAmount: 25,
+          excessAmount: 0,
+          hasBudget: true,
+          coveredByParentBudget: false,
+        },
+      ],
+    },
+    {
+      categoryId: 20,
+      categoryName: 'Transporte',
+      limitAmount: 200,
+      spentAmount: 50,
+      budgetedSpentAmount: 20,
+      differenceAmount: 180,
+      percentageUsed: 10,
+      remainingAmount: 180,
+      excessAmount: 0,
+      hasBudget: true,
+      hasParentBudget: false,
+      directSpentAmount: 30,
+      subcategories: [],
+    },
+  ],
+  unbudgetedCategories: [{ categoryId: 20, categoryName: 'Transporte', spentAmount: 30 }],
 };
 const text = (value: unknown): string =>
   typeof value === 'string' || typeof value === 'number'
@@ -156,56 +220,116 @@ beforeEach(() => {
     },
     9: { COP: { income: 1000, expense: 200, expensesByCategory: { Mercado: 200 } } },
   };
-  mocks.get.mockImplementation(async (url: string, config?: { params?: { month?: number } }) => {
-    if (url === '/accounts')
-      return {
-        data: [
-          { id: 1, currency: 'COP' },
-          { id: 2, currency: 'USD' },
-        ],
-      };
-    if (url === '/reports/month') {
-      const month = config?.params?.month ?? 0;
-      if (month === failMonth) throw Error('offline');
-      return { data: months[month] ?? {} };
-    }
-    if (url === '/dashboard/month') return { data: dashboard };
-    if (url === '/budgets')
-      return {
-        data: [
-          {
-            id: 2,
-            year: 2026,
+  mocks.get.mockImplementation(
+    async (
+      url: string,
+      config?: { params?: { month?: number; year?: number; currency?: string; type?: string } },
+    ) => {
+      if (url === '/accounts')
+        return {
+          data: [
+            { id: 1, currency: 'COP' },
+            { id: 2, currency: 'USD' },
+          ],
+        };
+      if (url === '/reports/month') {
+        const month = config?.params?.month ?? 0;
+        if (month === failMonth) throw Error('offline');
+        return { data: months[month] ?? {} };
+      }
+      if (url === '/reports/categories') {
+        const type = config?.params?.type ?? 'EXPENSE';
+        const amount = type === 'INCOME' ? 1000 : 250;
+        return {
+          data: {
+            year: config?.params?.year,
             month: config?.params?.month,
-            categoryName: 'Mercado',
-            limitAmount: 500,
-            spentAmount: 200,
-            remainingAmount: 300,
-            percentageUsed: 40,
-            status: 'OK',
+            currency: config?.params?.currency,
+            type,
+            totalAmount: amount,
+            groups: [
+              {
+                categoryId: 10,
+                categoryName: type === 'INCOME' ? 'Ingresos laborales' : 'Alimentación',
+                amount,
+                directAmount: 0,
+                subcategories: [
+                  { categoryId: 11, categoryName: type === 'INCOME' ? 'Nómina' : 'Mercado', amount },
+                ],
+              },
+            ],
           },
-        ],
-      };
-    if (url === '/credits')
-      return {
-        data: [
-          {
-            id: 3,
-            name: 'Casa',
+        };
+      }
+      if (url === '/reports/budget-vs-actual')
+        return {
+          data: {
+            year: config?.params?.year,
+            month: config?.params?.month,
             currency: 'COP',
-            status: 'LATE',
-            remainingBalance: 5000,
-            principal: 10000,
-            paidPrincipal: 2000,
-            openingBalance: 7000,
-            paidInterest: 200,
-            nextPaymentDate: '2026-10-01',
-            expectedPaymentAmount: 300,
+            totalBudgetedAmount: 500,
+            totalSpentAmount: 200,
+            totalSpentOnBudgetedCategories: 200,
+            totalUnbudgetedAmount: 0,
+            groups: [
+              {
+                categoryId: 2,
+                categoryName: 'Mercado',
+                limitAmount: 500,
+                spentAmount: 200,
+                budgetedSpentAmount: 200,
+                differenceAmount: 300,
+                percentageUsed: 40,
+                remainingAmount: 300,
+                excessAmount: 0,
+                hasBudget: true,
+                hasParentBudget: true,
+                directSpentAmount: 200,
+                subcategories: [],
+              },
+            ],
+            unbudgetedCategories: [],
           },
-        ],
-      };
-    throw Error('Unexpected endpoint ' + url);
-  });
+        };
+      if (url === '/dashboard/month') return { data: dashboard };
+      if (url === '/budgets')
+        return {
+          data: [
+            {
+              id: 2,
+              categoryId: 2,
+              year: 2026,
+              month: config?.params?.month,
+              categoryName: 'Mercado',
+              limitAmount: 500,
+              spentAmount: 200,
+              remainingAmount: 300,
+              percentageUsed: 40,
+              status: 'OK',
+            },
+          ],
+        };
+      if (url === '/credits')
+        return {
+          data: [
+            {
+              id: 3,
+              name: 'Casa',
+              currency: 'COP',
+              status: 'LATE',
+              remainingBalance: 5000,
+              principal: 10000,
+              paidPrincipal: 2000,
+              openingBalance: 7000,
+              paidInterest: 200,
+              nextPaymentDate: '2026-10-01',
+              expectedPaymentAmount: 300,
+            },
+          ],
+        };
+      throw Error('Unexpected endpoint ' + url);
+    },
+  );
 });
 afterEach(async () => {
   await act(async () => trees.forEach((tree) => tree.unmount()));
@@ -213,6 +337,189 @@ afterEach(async () => {
 });
 
 describe('Report journeys', () => {
+  it('opens a donut category by its stable ID and keeps chart colors when the ranking changes', async () => {
+    const data: CategoryReport = {
+      year: 2026,
+      month: 10,
+      currency: 'COP',
+      type: 'EXPENSE',
+      totalAmount: 408000,
+      groups: [
+        {
+          categoryId: 3,
+          categoryName: 'Educación',
+          amount: 120000,
+          directAmount: 0,
+          subcategories: [{ categoryId: 31, categoryName: 'Cursos', amount: 120000 }],
+        },
+        { categoryId: 9, categoryName: 'Mercado', amount: 200000, directAmount: 200000, subcategories: [] },
+        {
+          categoryId: 6,
+          categoryName: 'Alimentación',
+          amount: 78000,
+          directAmount: 78000,
+          subcategories: [],
+        },
+        { categoryId: 2, categoryName: 'Comida', amount: 10000, directAmount: 10000, subcategories: [] },
+      ],
+    };
+    const component = (report: CategoryReport) => (
+      <CategoryHierarchyReport
+        data={report}
+        period={{ year: 2026, month: 10 }}
+        currency="COP"
+        type="EXPENSE"
+        hidden={false}
+      />
+    );
+    const tree = await render(component(data));
+    const firstParts = tree.root.findByType(ReportRing).props.parts as {
+      key: string;
+      value: number;
+      color: string;
+    }[];
+    expect(firstParts.map((part) => part.key)).toEqual(['9', '3', '6', '2']);
+    expect(new Set(firstParts.map((part) => part.color)).size).toBe(4);
+    const updated = {
+      ...data,
+      groups: data.groups.map((group) => ({
+        ...group,
+        amount: group.categoryId === 3 ? 300000 : group.amount,
+      })),
+    };
+    await act(async () =>
+      tree.update(<QueryClientProvider client={client}>{component(updated)}</QueryClientProvider>),
+    );
+    const secondParts = tree.root.findByType(ReportRing).props.parts as typeof firstParts;
+    expect(secondParts[0]!.key).toBe('3');
+    for (const part of firstParts)
+      expect(secondParts.find((entry) => entry.key === part.key)?.color).toBe(part.color);
+    await act(async () => tree.root.findByType(ReportRing).props.onSelectKey('3'));
+    expect(content(tree)).toContain('Cursos');
+    expect(content(tree)).not.toContain('Registrados directamente en Mercado');
+    await press(tree, 'Ver movimientos de Cursos');
+    expect(mocks.push).toHaveBeenLastCalledWith(
+      expect.objectContaining({ params: expect.objectContaining({ categoryId: '31' }) }),
+    );
+  });
+  it('compares every child with its own budget and preserves zero, over-budget and privacy states', async () => {
+    const items = [
+      {
+        key: 'courses',
+        name: 'Cursos',
+        value: 120000,
+        reference: 200000,
+        percentageUsed: 60,
+        color: '#176F9C',
+      },
+      {
+        key: 'university',
+        name: 'Universidad',
+        value: 0,
+        reference: 2000000,
+        percentageUsed: 0,
+        color: '#176F9C',
+      },
+      { key: 'zero', name: 'Límite cero', value: 10, reference: 0, percentageUsed: null, color: '#B6404B' },
+      { key: 'over', name: 'Excedido', value: 120, reference: 100, percentageUsed: 120, color: '#925911' },
+    ];
+    const tree = await render(<BudgetUtilizationCards items={items} currency="COP" hidden={false} />);
+    const gauge = (key: string) =>
+      tree.root.findAll(
+        (node) => (node.type as unknown) === 'Path' && node.props.testID === `budget-gauge-${key}`,
+      )[0]!;
+    expect(gauge('courses').props.strokeDasharray[0] / (Math.PI * 56)).toBeCloseTo(0.6);
+    expect(gauge('university').props.strokeDasharray[0]).toBe(0);
+    expect(gauge('zero').props.strokeDasharray[0]).toBe(0);
+    expect(gauge('over').props.strokeDasharray[0]).toBeCloseTo(Math.PI * 56);
+    expect(content(tree)).toContain('120%');
+    expect(content(tree)).not.toMatch(/NaN|Infinity/);
+    await act(async () =>
+      tree.update(
+        <QueryClientProvider client={client}>
+          <BudgetUtilizationCards items={items} currency="COP" hidden />
+        </QueryClientProvider>,
+      ),
+    );
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'Svg')).toHaveLength(0);
+    expect(content(tree)).not.toMatch(/60%|120%|200\.000/);
+  });
+  it('distinguishes sibling chart series without changing category totals or their identities', async () => {
+    const tree = await render(
+      <CategoryHierarchyReport
+        data={{
+          year: 2026,
+          month: 10,
+          currency: 'COP',
+          type: 'EXPENSE',
+          totalAmount: 160,
+          groups: [
+            {
+              categoryId: 1,
+              categoryName: 'Alimentación',
+              amount: 160,
+              directAmount: 0,
+              subcategories: [
+                { categoryId: 2, categoryName: 'Desayunos', amount: 90 },
+                { categoryId: 3, categoryName: 'Almuerzos', amount: 50 },
+                { categoryId: 4, categoryName: 'Mecato', amount: 20 },
+              ],
+            },
+          ],
+        }}
+        period={{ year: 2026, month: 10 }}
+        currency="COP"
+        type="EXPENSE"
+        hidden={false}
+      />,
+    );
+    await press(tree, 'Ver detalle de Alimentación');
+    await press(tree, 'Gráfica de gastos: Ranking');
+    const items = tree.root.findByType(ReportAmountBars).props.items;
+    expect(new Set(items.map((item: { color: string }) => item.color)).size).toBe(3);
+    expect(items.map((item: { key: string; value: number }) => [item.key, item.value])).toEqual([
+      ['2', 90],
+      ['3', 50],
+      ['4', 20],
+    ]);
+    await press(tree, 'Ver movimientos de Almuerzos');
+    expect(mocks.push).toHaveBeenLastCalledWith(
+      expect.objectContaining({ params: expect.objectContaining({ categoryId: '3', type: 'EXPENSE' }) }),
+    );
+  });
+
+  it('keeps negative hierarchy values signed and avoids a misleading circular distribution', async () => {
+    const tree = await render(
+      <CategoryHierarchyReport
+        data={{
+          year: 2026,
+          month: 10,
+          currency: 'COP',
+          type: 'INCOME',
+          totalAmount: 80,
+          groups: [
+            {
+              categoryId: 1,
+              categoryName: 'Ingresos laborales',
+              amount: 100,
+              directAmount: 100,
+              subcategories: [],
+            },
+            { categoryId: 2, categoryName: 'Ajustes', amount: -20, directAmount: -20, subcategories: [] },
+          ],
+        }}
+        period={{ year: 2026, month: 10 }}
+        currency="COP"
+        type="INCOME"
+        hidden={false}
+      />,
+    );
+    expect(
+      tree.root.findByType(ReportAmountBars).props.items.map((item: { value: number }) => item.value),
+    ).toEqual([100, -20]);
+    expect(content(tree)).toContain('total neto');
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'Circle')).toHaveLength(0);
+  });
   it('keeps monthly reports currency-safe, switches periods and expands the trend to twelve months', async () => {
     const tree = await render();
     await settle(() => expect(content(tree)).toContain('25% de tus ingresos'));
@@ -277,6 +584,7 @@ describe('Report journeys', () => {
     expect(content(tree)).not.toContain('Gastado');
     await press(tree, 'Moneda del reporte: COP');
     await settle(() => expect(content(tree)).toContain('40% utilizado'));
+    await press(tree, 'Ver comparación de Mercado');
     await press(tree, 'Revisar presupuesto');
     expect(mocks.push).toHaveBeenLastCalledWith({
       pathname: '/(app)/budget-detail',
@@ -302,6 +610,39 @@ describe('Report journeys', () => {
         params: { year: new Date().getFullYear(), month: new Date().getMonth() + 1 },
       }),
     );
+  });
+  it('distinguishes a parent ceiling from child limits and keeps direct unbudgeted spending visible', async () => {
+    const tree = await render(
+      <BudgetReport
+        budgets={[]}
+        comparison={budgetComparison}
+        period={{ year: 2026, month: 10 }}
+        currency="COP"
+        hidden={false}
+      />,
+    );
+    expect(content(tree)).toContain('Techo del grupo');
+    expect(content(tree)).toContain('Suma de límites individuales');
+    expect(content(tree)).toContain('Gastado con presupuesto');
+    expect(content(tree)).toContain('Gasto directo sin presupuesto');
+    expect(content(tree)).toContain('80%');
+    await press(tree, 'Ver comparación de Alimentación');
+    expect(content(tree)).toContain('75%');
+  });
+  it('hides parent and child budget utilization along with amounts in privacy mode', async () => {
+    const tree = await render(
+      <BudgetReport
+        budgets={[]}
+        comparison={budgetComparison}
+        period={{ year: 2026, month: 10 }}
+        currency="COP"
+        hidden
+      />,
+    );
+    expect(content(tree)).toContain('Alimentación');
+    expect(content(tree)).not.toMatch(/\d+(?:[.,]\d+)?%/);
+    expect(content(tree)).not.toContain('700');
+    expect(content(tree)).not.toContain('500');
   });
   it('hides chart geometry and financial accessibility labels in privacy mode', async () => {
     mocks.hidden = true;
@@ -366,6 +707,28 @@ describe('Report journeys', () => {
     expect(content(tree)).toContain('Archivada');
     expect(content(tree)).toContain('Hay cuentas con saldo negativo');
     expect(tree.root.findAll((node) => (node.type as unknown) === 'Circle')).toHaveLength(0);
+  });
+  it('groups income by parent and opens the transactions behind a subcategory total', async () => {
+    const tree = await render();
+    await press(tree, 'Reporte: Ingresos');
+    await settle(() => expect(content(tree)).toContain('Ingresos laborales'));
+    expect(content(tree)).not.toContain('Nómina');
+    await press(tree, 'Ver detalle de Ingresos laborales');
+    expect(content(tree)).toContain('Nómina');
+    expect(content(tree)).toContain('100%');
+    expect(tree.root.findAllByType(ReportRing)).toHaveLength(0);
+    await press(tree, 'Ver movimientos de Nómina');
+    expect(mocks.push).toHaveBeenLastCalledWith({
+      pathname: '/(app)/report-transactions',
+      params: {
+        year: 2026,
+        month: 10,
+        currency: 'COP',
+        type: 'INCOME',
+        categoryId: '11',
+        category: 'Ingresos laborales › Nómina',
+      },
+    });
   });
   it('does not turn an incomplete account breakdown into a full distribution', async () => {
     const tree = await render(

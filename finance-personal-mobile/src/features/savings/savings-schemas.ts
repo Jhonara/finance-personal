@@ -15,6 +15,16 @@ export const savingGoalSchema = z.object({
     .min(1, 'Ponle un nombre a tu meta.')
     .max(100, 'Usa un nombre de hasta 100 caracteres.'),
   targetAmount: amount,
+  description: z.string().max(500).optional(),
+  targetDate: z
+    .string()
+    .refine(
+      (value) =>
+        value === '' ||
+        (/^\d{4}-\d{2}-\d{2}$/.test(value) && localDateFromNative(nativeFromLocalDate(value)) === value),
+      'Selecciona una fecha v�lida.',
+    )
+    .optional(),
 });
 export const savingContributionSchema = z.object({
   amount,

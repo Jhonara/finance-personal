@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
@@ -121,6 +122,7 @@ function AccountTile({
 }
 
 export default function AccountsScreen() {
+  useAppTheme();
   const { hidden, toggle } = usePrivacy();
   const { width, fontScale } = useWindowDimensions();
   const compactHeader = width <= 360 || fontScale >= 1.2;

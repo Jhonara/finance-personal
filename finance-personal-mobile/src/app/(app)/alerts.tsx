@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
@@ -13,6 +14,7 @@ import type { Alert } from '@/features/secondary/secondary-api';
 import { spacing, typography } from '@/theme';
 
 export default function AlertsScreen() {
+  useAppTheme();
   const [history, setHistory] = useState(false);
   const current = useAlerts();
   const past = useAlertHistory(history);

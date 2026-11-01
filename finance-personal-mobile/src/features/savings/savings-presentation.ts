@@ -24,7 +24,16 @@ export function presentSavingGoal(goal: SavingGoal, progress = goal.progress) {
         ? 'Progreso no disponible'
         : `${Math.min(100, percentage).toLocaleString('es-CO', { maximumFractionDigits: 2 })}%`,
     completed,
-    status: completed ? 'Meta cumplida ✓' : 'En progreso',
+    lifecycleStatus: goal.status ?? 'ACTIVE',
+    archived: goal.status === 'CLOSED' || goal.status === 'CANCELLED',
+    status:
+      goal.status === 'CLOSED'
+        ? 'Cerrada'
+        : goal.status === 'CANCELLED'
+          ? 'Cancelada'
+          : completed
+            ? 'Meta cumplida ✓'
+            : 'En progreso',
     remaining: remainingAmount(goal.targetAmount, goal.currentAmount),
     tone: completed
       ? ('success' as const)
@@ -42,8 +51,9 @@ export function savingsSummary(goals: SavingGoal[]) {
   const presented = goals.map((goal) => presentSavingGoal(goal));
   // Goals without currency are legacy records; never assume their amounts are COP.
   return {
-    active: presented.filter((goal) => !goal.completed),
-    completed: presented.filter((goal) => goal.completed),
+    active: presented.filter((goal) => !goal.completed && !goal.archived),
+    completed: presented.filter((goal) => goal.completed && !goal.archived),
+    archived: presented.filter((goal) => goal.archived),
   };
 }
 

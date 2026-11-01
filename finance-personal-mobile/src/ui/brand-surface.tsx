@@ -3,22 +3,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { PropsWithChildren } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radius, spacing } from '@/theme';
+import { useAppTheme } from '@/theme/theme-provider';
 
 export function BrandSurface({
   children,
   style,
   tone,
 }: PropsWithChildren<{ style?: StyleProp<ViewStyle>; tone?: 'credit' | 'panorama' | 'insight' }>) {
+  const { palette } = useAppTheme();
   return (
     <LinearGradient
       colors={
         tone === 'panorama'
-          ? [colors.heroStart, colors.primaryStrong, colors.heroEnd]
+          ? [palette.heroStart, palette.primaryStrong, palette.heroEnd]
           : tone === 'insight'
-            ? [colors.lavenderSoft, colors.infoSoft, colors.brandMist]
+            ? [palette.lavenderSoft, palette.infoSoft, palette.brandMist]
             : tone === 'credit'
-              ? [colors.accentSoft, colors.primarySoft, colors.warningSoft]
-              : [colors.primarySoft, colors.infoSoft, colors.accentSoft]
+              ? [palette.accentSoft, palette.primarySoft, palette.warningSoft]
+              : [palette.primarySoft, palette.infoSoft, palette.accentSoft]
       }
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -28,14 +30,22 @@ export function BrandSurface({
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={[styles.orb, tone === 'panorama' && styles.heroOrb]}
+        style={[
+          styles.orb,
+          tone === 'panorama' && styles.heroOrb,
+          { backgroundColor: tone === 'panorama' ? palette.heroSoft : palette.brandGlow },
+        ]}
       />
       {tone === 'panorama' || tone === 'insight' ? (
         <View
           pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[styles.ring, tone === 'panorama' && styles.heroRing]}
+          style={[
+            styles.ring,
+            tone === 'panorama' && styles.heroRing,
+            { borderColor: tone === 'panorama' ? palette.heroSoft : palette.brandGlow },
+          ]}
         />
       ) : null}
       {children}

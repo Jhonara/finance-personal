@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,6 +31,7 @@ function deleteTemporaryImage(uri?: string) {
 }
 
 export default function CaptureImageScreen() {
+  useAppTheme();
   const { state } = useAuth();
   const { hidden } = usePrivacy();
   const [busy, setBusy] = useState(false);

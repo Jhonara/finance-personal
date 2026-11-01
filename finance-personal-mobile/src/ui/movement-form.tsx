@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { PropsWithChildren } from 'react';
@@ -10,7 +11,7 @@ import { MotionEntry, MotionPressable } from './motion';
 
 type MovementTone = 'expense' | 'income' | 'transfer';
 
-const tone = () =>
+const tone = (colors: ReturnType<typeof useAppTheme>['palette']) =>
   ({
     expense: {
       icon: 'bag-handle-outline',
@@ -33,6 +34,8 @@ const tone = () =>
   }) as const;
 
 export function MovementFormHeader({ title, onBack }: { title: string; onBack(): void }) {
+  const { palette: colors } = useAppTheme();
+
   return (
     <View style={styles.header}>
       <MotionPressable
@@ -60,7 +63,9 @@ export function MovementFormIntro({
   title: string;
   description: string;
 }) {
-  const appearance = tone()[kind];
+  const { palette: colors } = useAppTheme();
+
+  const appearance = tone(colors)[kind];
   return (
     <LinearGradient colors={[appearance.soft, appearance.end]} style={styles.intro}>
       <View style={[styles.introIcon, { backgroundColor: appearance.soft }]}>
@@ -86,6 +91,8 @@ export function MovementFormSection({
   subtitle?: string;
   icon: keyof typeof Ionicons.glyphMap;
 }>) {
+  const { palette: colors } = useAppTheme();
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeading}>
@@ -103,8 +110,11 @@ export function MovementFormSection({
 }
 
 export function MovementAmountPanel({ kind, children }: PropsWithChildren<{ kind: MovementTone }>) {
+  const { palette } = useAppTheme();
+
+  const appearance = tone(palette)[kind];
   return (
-    <View style={[styles.amountPanel, { borderColor: tone()[kind].soft, backgroundColor: tone()[kind].end }]}>
+    <View style={[styles.amountPanel, { borderColor: appearance.soft, backgroundColor: appearance.end }]}>
       {children}
     </View>
   );
@@ -115,6 +125,8 @@ export function MovementOptionalDetails({
   onToggle,
   children,
 }: PropsWithChildren<{ open: boolean; onToggle(): void }>) {
+  const { palette: colors } = useAppTheme();
+
   return (
     <View style={styles.optional}>
       <MotionPressable

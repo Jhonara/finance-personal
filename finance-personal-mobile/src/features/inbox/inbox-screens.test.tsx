@@ -1,3 +1,4 @@
+vi.mock('@/ui/category-hierarchy-field', () => ({ CategoryHierarchyField: 'CategoryHierarchyField' }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

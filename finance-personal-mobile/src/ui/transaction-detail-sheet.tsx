@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import { TransactionActions } from '@/features/transactions/transaction-actions';
+import { presentTransaction } from '@/features/transactions/transaction-presentation';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { formatLocalDate } from '@/utils/local-date';
 import { Animated, Modal, Pressable, ScrollView, Text, View } from 'react-native';
@@ -12,7 +15,7 @@ import { MotionPressable } from './motion';
 import { useModalMotion } from './use-modal-motion';
 
 export function TransactionDetailSheet({
-  transaction,
+  transaction: initialTransaction,
   privacyHidden,
   onClose,
 }: {
@@ -20,6 +23,9 @@ export function TransactionDetailSheet({
   privacyHidden: boolean;
   onClose(): void;
 }) {
+  const [linked, setLinked] = useState<PresentedTransaction>();
+  useEffect(() => setLinked(undefined), [initialTransaction?.id]);
+  const transaction = linked ?? initialTransaction;
   const insets = useSafeAreaInsets();
   const sheetMotion = useModalMotion(Boolean(transaction), onClose);
   if (!transaction) return null;
@@ -38,11 +44,12 @@ export function TransactionDetailSheet({
   return (
     <Modal transparent visible={sheetMotion.present} animationType="none" onRequestClose={sheetMotion.close}>
       <Animated.View style={[{ flex: 1 }, sheetMotion.overlay]}>
-        <Pressable style={styles.overlay} onPress={sheetMotion.close}>
-          <Animated.View style={[{ flexShrink: 1 }, sheetMotion.sheet]}>
-            <Pressable
+        <View style={styles.overlay}>
+          <Pressable style={styles.backdrop} onPress={sheetMotion.close} accessible={false} />
+          <Animated.View style={[{ flexShrink: 1, maxHeight: '88%' }, sheetMotion.sheet]}>
+            <View
               style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
-              onPress={(event) => event.stopPropagation()}
+              accessibilityViewIsModal
             >
               <View style={styles.handle} />
               <View style={styles.titleRow}>
@@ -68,7 +75,11 @@ export function TransactionDetailSheet({
                   <Ionicons name="close" size={19} color={colors.primary} />
                 </MotionPressable>
               </View>
-              <ScrollView contentContainerStyle={styles.fields}>
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={styles.fields}
+                keyboardShouldPersistTaps="handled"
+              >
                 <View style={[styles.amountCard, { backgroundColor: `${tone}14` }]}>
                   <Text style={styles.amountLabel}>IMPORTE</Text>
                   <Text
@@ -101,6 +112,13 @@ export function TransactionDetailSheet({
                 {transaction.type === 'REVERSAL' && transaction.reversalOfId ? (
                   <Text style={styles.reversal}>Revierte una operación anterior</Text>
                 ) : null}
+                {(transaction.reversible || transaction.reversalId || transaction.reversalOfId) && (
+                  <TransactionActions
+                    key={transaction.id}
+                    transaction={transaction}
+                    onNavigate={(value) => setLinked(presentTransaction(value))}
+                  />
+                )}
               </ScrollView>
               <MotionPressable
                 accessibilityRole="button"
@@ -110,9 +128,9 @@ export function TransactionDetailSheet({
               >
                 <Text style={styles.doneText}>Listo</Text>
               </MotionPressable>
-            </Pressable>
+            </View>
           </Animated.View>
-        </Pressable>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -120,8 +138,9 @@ export function TransactionDetailSheet({
 
 const styles = themedStyleSheet(() => ({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet: {
-    maxHeight: '82%',
+    flexShrink: 1,
     gap: spacing.md,
     padding: spacing.xl,
     borderTopLeftRadius: 30,

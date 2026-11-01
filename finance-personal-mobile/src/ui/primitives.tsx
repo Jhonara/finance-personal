@@ -65,6 +65,7 @@ export function Screen({
         if (externalScrollRef) externalScrollRef.current = instance;
       }}
       {...(keyboard ? { bottomOffset: 24 } : {})}
+      scrollEnabled={!tour?.active}
       onScroll={(event) => {
         offset.current = event.nativeEvent.contentOffset.y;
       }}
@@ -240,6 +241,7 @@ export function Input({
       >
         {icon && <Ionicons name={icon} size={sizes.icon} color={palette.textMuted} />}
         <TextInput
+          accessibilityLabel={label}
           editable={!disabled}
           placeholderTextColor={palette.textMuted}
           style={[typography.body, styles.input, { color: palette.textPrimary }, style]}

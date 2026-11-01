@@ -575,6 +575,8 @@ describe('Credit screens with real hooks and forms', () => {
       { queryKey: ['accounts'] },
       { queryKey: ['dashboard'] },
       { queryKey: ['transactions'] },
+      { queryKey: ['reports'] },
+      { queryKey: ['budgets'] },
       { queryKey: ['alerts'] },
     ]);
     expect(text(tree.toJSON())).toContain('Cerraste esta deuda por completo.');

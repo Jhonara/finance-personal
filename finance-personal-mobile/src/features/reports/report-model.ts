@@ -29,6 +29,7 @@ export function reportCategories(data?: CurrencyMonth) {
 export const reportViews = [
   { id: 'summary', label: 'Mi mes', icon: 'analytics-outline', monthly: true },
   { id: 'expenses', label: 'Gastos', icon: 'pie-chart-outline', monthly: true },
+  { id: 'income', label: 'Ingresos', icon: 'trending-up-outline', monthly: true },
   { id: 'budgets', label: 'Presupuestos', icon: 'speedometer-outline', monthly: true },
   { id: 'accounts', label: 'Cuentas', icon: 'wallet-outline', monthly: false },
   { id: 'credits', label: 'Créditos', icon: 'card-outline', monthly: false },

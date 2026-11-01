@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import { useCredit } from '@/features/secondary/use-secondary';
@@ -10,6 +11,7 @@ import { ScreenHeader } from '@/ui/headers';
 import { ErrorState, Skeleton } from '@/ui/states';
 
 export default function CreditPayments() {
+  useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const creditId = Number(id);
   const credit = useCredit(creditId);

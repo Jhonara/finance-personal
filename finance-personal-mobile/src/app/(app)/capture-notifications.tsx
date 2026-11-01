@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Text } from 'react-native';
@@ -22,6 +23,7 @@ import { spacing, typography } from '@/theme';
 type Review = { notice: PendingNotification; intake: AcceptedSharedText };
 
 export default function CaptureNotificationsScreen() {
+  useAppTheme();
   const { state, logout } = useAuth();
   const { hidden } = usePrivacy();
   const [owner, setOwner] = useState<string>();

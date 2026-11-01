@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createCategory, getCategories, updateCategory } from './categories-api';
+import { createCategory, getCategories, updateCategory, type UpdateCategoryData } from './categories-api';
 export const categoryKeys = {
   all: ['categories'] as const,
   list: (type: 'EXPENSE' | 'INCOME', active: boolean | null = true) => ['categories', type, active] as const,
@@ -20,14 +20,14 @@ export const useCreateCategory = () => {
 export const useUpdateCategory = () => {
   const c = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateCategory>[1] }) =>
-      updateCategory(id, data),
+    mutationFn: ({ id, data }: { id: number; data: UpdateCategoryData }) => updateCategory(id, data),
     retry: false,
     onSuccess: async (category) => {
       await Promise.all([
         c.invalidateQueries({ queryKey: categoryKeys.all }),
         c.invalidateQueries({ queryKey: ['category', category.id] }),
         c.invalidateQueries({ queryKey: ['reports'] }),
+        c.invalidateQueries({ queryKey: ['transactions'] }),
         c.invalidateQueries({ queryKey: ['dashboard'] }),
         c.invalidateQueries({ queryKey: ['budgets'] }),
       ]);

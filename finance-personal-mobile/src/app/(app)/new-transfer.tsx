@@ -2,7 +2,7 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { useUnsavedForm } from '@/features/forms/use-unsaved-form';
 import { openForm } from '@/features/forms/form-session';
 import { withFormSession, useFormSessionActive } from '@/features/forms/form-session';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Text, View } from 'react-native';
@@ -33,6 +33,7 @@ function NewTransferScreen() {
   const [selector, setSelector] = useState<'source' | 'destination' | null>(null);
   const accounts = useAccounts();
   const mutation = useTransferMutation();
+  const submitting = useRef(false);
   const feedback = useFeedback();
   const client = useQueryClient();
   const [initialDate] = useState(effectiveDate);
@@ -47,6 +48,7 @@ function NewTransferScreen() {
     ? active.filter((account) => account.id !== source && account.currency === sourceAccount.currency)
     : [];
   const submit = () => {
+    if (submitting.current || mutation.isPending) return;
     const parsedAmount = Number(amount);
     if (
       !source ||
@@ -58,6 +60,7 @@ function NewTransferScreen() {
       feedback.show('Selecciona cuentas distintas de la misma moneda e ingresa un monto válido.', 'warning');
       return;
     }
+    submitting.current = true;
     mutation.mutate(
       {
         sourceAccountId: source,
@@ -78,6 +81,7 @@ function NewTransferScreen() {
           leaveForm();
         },
         onError: (error) => {
+          submitting.current = false;
           if (!activeSession()) return;
           if (isInsufficientBalanceError(error)) {
             feedback.show('Saldo insuficiente para realizar la transferencia.', 'error');

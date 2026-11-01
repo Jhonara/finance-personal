@@ -1,3 +1,5 @@
+import { SavingManagement } from '@/features/savings/saving-management';
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
@@ -21,6 +23,7 @@ import { SavingCelebration } from '@/features/savings/saving-celebration';
 import { contributionCelebration, type SavingsCelebration } from '@/features/savings/savings-celebrations';
 
 export default function SavingDetail() {
+  useAppTheme();
   const { id, contribute } = useLocalSearchParams<{ id: string; contribute?: string }>();
   const goalId = Number(id);
   const query = useSavings();
@@ -37,6 +40,7 @@ export default function SavingDetail() {
   const feedback = useFeedback();
   const [legacyCurrency, setLegacyCurrency] = useState('COP');
   const [open, setOpen] = useState(contribute === '1');
+  const [withdraw, setWithdraw] = useState(false);
   const [celebration, setCelebration] = useState<SavingsCelebration>();
   const refresh = async () => {
     await Promise.all([query.refetch({ throwOnError: true }), progress.refetch({ throwOnError: true })]);
@@ -125,18 +129,36 @@ export default function SavingDetail() {
             <Text style={typography.label}>Estado</Text>
             <Text style={[typography.body, goal.completed && styles.success]}>{goal.status}</Text>
           </View>
-          {!goal.completed && goal.currency ? (
-            <Button onPress={() => setOpen(true)}>Aportar a esta meta</Button>
+          {!goal.completed && !goal.archived && goal.currency ? (
+            <Button
+              onPress={() => {
+                setWithdraw(false);
+                setOpen(true);
+              }}
+            >
+              Aportar a esta meta
+            </Button>
           ) : null}
+          <SavingManagement
+            goal={raw}
+            hidden={hidden}
+            onWithdraw={() => {
+              setWithdraw(true);
+              setOpen(true);
+            }}
+            onDeleted={() => router.back()}
+          />
           <SavingContributionForm
-            visible={open && !celebration && Boolean(goal.currency)}
+            key={withdraw ? 'withdraw' : 'contribute'}
+            withdraw={withdraw}
+            visible={open && !celebration && Boolean(goal.currency) && (withdraw || !goal.archived)}
             goal={{ ...raw, progress: goal.percentage }}
             completed={goal.completed}
             onClose={() => setOpen(false)}
             onReview={refresh}
             onSaved={async (before, after) => {
               setOpen(false);
-              if (user.data?.id !== undefined) {
+              if (!withdraw && user.data?.id !== undefined) {
                 const next = await contributionCelebration(user.data.id, before, after).catch(
                   () => undefined,
                 );

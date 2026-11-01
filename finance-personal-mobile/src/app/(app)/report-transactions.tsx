@@ -1,8 +1,9 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useState } from 'react';
 import { Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { getReportExpenses } from '@/features/reports/reports-api';
+import { getCategoryTransactions, getReportExpenses } from '@/features/reports/reports-api';
 import { dashboardPeriodFromParams, formatDashboardPeriod } from '@/features/dashboard/dashboard-period';
 import {
   presentTransaction,
@@ -17,22 +18,50 @@ import { TransactionDetailSheet } from '@/ui/transaction-detail-sheet';
 import { spacing, typography } from '@/theme';
 
 export default function ReportTransactions() {
+  useAppTheme();
   const {
     year,
     month,
     currency = '',
     category = '',
-  } = useLocalSearchParams<{ year?: string; month?: string; currency?: string; category?: string }>();
+    categoryId = '',
+    type = 'EXPENSE',
+  } = useLocalSearchParams<{
+    year?: string;
+    month?: string;
+    currency?: string;
+    category?: string;
+    categoryId?: string;
+    type?: 'EXPENSE' | 'INCOME';
+  }>();
   const period = dashboardPeriodFromParams(year, month);
-  const valid = Boolean(period && /^[A-Z]{3}$/.test(currency));
+  const parsedCategoryId = Number(categoryId);
+  const hasCategoryId = Number.isInteger(parsedCategoryId) && parsedCategoryId > 0;
+  const uncategorized = categoryId === 'uncategorized';
+  const hierarchyReport = hasCategoryId || uncategorized;
+  const valid = Boolean(
+    period &&
+    /^[A-Z]{3}$/.test(currency) &&
+    (!categoryId || hierarchyReport) &&
+    (type === 'EXPENSE' || type === 'INCOME'),
+  );
   const { hidden } = usePrivacy();
   const [selected, setSelected] = useState<PresentedTransaction>();
   const query = useInfiniteQuery({
-    queryKey: ['transactions', 'report-expenses', period, currency, category],
+    queryKey: ['transactions', 'report-expenses', period, currency, category, categoryId, type],
     enabled: valid,
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
-      getReportExpenses(period!.year, period!.month, currency, category || undefined, pageParam),
+      hierarchyReport
+        ? getCategoryTransactions(
+            uncategorized ? null : parsedCategoryId,
+            period!.year,
+            period!.month,
+            currency,
+            type,
+            pageParam,
+          )
+        : getReportExpenses(period!.year, period!.month, currency, category || undefined, pageParam),
     getNextPageParam: (page) => (page.last ? undefined : (page.page ?? 0) + 1),
   });
   const rows = query.data?.pages.flatMap((page) => page.content ?? []) ?? [];
@@ -46,7 +75,7 @@ export default function ReportTransactions() {
     >
       <ScreenHeader
         title="Movimientos del reporte"
-        subtitle={category || 'Todos los gastos'}
+        subtitle={category || (type === 'INCOME' ? 'Ingresos de la categoría' : 'Gastos de la categoría')}
         back
         backFallback="/(app)/reports"
       />
@@ -56,7 +85,9 @@ export default function ReportTransactions() {
         </Text>
       )}
       <Text style={typography.caption}>
-        Gastos y reversiones que explican este reporte. Una reversión devuelve dinero y reduce el gasto.
+        {type === 'INCOME'
+          ? 'Ingresos que explican este total, con sus fechas y cuentas.'
+          : 'Gastos y reversiones que explican este reporte. Una reversión devuelve dinero y reduce el gasto.'}
       </Text>
       {!valid ? (
         <Text style={typography.bodySecondary}>Abre este historial desde un reporte con mes y moneda.</Text>

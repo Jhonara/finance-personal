@@ -139,6 +139,7 @@ import AccountsScreen from '@/app/(app)/accounts';
 import AccountDetail from '@/app/(app)/account-detail';
 import NewExpenseScreen from '@/app/(app)/new-expense';
 import NewIncomeScreen from '@/app/(app)/new-income';
+import NewTransferScreen from '@/app/(app)/new-transfer';
 import HomeScreen from '@/app/(app)/index';
 import TransactionsScreen from '@/app/(app)/transactions';
 import { TransactionFiltersModal } from '@/features/transactions/transaction-filters-modal';
@@ -550,11 +551,19 @@ describe.each(cases)('$name retained-route lifecycle', ({ Screen, label, value, 
     });
   });
   async function fill(tree: ReturnType<typeof create>) {
+    if (Screen === BudgetForm)
+      await act(async () =>
+        tree.root
+          .findAllByType(SelectField)
+          .find((node) => node.props.label === 'Categoría padre')!
+          .props.onPress(),
+      );
     await act(async () => {
       input(tree, label).props.onChangeText(value);
       if (Screen === BudgetForm) tree.root.findByType(ModalSelector).props.onSelect(4);
       if (Screen === SavingForm) tree.root.findByType(MoneyInput).props.onChangeText('100000');
     });
+    if (Screen === BudgetForm) await act(async () => press(tree, 'Todo el grupo'));
   }
   it('preserves internal draft and starts clean after back/new entry', async () => {
     const tree = await render(<Screen />);
@@ -855,6 +864,78 @@ it('checks opening balance for the selected account instead of another account',
   });
 });
 
+it('posts a transferencia once when confirmation is tapped twice before a render', async () => {
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/accounts') return { data: [account, { ...account, id: 2, name: 'Destino' }] };
+    throw new Error(`Unexpected GET ${url}`);
+  });
+  mocks.post.mockImplementation(() => new Promise(() => {}));
+  const tree = await render(<NewTransferScreen />);
+  await settled(() => expect(tree.root.findAllByType(ModalSelector).length).toBe(2));
+  await act(async () => input(tree, 'Monto a transferir').props.onChangeText('10000'));
+  await act(async () =>
+    tree.root
+      .findAllByType(ModalSelector)
+      .find((node) => node.props.label === 'Cuenta origen')!
+      .props.onSelect(1),
+  );
+  await act(async () =>
+    tree.root
+      .findAllByType(ModalSelector)
+      .find((node) => node.props.label === 'Cuenta destino')!
+      .props.onSelect(2),
+  );
+  await act(async () => {
+    press(tree, 'Transferir');
+    press(tree, 'Transferir');
+  });
+  await settled(() => expect(mocks.post).toHaveBeenCalledTimes(1));
+  expect(mocks.post).toHaveBeenCalledWith(
+    '/transfers',
+    expect.objectContaining({ amount: 10000, sourceAccountId: 1, destinationAccountId: 2 }),
+  );
+});
+
+it.each([
+  ['gasto', NewExpenseScreen, 'Monto gastado', 'Registrar gasto', '/expenses'],
+  ['ingreso', NewIncomeScreen, 'Monto recibido', 'Registrar ingreso', '/incomes'],
+] as const)(
+  'posts a %s once when confirmation is tapped twice before a render',
+  async (_kind, Screen, amountLabel, submitLabel, endpoint) => {
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/me') return { data: { id: 10, name: 'Ana' } };
+      if (url === '/accounts') return { data: [account] };
+      if (url === '/categories') return { data: [{ id: 7, name: 'Prueba', active: true }] };
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    mocks.post.mockImplementation(() => new Promise(() => {}));
+    const tree = await render(<Screen />);
+    await settled(() => expect(tree.root.findAllByType(ModalSelector).length).toBe(3));
+    await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Cuenta')!
+        .props.onSelect(1),
+    );
+    await act(async () =>
+      tree.root
+        .findAllByType(ModalSelector)
+        .find((node) => node.props.label === 'Categoría padre')!
+        .props.onSelect(7),
+    );
+    await act(async () => {
+      press(tree, submitLabel);
+      press(tree, submitLabel);
+    });
+    await settled(() => expect(mocks.post).toHaveBeenCalledTimes(1));
+    expect(mocks.post).toHaveBeenCalledWith(
+      endpoint,
+      expect.objectContaining({ amount: 10000, accountId: 1, categoryId: 7 }),
+    );
+  },
+);
+
 it.each([
   ['gasto', NewExpenseScreen, 'Monto gastado', 'Registrar gasto', '/expenses'],
   ['ingreso', NewIncomeScreen, 'Monto recibido', 'Registrar ingreso', '/incomes'],
@@ -869,7 +950,7 @@ it.each([
     });
     mocks.post.mockResolvedValue({ data: { id: 21 } });
     const tree = await render(<Screen />);
-    await settled(() => expect(tree.root.findAllByType(ModalSelector).length).toBe(2));
+    await settled(() => expect(tree.root.findAllByType(ModalSelector).length).toBe(3));
     await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
     await act(async () =>
       tree.root
@@ -883,7 +964,7 @@ it.each([
     await act(async () =>
       tree.root
         .findAllByType(ModalSelector)
-        .find((node) => node.props.label === 'Categoría')!
+        .find((node) => node.props.label === 'Categoría padre')!
         .props.onSelect(7),
     );
     const kind = endpoint === '/expenses' ? 'expense' : 'income';
@@ -913,7 +994,7 @@ it.each([
     });
     mocks.post.mockRejectedValue(new Error('offline'));
     const tree = await render(<Screen />);
-    await settled(() => expect(tree.root.findAllByType(ModalSelector)).toHaveLength(2));
+    await settled(() => expect(tree.root.findAllByType(ModalSelector)).toHaveLength(3));
     await act(async () => input(tree, amountLabel).props.onChangeText('10000'));
     await act(async () =>
       tree.root
@@ -924,13 +1005,15 @@ it.each([
     await act(async () =>
       tree.root
         .findAllByType(ModalSelector)
-        .find((node) => node.props.label === 'Categoría')!
+        .find((node) => node.props.label === 'Categoría padre')!
         .props.onSelect(7),
     );
     await act(async () => press(tree, submitLabel));
     await settled(() => expect(mocks.post).toHaveBeenCalledTimes(1));
     expect(stored.has(`finance-movement-draft-v1.10.${kind}`)).toBe(true);
     expect(input(tree, amountLabel).props.value).toBe('10000');
+    await act(async () => press(tree, submitLabel));
+    await settled(() => expect(mocks.post).toHaveBeenCalledTimes(2));
   },
 );
 
@@ -1082,7 +1165,7 @@ describe('Para ti on Home', () => {
     await settled(() =>
       expect(mocks.get).toHaveBeenCalledWith(
         '/budgets',
-        expect.objectContaining({ params: { year: 2026, month: 2 } }),
+        expect.objectContaining({ params: expect.objectContaining({ year: 2026, month: 2 }) }),
       ),
     );
   });
@@ -1094,7 +1177,7 @@ describe('Para ti on Home', () => {
     await settled(() =>
       expect(mocks.get).toHaveBeenCalledWith(
         '/budgets',
-        expect.objectContaining({ params: { year: 2026, month: 3 } }),
+        expect.objectContaining({ params: expect.objectContaining({ year: 2026, month: 3 }) }),
       ),
     );
     mocks.focusVersion += 1;

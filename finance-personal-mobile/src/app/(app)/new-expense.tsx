@@ -8,7 +8,7 @@ import {
   MovementDraftStatus,
   useMovementDraft,
 } from '@/features/forms/use-movement-draft';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,7 +23,7 @@ import { useTour } from '@/features/onboarding/tour-context';
 import { colors, spacing, typography } from '@/theme';
 import { FinancialDateField } from '@/ui/financial-date-field';
 import { ModalSelector } from '@/ui/modal-selector';
-import { QuickCategoryModal } from '@/ui/quick-category-modal';
+import { CategoryHierarchyField } from '@/ui/category-hierarchy-field';
 import { Button, Input, MoneyInput, Screen, SelectField } from '@/ui/primitives';
 import {
   MovementAmountPanel,
@@ -49,10 +49,12 @@ function NewExpenseScreen({ userId }: { userId: number }) {
     defaultValues: { amount: '', expenseDate: initialDate, description: '' },
   });
   const draft = useMovementDraft(form, userId, 'expense', 'expenseDate', initialDate);
-  const [selector, setSelector] = useState<'account' | 'category' | 'quickCategory' | null>(null);
+  const [selector, setSelector] = useState<'account' | null>(null);
   const [createdCategoryId, setCreatedCategoryId] = useState<number>();
+  const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const submitting = useRef(false);
   const accounts = useAccounts();
   const categories = useCategories('EXPENSE');
   const mutation = useExpenseMutation();
@@ -62,7 +64,7 @@ function NewExpenseScreen({ userId }: { userId: number }) {
   const guard = useUnsavedForm({
     dirty: hasFormChanges(form.watch(), form.formState.defaultValues),
     busy: mutation.isPending || completing,
-    suspended: selector !== null,
+    suspended: selector !== null || hierarchyOpen,
     enabled: draft.mode === 'editing',
     onBack: leaveForm,
     leaveTitle: '¿Salir del gasto?',
@@ -71,7 +73,7 @@ function NewExpenseScreen({ userId }: { userId: number }) {
     beforeLeave: draft.flush,
   });
   const submit = form.handleSubmit((data) => {
-    if (mutation.isPending || completing) return;
+    if (submitting.current || mutation.isPending || completing) return;
     const parsedAmount = Number(data.amount);
     const validAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
     const validCategory =
@@ -83,6 +85,7 @@ function NewExpenseScreen({ userId }: { userId: number }) {
       if (!validCategory) form.setError('categoryId', { message: 'Elige una categoría para este gasto.' });
       return;
     }
+    submitting.current = true;
     mutation.mutate(
       {
         amount: parsedAmount,
@@ -116,6 +119,7 @@ function NewExpenseScreen({ userId }: { userId: number }) {
           leaveForm();
         },
         onError: (error) => {
+          submitting.current = false;
           if (!activeSession()) return;
           applyApiFieldErrors(error, form.setError);
           const resource = unavailableResource(error);
@@ -136,7 +140,6 @@ function NewExpenseScreen({ userId }: { userId: number }) {
     );
   });
   const selectedAccount = accounts.data?.find((item) => item.id === form.watch('accountId'));
-  const selectedCategory = categories.data?.find((item) => item.id === form.watch('categoryId'));
   if (draft.mode !== 'editing')
     return (
       <MovementDraftStatus
@@ -196,26 +199,25 @@ function NewExpenseScreen({ userId }: { userId: number }) {
           ) : null}
         </MovementFormSection>
         <MovementFormSection
-          title="Categoría"
-          subtitle="Necesaria para organizar tus gastos."
-          icon="pricetag-outline"
+          title="Organiza este gasto"
+          subtitle="Elige el grupo y luego su subcategoría."
+          icon="folder-open-outline"
         >
-          <SelectField
-            label="Categoría"
-            value={
-              selectedCategory?.name ??
-              (createdCategoryId !== undefined && form.watch('categoryId') === createdCategoryId
-                ? 'Categoría nueva'
-                : undefined)
-            }
-            placeholder="Elegir categoría"
-            onPress={() => setSelector('category')}
+          <CategoryHierarchyField
+            categories={categories.data ?? []}
+            type="EXPENSE"
+            value={form.watch('categoryId')}
+            loading={categories.isPending}
+            error={form.formState.errors.categoryId?.message}
+            onSelectorOpenChange={setHierarchyOpen}
+            onChange={(id) => {
+              setCreatedCategoryId(
+                id !== undefined && !categories.data?.some((item) => item.id === id) ? id : undefined,
+              );
+              form.setValue('categoryId', id, { shouldDirty: true });
+              form.clearErrors('categoryId');
+            }}
           />
-          {form.formState.errors.categoryId?.message ? (
-            <Text accessibilityLiveRegion="polite" style={styles.error}>
-              {form.formState.errors.categoryId.message}
-            </Text>
-          ) : null}
         </MovementFormSection>
         <MovementOptionalDetails open={detailsOpen} onToggle={() => setDetailsOpen((open) => !open)}>
           <MovementFormSection
@@ -287,36 +289,6 @@ function NewExpenseScreen({ userId }: { userId: number }) {
         onSelect={(id) => {
           form.setValue('accountId', id);
           form.clearErrors('accountId');
-        }}
-      />
-      <ModalSelector
-        visible={selector === 'category'}
-        label="Categoría"
-        loading={categories.isPending}
-        options={(categories.data ?? [])
-          .filter((x) => x.id !== undefined)
-          .map((x) => ({ id: x.id!, label: x.name ?? 'Categoría', icon: 'pricetag-outline' }))}
-        selectedId={form.watch('categoryId')}
-        onClose={() => setSelector(null)}
-        emptyActionLabel="+ Crear categoría"
-        onEmptyAction={() => {
-          setSelector('quickCategory');
-        }}
-        onSelect={(id) => {
-          setCreatedCategoryId(undefined);
-          form.setValue('categoryId', id);
-          form.clearErrors('categoryId');
-        }}
-      />
-      <QuickCategoryModal
-        visible={selector === 'quickCategory'}
-        type="EXPENSE"
-        onClose={() => setSelector(null)}
-        onCreated={(id) => {
-          setCreatedCategoryId(id);
-          form.setValue('categoryId', id);
-          form.clearErrors('categoryId');
-          setSelector(null);
         }}
       />
     </Screen>

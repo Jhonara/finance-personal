@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { openForm } from '@/features/forms/form-session';
 import { TourTarget } from '@/ui/tour-target';
@@ -15,6 +16,7 @@ import { savingsSummary } from '@/features/savings/savings-presentation';
 import { SavingsIntro } from '@/features/savings/savings-intro';
 
 export default function SavingsScreen() {
+  useAppTheme();
   const query = useSavings();
   const { hidden } = usePrivacy();
   const summary = savingsSummary(query.data ?? []);
@@ -75,6 +77,7 @@ export default function SavingsScreen() {
                 [
                   ['En progreso', summary.active],
                   ['Cumplidas', summary.completed],
+                  ['Cerradas y canceladas', summary.archived],
                 ] as const
               ).map(([title, goals]) =>
                 goals.length ? (

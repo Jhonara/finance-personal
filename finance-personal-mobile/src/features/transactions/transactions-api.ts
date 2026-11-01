@@ -3,7 +3,14 @@ import { api } from '@/auth/auth-provider';
 import type { TransactionFilters } from './filters';
 
 export type TransactionPage = components['schemas']['TransactionPageResponse'];
-export type Transaction = components['schemas']['TransactionResponse'];
+export type Transaction = components['schemas']['TransactionResponse'] & {
+  reversalId?: number;
+  originalType?: string;
+  reversalReason?: string;
+  reversible?: boolean;
+};
+export const reverseTransaction = async (id: number, reason?: string) =>
+  (await api.post<Transaction>(`/transactions/${id}/reversal`, { reason })).data;
 export const getTransactionDetail = async (id: number) =>
   (await api.get<Transaction>(`/transactions/${id}`)).data;
 export const getTransactionPage = async (page: number, filters: TransactionFilters = {}, size = 20) =>

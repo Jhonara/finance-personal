@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useIncomingShare } from 'expo-sharing';
@@ -61,6 +62,7 @@ function deleteCachedShare(copy?: string | null) {
 
 /** Shared text is processed only after the session has been checked with the server. */
 export default function SharedCaptureScreen() {
+  useAppTheme();
   const { state, logout } = useAuth();
   const [verified, setVerified] = useState<{ session: typeof state; ownerId: number }>();
   const [error, setError] = useState(false);

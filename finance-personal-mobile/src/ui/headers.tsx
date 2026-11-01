@@ -1,4 +1,5 @@
 import { themedStyleSheet } from '@/theme/themed-styles';
+import { useAppTheme } from '@/theme/theme-provider';
 import { MotionPressable } from '@/ui/motion';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
@@ -6,7 +7,6 @@ import { router, type Href } from 'expo-router';
 import { Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
-import { useAppTheme } from '@/theme/theme-provider';
 import { BrandAvatar, BrandLogo, BrandMark } from './brand-identity';
 import { IconButton } from './primitives';
 
@@ -25,6 +25,7 @@ export function HomeBrandHeader({
   onPrivacy(): void;
   onProfile(): void;
 }) {
+  useAppTheme();
   return (
     <View style={styles.homeHeader}>
       <View style={styles.brandRow}>
@@ -74,6 +75,7 @@ export function ScreenHeader({
   brand?: boolean;
 }) {
   const { palette } = useAppTheme();
+
   const goBack =
     onBack ??
     (() => {
@@ -110,6 +112,8 @@ export function SectionHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  useAppTheme();
+
   return (
     <View style={styles.section}>
       <Text accessibilityRole="header" style={[typography.sectionTitle, styles.title]}>
@@ -138,6 +142,8 @@ export function MoreListItem({
   label: string;
   onPress?: () => void;
 }) {
+  const { palette: colors } = useAppTheme();
+
   return (
     <MotionPressable
       accessibilityRole="button"

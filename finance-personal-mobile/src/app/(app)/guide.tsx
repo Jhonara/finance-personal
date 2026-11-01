@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/theme-provider';
 import { themedStyleSheet } from '@/theme/themed-styles';
 import { useRef, useState } from 'react';
 import { ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
@@ -28,6 +29,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { useTour } from '@/features/onboarding/tour-context';
 
 export default function GuideScreen() {
+  useAppTheme();
   const user = useCurrentUser();
   const { topic } = useLocalSearchParams<{ topic?: string }>();
   if (!user.data?.id)

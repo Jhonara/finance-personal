@@ -6,7 +6,9 @@ type PrivacyContextValue = { hidden: boolean; ready: boolean; toggle(): Promise<
 const PrivacyContext = createContext<PrivacyContextValue | null>(null);
 
 export function PrivacyProvider({ children }: PropsWithChildren) {
-  const [hidden, setHidden] = useState(false);
+  // Keep amounts private until the saved preference is known. A cold start must
+  // not briefly reveal balances that the person previously chose to hide.
+  const [hidden, setHidden] = useState(true);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     void SecureStore.getItemAsync(PRIVACY_KEY)
