@@ -51,6 +51,8 @@ Los tokens no se guardan en AsyncStorage. SecureStore conserva el bundle de sesi
 
 ## Calidad
 
+La auditoría, las decisiones del sistema visual, la política de navegación y la validación de la renovación están en [Renovación UX/UI](docs/ux-renewal-2026-11-01.md). El catálogo de componentes está en `/(app)/component-catalog`, solo durante desarrollo.
+
 ```powershell
 npm run typecheck
 npm run lint
