@@ -485,9 +485,9 @@ const styles = themedStyleSheet(() => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.medium,
-    backgroundColor: colors.infoSoft,
+    backgroundColor: 'transparent',
   },
   explainerLabel: { ...typography.label, flex: 1, color: colors.info },
   explainerText: {

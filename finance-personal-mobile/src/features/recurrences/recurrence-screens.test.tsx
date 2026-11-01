@@ -37,6 +37,7 @@ vi.mock('react-native', () => ({
 }));
 vi.mock('@/theme', () => ({
   colors: { danger: 'red', success: 'green', textPrimary: 'black' },
+  darkPalette: {},
   spacing: { sm: 8, md: 12 },
   typography: {},
 }));

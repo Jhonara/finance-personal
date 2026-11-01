@@ -97,7 +97,13 @@ export function NavigationDock({ state, descriptors, emitter, navigateToTab }: D
                 numberOfLines={2}
                 style={[styles.label, { color: active ? colors.navText : colors.navMuted }]}
               >
-                {item.name === 'transactions' && width <= 360 ? 'Movim.' : item.label}
+                {item.name === 'transactions' && width / fontScale <= 240
+                  ? 'Mov.'
+                  : item.name === 'transactions' && width / fontScale <= 360
+                    ? 'Movim.'
+                    : item.name === 'accounts' && width / fontScale <= 240
+                      ? 'Ctas.'
+                      : item.label}
               </Text>
               {active && <View style={styles.dot} />}
             </MotionPressable>

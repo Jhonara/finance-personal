@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const guard = vi.hoisted(() => vi.fn<(leave: () => void) => void>());
+const dimensions = vi.hoisted(() => ({ width: 390, height: 844, fontScale: 1 }));
 vi.mock('@/features/forms/use-unsaved-form', () => ({ requestFormExit: guard }));
 vi.mock('react-native', () => ({
   View: 'View',
@@ -10,7 +11,7 @@ vi.mock('react-native', () => ({
   Platform: { select: (values: Record<string, unknown>) => values.default ?? values.android },
   StyleSheet: { create: (styles: object) => styles, flatten: (style: unknown) => style },
   Keyboard: { addListener: () => ({ remove: vi.fn() }) },
-  useWindowDimensions: () => ({ width: 390, height: 844 }),
+  useWindowDimensions: () => dimensions,
 }));
 vi.mock('react-native-reanimated', () => ({
   default: { View: 'AnimatedView' },
@@ -56,8 +57,17 @@ const button = (label: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dimensions.fontScale = 1;
   emit.mockReturnValue({ type: 'tabPress', defaultPrevented: false, preventDefault: vi.fn() });
   guard.mockImplementation((leave) => leave());
+});
+
+it('keeps the full accessible destination while shortening the visible label at large text sizes', async () => {
+  dimensions.fontScale = 2;
+  await renderDock();
+  const destination = button('Movimientos');
+  expect(destination.findAll((node) => String(node.type) === 'Text')[0]?.props.children).toBe('Mov.');
+  expect(button('Cuentas').findAll((node) => String(node.type) === 'Text')[0]?.props.children).toBe('Ctas.');
 });
 afterEach(async () => {
   if (tree) await act(async () => tree.unmount());

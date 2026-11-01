@@ -1,4 +1,4 @@
-import { Children, useCallback, useEffect, useRef, useState, type PropsWithChildren } from 'react';
+import { Children, useEffect, useRef, type PropsWithChildren } from 'react';
 import {
   Animated,
   Pressable,
@@ -7,7 +7,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { motion } from '@/theme';
 import { useReducedMotion } from './use-reduced-motion';
 
@@ -91,15 +90,5 @@ export function MoneyText({ children, style, ...props }: TextProps) {
 }
 
 export function ScreenEntry({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
-  const [focus, setFocus] = useState(0);
-  useFocusEffect(
-    useCallback(() => {
-      setFocus((value) => value + 1);
-    }, []),
-  );
-  return (
-    <MotionEntry revision={focus} style={style}>
-      {children}
-    </MotionEntry>
-  );
+  return <MotionEntry style={style}>{children}</MotionEntry>;
 }

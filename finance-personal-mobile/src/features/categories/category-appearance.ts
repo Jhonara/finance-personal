@@ -4,23 +4,111 @@ import { colors, lightPalette } from '@/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 export const categoryIcons = [
-  { key: 'pricetag-outline', label: 'Etiqueta' },
-  { key: 'restaurant-outline', label: 'Comida' },
-  { key: 'basket-outline', label: 'Mercado' },
-  { key: 'car-sport-outline', label: 'Transporte' },
-  { key: 'home-outline', label: 'Hogar' },
-  { key: 'medkit-outline', label: 'Salud' },
-  { key: 'school-outline', label: 'Estudio' },
-  { key: 'balloon-outline', label: 'Ocio' },
-  { key: 'briefcase-outline', label: 'Trabajo' },
-  { key: 'storefront-outline', label: 'Ventas' },
-  { key: 'trending-up-outline', label: 'Inversión' },
-  { key: 'cash-outline', label: 'Dinero' },
-  { key: 'gift-outline', label: 'Regalos' },
-  { key: 'paw-outline', label: 'Mascotas' },
-  { key: 'airplane-outline', label: 'Viajes' },
-  { key: 'game-controller-outline', label: 'Juegos' },
-] as const satisfies ReadonlyArray<{ key: IconName; label: string }>;
+  { key: 'pricetag-outline', label: 'Etiqueta', group: 'general' },
+  { key: 'restaurant-outline', label: 'Comida', group: 'food' },
+  { key: 'basket-outline', label: 'Mercado', group: 'food' },
+  { key: 'car-sport-outline', label: 'Transporte', group: 'transport' },
+  { key: 'home-outline', label: 'Hogar', group: 'home' },
+  { key: 'medkit-outline', label: 'Salud', group: 'health' },
+  { key: 'school-outline', label: 'Estudio', group: 'education' },
+  { key: 'balloon-outline', label: 'Ocio', group: 'leisure' },
+  { key: 'briefcase-outline', label: 'Trabajo', group: 'work' },
+  { key: 'storefront-outline', label: 'Ventas', group: 'work' },
+  { key: 'trending-up-outline', label: 'Inversión', group: 'work' },
+  { key: 'cash-outline', label: 'Dinero', group: 'work' },
+  { key: 'gift-outline', label: 'Regalos', group: 'family' },
+  { key: 'paw-outline', label: 'Mascotas', group: 'family' },
+  { key: 'airplane-outline', label: 'Viajes', group: 'leisure' },
+  { key: 'game-controller-outline', label: 'Juegos', group: 'leisure' },
+  { key: 'folder-outline', label: 'Carpeta', group: 'general' },
+  { key: 'calendar-outline', label: 'Calendario', group: 'general' },
+  { key: 'time-outline', label: 'Tiempo', group: 'general' },
+  { key: 'document-text-outline', label: 'Documentos', group: 'general' },
+  { key: 'shield-checkmark-outline', label: 'Protección', group: 'general' },
+  { key: 'star-outline', label: 'Favorito', group: 'general' },
+  { key: 'cafe-outline', label: 'Café y desayunos', group: 'food' },
+  { key: 'fast-food-outline', label: 'Comida rápida', group: 'food' },
+  { key: 'pizza-outline', label: 'Pizza', group: 'food' },
+  { key: 'ice-cream-outline', label: 'Helados', group: 'food' },
+  { key: 'nutrition-outline', label: 'Frutas', group: 'food' },
+  { key: 'fish-outline', label: 'Pescado', group: 'food' },
+  { key: 'wine-outline', label: 'Restaurantes y bebidas', group: 'food' },
+  { key: 'bed-outline', label: 'Habitación', group: 'home' },
+  { key: 'bulb-outline', label: 'Energía', group: 'home' },
+  { key: 'water-outline', label: 'Agua', group: 'home' },
+  { key: 'flame-outline', label: 'Gas', group: 'home' },
+  { key: 'wifi-outline', label: 'Internet', group: 'home' },
+  { key: 'phone-portrait-outline', label: 'Telefonía', group: 'home' },
+  { key: 'tv-outline', label: 'Televisión', group: 'home' },
+  { key: 'construct-outline', label: 'Reparaciones', group: 'home' },
+  { key: 'shirt-outline', label: 'Ropa', group: 'home' },
+  { key: 'flower-outline', label: 'Jardín', group: 'home' },
+  { key: 'bus-outline', label: 'Bus', group: 'transport' },
+  { key: 'train-outline', label: 'Tren y metro', group: 'transport' },
+  { key: 'bicycle-outline', label: 'Bicicleta', group: 'transport' },
+  { key: 'walk-outline', label: 'Caminatas', group: 'transport' },
+  { key: 'boat-outline', label: 'Barco', group: 'transport' },
+  { key: 'speedometer-outline', label: 'Vehículo y mantenimiento', group: 'transport' },
+  { key: 'map-outline', label: 'Rutas', group: 'transport' },
+  { key: 'fitness-outline', label: 'Bienestar', group: 'health' },
+  { key: 'barbell-outline', label: 'Gimnasio', group: 'health' },
+  { key: 'pulse-outline', label: 'Chequeos', group: 'health' },
+  { key: 'bandage-outline', label: 'Cuidados', group: 'health' },
+  { key: 'medical-outline', label: 'Medicamentos', group: 'health' },
+  { key: 'glasses-outline', label: 'Óptica', group: 'health' },
+  { key: 'book-outline', label: 'Libros', group: 'education' },
+  { key: 'library-outline', label: 'Universidad', group: 'education' },
+  { key: 'laptop-outline', label: 'Tecnología', group: 'education' },
+  { key: 'pencil-outline', label: 'Papelería', group: 'education' },
+  { key: 'business-outline', label: 'Empresa', group: 'work' },
+  { key: 'wallet-outline', label: 'Billetera', group: 'work' },
+  { key: 'card-outline', label: 'Tarjeta', group: 'work' },
+  { key: 'calculator-outline', label: 'Contabilidad', group: 'work' },
+  { key: 'receipt-outline', label: 'Facturas', group: 'work' },
+  { key: 'swap-horizontal-outline', label: 'Intercambio', group: 'work' },
+  { key: 'stats-chart-outline', label: 'Resultados', group: 'work' },
+  { key: 'musical-notes-outline', label: 'Música', group: 'leisure' },
+  { key: 'film-outline', label: 'Cine', group: 'leisure' },
+  { key: 'football-outline', label: 'Deportes', group: 'leisure' },
+  { key: 'camera-outline', label: 'Fotografía', group: 'leisure' },
+  { key: 'headset-outline', label: 'Entretenimiento', group: 'leisure' },
+  { key: 'ticket-outline', label: 'Eventos', group: 'leisure' },
+  { key: 'people-outline', label: 'Familia', group: 'family' },
+  { key: 'heart-outline', label: 'Personas queridas', group: 'family' },
+  { key: 'happy-outline', label: 'Niños', group: 'family' },
+  { key: 'accessibility-outline', label: 'Accesibilidad', group: 'family' },
+] as const satisfies ReadonlyArray<{ key: IconName; label: string; group: string }>;
+
+export const categoryIconGroups = [
+  { key: 'all', label: 'Todos' },
+  { key: 'general', label: 'General' },
+  { key: 'food', label: 'Alimentación' },
+  { key: 'home', label: 'Hogar' },
+  { key: 'transport', label: 'Transporte' },
+  { key: 'health', label: 'Salud' },
+  { key: 'education', label: 'Educación' },
+  { key: 'work', label: 'Trabajo y dinero' },
+  { key: 'leisure', label: 'Ocio y viajes' },
+  { key: 'family', label: 'Familia y mascotas' },
+] as const;
+const normalizedSearch = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es')
+    .trim();
+export function filterCategoryIcons(query: string, group = 'all') {
+  const terms = normalizedSearch(query).split(/\s+/).filter(Boolean);
+  return categoryIcons.filter(
+    (icon) =>
+      (group === 'all' || icon.group === group) &&
+      terms.every((term) =>
+        normalizedSearch(
+          `${icon.label} ${categoryIconGroups.find((item) => item.key === icon.group)?.label ?? ''}`,
+        ).includes(term),
+      ),
+  );
+}
 
 export const categoryColors = [
   { key: 'mint', label: 'Menta', soft: '#DDF7EA', ink: '#167657' },

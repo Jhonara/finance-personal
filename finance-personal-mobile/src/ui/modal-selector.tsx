@@ -54,6 +54,7 @@ export function ModalSelector({
             <MotionPressable
               feedback={false}
               style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
+              accessibilityViewIsModal
               onPress={(event) => event.stopPropagation()}
             >
               <View style={styles.handle} />
@@ -80,12 +81,14 @@ export function ModalSelector({
                   style={styles.options}
                   contentContainerStyle={styles.optionsContent}
                   showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
                 >
                   {options.map((o) => (
                     <MotionPressable
                       key={o.id}
                       disabled={o.disabled}
                       accessibilityRole="button"
+                      accessibilityLabel={`${o.label}${o.subtitle ? `. ${o.subtitle}` : ''}`}
                       accessibilityState={{ selected: o.id === selectedId, disabled: Boolean(o.disabled) }}
                       onPress={(event) => {
                         event.stopPropagation();
@@ -171,8 +174,8 @@ const styles = themedStyleSheet(() => ({
   title: { ...typography.sectionTitle, color: colors.textPrimary },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   close: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

@@ -52,7 +52,7 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'android' },
   Keyboard: { dismiss: vi.fn() },
 }));
-vi.mock('@/theme', () => ({ colors: {}, spacing: {}, typography: {} }));
+vi.mock('@/theme', () => ({ colors: {}, darkPalette: {}, spacing: {}, typography: {} }));
 vi.mock('@/ui/primitives', () => ({
   Button: 'Button',
   Card: 'Card',

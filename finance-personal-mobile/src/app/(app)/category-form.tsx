@@ -3,7 +3,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { MotionModal as Modal } from '@/ui/motion-modal';
+import { CategoryStylePicker } from '@/ui/category-style-picker';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import {
   categoryAppearance,
   categoryColorAppearance,
@@ -120,8 +123,8 @@ function CategoryForm() {
           id,
           data: {
             name: name.trim(),
-            iconKey: visualIcon,
-            colorKey: visualColor.key,
+            iconKey: icon ?? existing.data?.iconKey ?? visualIcon,
+            colorKey: color ?? existing.data?.colorKey ?? visualColor.key,
             parentCategoryId: parentCategoryId ?? undefined,
             clearParent: parentCategoryId === null && existing.data?.parentCategoryId != null,
             version: existing.data?.version ?? 0,
@@ -308,7 +311,7 @@ function CategoryForm() {
       <Button loading={busy} disabled={busy || (editing && existing.isPending)} onPress={submit}>
         {editing ? 'Guardar cambios' : role === 'child' ? 'Crear subcategoría' : 'Crear categoría padre'}
       </Button>
-      <Modal visible={picker} animationType="slide" transparent onRequestClose={() => setPicker(false)}>
+      <Modal visible={picker} transparent onRequestClose={() => setPicker(false)}>
         <View style={styles.scrim}>
           <View style={styles.sheet}>
             <View style={styles.sheetTop}>
@@ -318,61 +321,26 @@ function CategoryForm() {
               <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel="Cerrar selector"
+                style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
                 onPress={() => setPicker(false)}
               >
                 <Ionicons name="close" size={25} color={colors.primary} />
               </MotionPressable>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetContent}>
-              <Text style={typography.label}>Ícono</Text>
-              <View style={styles.iconGrid}>
-                {categoryIcons.map((item) => (
-                  <MotionPressable
-                    key={item.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.label}
-                    accessibilityState={{ selected: visualIcon === item.key }}
-                    onPress={() => setIcon(item.key)}
-                    style={[styles.iconChoice, visualIcon === item.key && styles.selectedChoice]}
-                  >
-                    <Ionicons
-                      name={item.key}
-                      size={26}
-                      color={visualIcon === item.key ? '#FFFFFF' : colors.primary}
-                    />
-                  </MotionPressable>
-                ))}
-              </View>
-              <Text style={typography.label}>Color</Text>
-              <View style={styles.colorGrid}>
-                {categoryColors.map((item) => {
-                  const look = categoryColorAppearance(item.key);
-                  return (
-                    <MotionPressable
-                      key={item.key}
-                      accessibilityRole="button"
-                      accessibilityLabel={item.label}
-                      accessibilityState={{ selected: visualColor.key === item.key }}
-                      onPress={() => setColor(item.key)}
-                      style={[
-                        styles.colorChoice,
-                        {
-                          backgroundColor: look.soft,
-                          borderColor: visualColor.key === item.key ? look.ink : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={visualColor.key === item.key ? 'checkmark' : 'ellipse'}
-                        size={22}
-                        color={look.ink}
-                      />
-                    </MotionPressable>
-                  );
-                })}
-              </View>
+            <KeyboardAwareScrollView
+              bottomOffset={24}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.sheetContent}
+            >
+              <CategoryStylePicker
+                iconKey={visualIcon}
+                colorKey={visualColor.key}
+                onIconChange={setIcon}
+                onColorChange={setColor}
+                disabled={busy}
+              />
               <Button onPress={() => setPicker(false)}>Aplicar estilo</Button>
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </View>
         </View>
       </Modal>
@@ -422,14 +390,14 @@ const styles = themedStyleSheet(() => ({
   },
   tab: {
     minWidth: 100,
-    minHeight: 40,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: radius.pill,
   },
   roleTab: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -440,7 +408,7 @@ const styles = themedStyleSheet(() => ({
   section: { gap: spacing.md, padding: spacing.lg, borderRadius: 22, backgroundColor: colors.surface },
   ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   idea: {
-    minHeight: 43,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,

@@ -84,7 +84,7 @@ const getEmptyTones = () =>
     neutral: {
       backgroundColor: colors.surfaceSecondary,
       color: colors.primary,
-      icon: 'sparkles-outline',
+      icon: 'information-circle-outline',
       buttonTone: 'primary',
     },
   }) as const;
@@ -104,7 +104,12 @@ export function ErrorState({
       <Text style={typography.sectionTitle}>{title}</Text>
       <Text style={[typography.bodySecondary, styles.centerText]}>{message}</Text>
       {onRetry && (
-        <Pressable accessibilityRole="button" accessibilityLabel="Reintentar" onPress={onRetry}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Reintentar"
+          onPress={onRetry}
+          style={{ minHeight: 48, paddingHorizontal: spacing.md, justifyContent: 'center' }}
+        >
           <Text style={[styles.action, { color: colors.danger }]}>Reintentar</Text>
         </Pressable>
       )}

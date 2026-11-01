@@ -8,17 +8,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCreateCategory } from '@/features/categories/use-categories';
 import { categoryLabel } from '@/features/categories/categories-api';
 import { useCategories } from '@/features/categories/use-categories';
-import {
-  categoryColorAppearance,
-  categoryColors,
-  categoryIcons,
-  savedCategoryAppearance,
-} from '@/features/categories/category-appearance';
+import { savedCategoryAppearance } from '@/features/categories/category-appearance';
 import { useFeedback } from '@/feedback/feedback-provider';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { MotionModal as Modal } from './motion-modal';
 import { MotionPressable } from './motion';
 import { Button, Input, SelectField } from './primitives';
+import { CategoryStylePicker } from './category-style-picker';
 import { ModalSelector } from './modal-selector';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -177,56 +173,13 @@ export function QuickCategoryModal({
               <Ionicons name={stylePicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.primary} />
             </MotionPressable>
             {stylePicker ? (
-              <View style={styles.styleChoices}>
-                <Text style={typography.label}>Ícono</Text>
-                <View style={styles.choiceGrid}>
-                  {categoryIcons.map((item) => (
-                    <MotionPressable
-                      key={item.key}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Ícono ${item.label}`}
-                      accessibilityState={{ selected: appearance.icon === item.key }}
-                      onPress={() => setIconKey(item.key)}
-                      style={[styles.iconChoice, appearance.icon === item.key && styles.selectedChoice]}
-                    >
-                      <Ionicons
-                        name={item.key}
-                        size={23}
-                        color={appearance.icon === item.key ? '#FFFFFF' : colors.primary}
-                      />
-                    </MotionPressable>
-                  ))}
-                </View>
-                <Text style={typography.label}>Color</Text>
-                <View style={styles.choiceGrid}>
-                  {categoryColors.map((item) => {
-                    const look = categoryColorAppearance(item.key);
-                    return (
-                      <MotionPressable
-                        key={item.key}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Color ${item.label}`}
-                        accessibilityState={{ selected: appearance.colorKey === item.key }}
-                        onPress={() => setColorKey(item.key)}
-                        style={[
-                          styles.iconChoice,
-                          {
-                            backgroundColor: look.soft,
-                            borderWidth: appearance.colorKey === item.key ? 2 : 0,
-                            borderColor: look.ink,
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name={appearance.colorKey === item.key ? 'checkmark' : 'ellipse'}
-                          size={22}
-                          color={look.ink}
-                        />
-                      </MotionPressable>
-                    );
-                  })}
-                </View>
-              </View>
+              <CategoryStylePicker
+                iconKey={appearance.icon}
+                colorKey={appearance.colorKey}
+                onIconChange={setIconKey}
+                onColorChange={setColorKey}
+                disabled={mutation.isPending}
+              />
             ) : null}
             <Button
               loading={mutation.isPending}
@@ -321,17 +274,6 @@ const styles = themedStyleSheet(() => ({
     backgroundColor: colors.surfaceSecondary,
   },
   identityIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  styleChoices: { gap: spacing.sm },
-  choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  iconChoice: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceSecondary,
-  },
-  selectedChoice: { backgroundColor: colors.primaryStrong },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   heading: { flex: 1, gap: spacing.xxs },
   icon: {
@@ -343,8 +285,8 @@ const styles = themedStyleSheet(() => ({
     backgroundColor: colors.primarySoft,
   },
   close: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
