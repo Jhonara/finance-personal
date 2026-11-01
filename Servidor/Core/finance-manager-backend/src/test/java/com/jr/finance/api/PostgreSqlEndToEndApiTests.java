@@ -12,9 +12,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,14 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Testcontainers
 class PostgreSqlEndToEndApiTests {
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("finance_e2e")
-            .withUsername("finance")
-            .withPassword("finance");
+    @RegisterExtension
+    static final PostgreSqlTestDatabase POSTGRES = new PostgreSqlTestDatabase("e2e");
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -119,7 +113,7 @@ class PostgreSqlEndToEndApiTests {
                 "{\"categoryId\":%d,\"year\":%d,\"month\":%d,\"limitAmount\":500000.00}"
                         .formatted(expenseCategoryId, today.getYear(), today.getMonthValue()), 201);
         long goalId = postJson("/api/v1/savings/goals", accessToken,
-                "{\"name\":\"Emergency fund\",\"targetAmount\":2000000.00}", 201).path("id").asLong();
+                "{\"name\":\"Emergency fund\",\"targetAmount\":2000000.00,\"currency\":\"COP\"}", 201).path("id").asLong();
         postJson("/api/v1/savings/goals/%d/movements".formatted(goalId), accessToken,
                 "{\"amount\":50000.00,\"movementDate\":\"%s\"}".formatted(today), 200);
 

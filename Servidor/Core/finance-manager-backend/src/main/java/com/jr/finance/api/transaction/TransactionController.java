@@ -14,6 +14,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
+import com.jr.finance.api.transaction.dto.ReverseTransactionRequest;
 import org.springframework.web.bind.annotation.PathVariable;
 import com.jr.finance.api.transaction.dto.TransactionResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +35,13 @@ public class TransactionController {
     @GetMapping("/{id}") @Operation(operationId = "getTransactionDetail")
     public TransactionResponse detail(@PathVariable Long id, Authentication authentication) {
         return service.detail(((UserPrincipal) authentication.getPrincipal()).getUser().getId(), id);
+    }
+
+    @PostMapping("/{id}/reversal")
+    @Operation(operationId = "reverseTransaction", summary = "Revertir gasto, ingreso o transferencia", description = "Registra asientos opuestos con fecha de hoy, sin borrar el original. Motivo opcional. Rechaza duplicados y saldo insuficiente.")
+    public TransactionResponse reverse(@PathVariable Long id, @Valid @RequestBody(required = false) ReverseTransactionRequest request,
+                                       Authentication authentication) {
+        return service.reverse(((UserPrincipal) authentication.getPrincipal()).getUser().getId(), id, request == null ? null : request.reason());
     }
 
     @Operation(summary = "Historial financiero unificado", description = "Vista paginada de operaciones lógicas. Use from/to o year/month, no ambos grupos de filtros; size tiene máximo 100.")

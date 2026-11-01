@@ -8,6 +8,9 @@ import java.util.Optional;
 
 public interface RecurringRuleRepository extends JpaRepository<RecurringRule, Long> {
     List<RecurringRule> findByUserIdOrderByActiveDescNameAsc(Long userId);
+    boolean existsByUserIdAndCreditIdAndActiveTrue(Long userId, Long creditId);
+    boolean existsByUserIdAndCreditIdAndActiveTrueAndIdNot(Long userId, Long creditId, Long excludedId);
+    boolean existsByCreditId(Long creditId);
     Optional<RecurringRule> findByUserIdAndRequestKey(Long userId, String requestKey);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from RecurringRule r where r.id = :id")

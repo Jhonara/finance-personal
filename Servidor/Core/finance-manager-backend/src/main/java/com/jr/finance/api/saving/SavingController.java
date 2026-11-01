@@ -34,6 +34,39 @@ public class SavingController {
     private final SavingService savingService;
     private final SavingGoalMapper savingGoalMapper;
 
+    @GetMapping("/goals/{id}")
+    public SavingGoalResponse detail(@PathVariable Long id, Authentication auth) {
+        return savingGoalMapper.toResponse(savingService.get(userId(auth), id));
+    }
+
+    @PutMapping("/goals/{id}")
+    public SavingGoalResponse update(@PathVariable Long id, @Valid @RequestBody com.jr.finance.api.saving.dto.UpdateSavingGoalRequest req, Authentication auth) {
+        return savingGoalMapper.toResponse(savingService.update(userId(auth), id, req));
+    }
+
+    @PatchMapping("/goals/{id}/status")
+    public SavingGoalResponse status(@PathVariable Long id, @Valid @RequestBody com.jr.finance.api.saving.dto.ChangeSavingStatusRequest req, Authentication auth) {
+        return savingGoalMapper.toResponse(savingService.changeStatus(userId(auth), id, req));
+    }
+
+    @DeleteMapping("/goals/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam Long version, Authentication auth) {
+        savingService.deleteEmpty(userId(auth), id, version); return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/goals/{id}/movements")
+    public List<com.jr.finance.api.saving.dto.SavingMovementResponse> movements(@PathVariable Long id, Authentication auth) {
+        return savingService.movements(userId(auth), id);
+    }
+
+    @PostMapping("/goals/{id}/withdrawals")
+    @Operation(summary = "Anotar retiro de una meta", description = "Reduce el ahorro informativo; no mueve dinero entre cuentas. Conserva el historial y exige versión vigente.")
+    public SavingGoalResponse withdraw(@PathVariable Long id, @Valid @RequestBody AddSavingMovementRequest req, Authentication auth) {
+        return savingGoalMapper.toResponse(savingService.withdraw(userId(auth), id, req));
+    }
+
+    private Long userId(Authentication auth) { return ((UserPrincipal) auth.getPrincipal()).getUser().getId(); }
+
     @Operation(
             summary = "Crear una meta de ahorro",
             description = "Crea una nueva meta de ahorro para el usuario autenticado."

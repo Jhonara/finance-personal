@@ -47,6 +47,16 @@ public class SavingGoal {
     )
     private User user;
 
+    @Column(length = 500)
+    private String description;
+
+    @Column(name = "target_date")
+    private java.time.LocalDate targetDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SavingGoalStatus status = SavingGoalStatus.ACTIVE;
+
     @Column(nullable = false, length = 100)
     @Schema(
             description = "Nombre de la meta de ahorro.",

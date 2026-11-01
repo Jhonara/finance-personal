@@ -33,6 +33,9 @@ public interface FinancialTransactionRepository extends JpaRepository<FinancialT
 
     boolean existsByReversalOfId(Long reversalOfId);
 
+    @Query("select t from FinancialTransaction t join fetch t.reversalOf r where r.id in :ids and t.user.id = :userId")
+    List<FinancialTransaction> findReversals(@Param("userId") Long userId, @Param("ids") List<Long> ids);
+
     @Query("""
             select case when count(transaction) > 0 then true else false end
             from FinancialTransaction transaction

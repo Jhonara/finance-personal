@@ -80,6 +80,7 @@ public class DashboardService {
         // Metas de ahorro
         List<SavingProgressResponse> savings = savingService.listGoals(userId)
                 .stream()
+                .filter(goal -> goal.getStatus() == com.jr.finance.api.saving.SavingGoalStatus.ACTIVE)
                 .map(goal -> new SavingProgressResponse(
                         goal.getId(),
                         goal.getName(),
@@ -98,8 +99,9 @@ public class DashboardService {
                 Collectors.reducing(BigDecimal.ZERO, DashboardAccountResponse::getBalance, BigDecimal::add)));
         var budgetItems = budgetService.list(userId, year, month);
         var alerts = alertService.buildAlerts(userId, year, month, false, budgetItems);
-        BigDecimal budgeted = budgetItems.stream().map(com.jr.finance.api.budget.dto.BudgetResponse::getLimitAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal budgetSpent = budgetItems.stream().map(com.jr.finance.api.budget.dto.BudgetResponse::getSpentAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        var budgetTotals = budgetTotals(budgetItems);
+        BigDecimal budgeted = budgetTotals.budgeted();
+        BigDecimal budgetSpent = budgetTotals.spent();
         var budgets = new DashboardBudgetSummary(budgetItems, budgeted, budgetSpent, budgeted.subtract(budgetSpent),
                 budgeted.signum() == 0 ? BigDecimal.ZERO : budgetSpent.multiply(BigDecimal.valueOf(100)).divide(budgeted, 2, java.math.RoundingMode.HALF_UP),
                 budgetItems.stream().filter(b -> b.getStatus() == BudgetStatus.WARNING).count(),
@@ -143,6 +145,43 @@ public class DashboardService {
                 null
         );
     }
+
+    private BudgetTotals budgetTotals(List<com.jr.finance.api.budget.dto.BudgetResponse> items) {
+        var byCategory = items.stream().collect(Collectors.toMap(
+                com.jr.finance.api.budget.dto.BudgetResponse::getCategoryId, item -> item));
+        var childrenByParent = items.stream().filter(item -> item.getParentCategoryId() != null)
+                .collect(Collectors.groupingBy(com.jr.finance.api.budget.dto.BudgetResponse::getParentCategoryId));
+        BigDecimal limit = BigDecimal.ZERO;
+        BigDecimal spent = BigDecimal.ZERO;
+        for (var item : items) {
+            if (item.getParentCategoryId() != null) continue;
+            var childItems = childrenByParent.getOrDefault(item.getCategoryId(), List.of());
+            if (!childItems.isEmpty()) {
+                if (byCategory.containsKey(item.getCategoryId())) {
+                    limit = limit.add(item.getLimitAmount());
+                    spent = spent.add(item.getSpentAmount());
+                } else {
+                    limit = limit.add(childItems.stream().map(com.jr.finance.api.budget.dto.BudgetResponse::getLimitAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add));
+                    spent = spent.add(childItems.stream().map(com.jr.finance.api.budget.dto.BudgetResponse::getSpentAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add));
+                }
+            } else {
+                limit = limit.add(item.getLimitAmount());
+                spent = spent.add(item.getSpentAmount());
+            }
+        }
+        for (var item : items) {
+            if (item.getParentCategoryId() != null
+                    && !byCategory.containsKey(item.getParentCategoryId())) {
+                limit = limit.add(item.getLimitAmount());
+                spent = spent.add(item.getSpentAmount());
+            }
+        }
+        return new BudgetTotals(limit, spent);
+    }
+
+    private record BudgetTotals(BigDecimal budgeted, BigDecimal spent) { }
 
     private List<DashboardRecentTransactionResponse> recentTransactions(Long userId, int year, int month) {
         YearMonth period = YearMonth.of(year, month);

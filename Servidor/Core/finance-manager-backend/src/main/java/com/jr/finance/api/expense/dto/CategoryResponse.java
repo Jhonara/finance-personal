@@ -31,6 +31,8 @@ public class CategoryResponse {
     private String colorKey;
 
     private CategoryType type;
+    private Long parentCategoryId;
+    private String parentCategoryName;
     private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

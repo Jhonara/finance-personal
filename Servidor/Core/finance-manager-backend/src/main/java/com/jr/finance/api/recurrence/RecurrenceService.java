@@ -1,6 +1,9 @@
 package com.jr.finance.api.recurrence;
 
 import com.jr.finance.api.account.AccountRepository;
+import com.jr.finance.api.credit.Credit;
+import com.jr.finance.api.credit.CreditRepository;
+import com.jr.finance.api.credit.CreditSnapshotService;
 import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.common.exception.*;
 import com.jr.finance.api.expense.CategoryRepository;
@@ -21,6 +24,8 @@ public class RecurrenceService {
     private final RecurringRuleRepository rules;
     private final RecurringOccurrenceRepository occurrences;
     private final AccountRepository accounts;
+    private final CreditRepository credits;
+    private final CreditSnapshotService creditSnapshots;
     private final CategoryRepository categories;
     private final RecurrenceWorker worker;
     private final EntityManager entityManager;
@@ -75,7 +80,25 @@ public class RecurrenceService {
         if (!account.isActive()) throw new BadRequestException("La cuenta está inactiva");
         var category = request.categoryId() == null ? null : categories.findByIdAndUserId(request.categoryId(), rule.getUser().getId())
                 .orElseThrow(() -> new NotFoundException("La categoría no existe"));
-        if (request.kind() == RecurrenceKind.EXPENSE && category == null)
+        Credit credit = null;
+        if (request.creditId() != null) {
+            if (request.kind() != RecurrenceKind.EXPENSE || request.frequency() != RecurrenceFrequency.MONTHLY)
+                throw new BadRequestException("Una cuota de crédito debe ser un gasto mensual");
+            if (request.categoryId() != null)
+                throw new BadRequestException("El pago de crédito no necesita una categoría de gasto");
+            credit = credits.findWithLockByIdAndUserId(request.creditId(), rule.getUser().getId())
+                    .orElseThrow(() -> new NotFoundException("El crédito no existe"));
+            if (!credit.getCurrency().equals(account.getCurrency()))
+                throw new BadRequestException("La moneda del crédito no coincide con la cuenta de pago");
+            if (creditSnapshots.snapshot(credit).remainingBalance().signum() <= 0)
+                throw new BadRequestException("El crédito ya está pagado");
+            boolean anotherActiveRule = rule.getId() == null
+                    ? rules.existsByUserIdAndCreditIdAndActiveTrue(rule.getUser().getId(), credit.getId())
+                    : rules.existsByUserIdAndCreditIdAndActiveTrueAndIdNot(rule.getUser().getId(), credit.getId(), rule.getId());
+            if (anotherActiveRule)
+                throw new ConflictException("Este crédito ya tiene una programación activa");
+        }
+        if (request.kind() == RecurrenceKind.EXPENSE && category == null && credit == null)
             throw new BadRequestException("Selecciona una categoría de gasto");
         if (category != null && (!category.isActive() || category.getType() !=
                 (request.kind() == RecurrenceKind.INCOME ? CategoryType.INCOME : CategoryType.EXPENSE)))
@@ -87,6 +110,7 @@ public class RecurrenceService {
         rule.setAmount(request.amount());
         rule.setAccount(account);
         rule.setCategory(category);
+        rule.setCredit(credit);
         rule.setCurrency(account.getCurrency());
         rule.setTimeZone(zone.getId());
         rule.setStartDate(request.startDate());
@@ -109,8 +133,15 @@ public class RecurrenceService {
         RecurringRule rule = worker.owned(userId, id);
         checkVersion(rule, request.version());
         if (request.active() && !rule.isActive()) {
+            if (rule.getCredit() != null && rules.existsByUserIdAndCreditIdAndActiveTrueAndIdNot(
+                    userId, rule.getCredit().getId(), rule.getId()))
+                throw new ConflictException("Este crédito ya tiene otra programación activa");
             rule.setNextDate(RecurrenceDates.onOrAfter(rule.getFrequency(), rule.getStartDate(),
                     rule.getFirstDay(), rule.getSecondDay(), worker.today(rule)));
+            // Today's occurrence may already be posted, pending or skipped. Resuming
+            // must advance past that snapshot instead of reviving an exhausted rule.
+            while (occurrences.findByRuleIdAndDueDate(id, rule.getNextDate()).isPresent())
+                rule.setNextDate(RecurrenceDates.next(rule, rule.getNextDate()));
             if (rule.getEndDate() != null && rule.getNextDate().isAfter(rule.getEndDate()))
                 throw new BadRequestException("La programación terminó. Edita la fecha de fin antes de reanudar.");
         }
@@ -133,7 +164,9 @@ public class RecurrenceService {
                 if (entries.stream().noneMatch(e -> e.ruleId().equals(rule.getId()) && e.dueDate().equals(due))) {
                     entries.add(new Entry(null, rule.getId(), rule.getName(), rule.getKind(), rule.getMode(), date,
                             rule.getAmount(), rule.getCurrency(), rule.getAccount().getId(), rule.getAccount().getName(),
-                            date.isAfter(worker.today(rule)) ? "PLANNED" : "PENDING", null, null, null));
+                            date.isAfter(worker.today(rule)) ? "PLANNED" : "PENDING", null, null, null,
+                            rule.getCredit() == null ? null : rule.getCredit().getId(),
+                            rule.getCredit() == null ? null : rule.getCredit().getName()));
                 }
                 date = RecurrenceDates.next(rule, date);
             }
@@ -200,14 +233,21 @@ public class RecurrenceService {
         return new Rule(r.getId(), r.getName(), r.getKind(), r.getFrequency(), r.getMode(), r.getAmount(),
                 r.getAccount().getId(), r.getAccount().getName(), r.getCategory() == null ? null : r.getCategory().getId(),
                 r.getCurrency(), r.getTimeZone(), r.getStartDate(), r.getEndDate(), r.getFirstDay(), r.getSecondDay(),
-                r.getNextDate(), r.isActive(), r.getVersion(), r.getRequestKey(), state(r));
+                r.getNextDate(), r.isActive(), r.getVersion(), r.getRequestKey(), state(r),
+                r.getCredit() == null ? null : r.getCredit().getId(),
+                r.getCredit() == null ? null : r.getCredit().getName());
     }
     private Entry entry(RecurringOccurrence o) {
-        boolean reversed = o.getTransaction() != null && o.getTransaction().getStatus() != FinancialTransactionStatus.POSTED;
+        var transaction = o.getCreditPayment() == null ? o.getTransaction() : o.getCreditPayment().getFinancialTransaction();
+        boolean reversed = o.getCreditPayment() != null
+                ? o.getCreditPayment().getStatus() != com.jr.finance.api.credit.CreditPaymentStatus.POSTED
+                : transaction != null && transaction.getStatus() != FinancialTransactionStatus.POSTED;
         return new Entry(o.getId(), o.getRule().getId(), o.getName(), o.getKind(), o.getRule().getMode(), o.getDueDate(),
                 o.getAmount(), o.getCurrency(), o.getAccount().getId(), o.getAccount().getName(),
                 reversed ? "REVERSED" : o.getStatus().name(), o.getIssue(),
-                o.getTransaction() == null ? null : o.getTransaction().getId(),
-                o.getTransaction() == null ? null : o.getTransaction().getEffectiveDate());
+                transaction == null ? null : transaction.getId(),
+                transaction == null ? null : transaction.getEffectiveDate(),
+                o.getCredit() == null ? null : o.getCredit().getId(),
+                o.getCredit() == null ? null : o.getCredit().getName());
     }
 }

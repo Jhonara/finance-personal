@@ -8,4 +8,4 @@ public record TransactionResponse(Long id, String type, String status, LocalDate
                                   String description, BigDecimal amount, String currency, Long categoryId,
                                   String categoryName, Long accountId, String accountName, Long sourceAccountId,
                                   String sourceAccountName, Long destinationAccountId, String destinationAccountName,
-                                  Long reversalOfId) { }
+                                  Long reversalOfId, Long reversalId, String originalType, String reversalReason, boolean reversible) { }

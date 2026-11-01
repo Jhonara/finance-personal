@@ -34,11 +34,24 @@ class RecurrencePreviewTest {
         assertThat(result.fullMonthTotal()).isNull();
         assertThat(result.months().getFirst().total()).isEqualByComparingTo("500");
         assertThat(result.months().get(1).total()).isEqualByComparingTo("400");
-        assertThatThrownBy(() -> RecurrencePreview.calculate(request(RecurrenceFrequency.BIWEEKLY,
-                AmountBasis.MONTHLY_TOTAL,"100","2026-10-02",null))).isInstanceOf(BadRequestException.class);
     }
-    @Test void refusesSilentRoundingOfAnIndivisibleTotal() {
-        assertThatThrownBy(() -> RecurrencePreview.calculate(request(RecurrenceFrequency.SEMIMONTHLY,
-                AmountBasis.MONTHLY_TOTAL,"100.01","2026-10-02",null))).isInstanceOf(BadRequestException.class);
+    @Test void dividesMonthlyTotalsAcrossWeeklyAndFortnightlyPaymentsUsingTheirAnnualAverage() {
+        var weekly = RecurrencePreview.calculate(request(RecurrenceFrequency.WEEKLY, AmountBasis.MONTHLY_TOTAL,
+                "4000000", "2026-10-02", null));
+        assertThat(weekly.amountPerPayment()).isEqualByComparingTo("923076.9231");
+        assertThat(weekly.fullMonthTotal()).isEqualByComparingTo("4000000");
+        assertThat(weekly.months().getFirst().total()).isEqualByComparingTo("4615384.6155");
+        assertThat(weekly.months().get(1).total()).isEqualByComparingTo("3692307.6924");
+
+        var fortnightly = RecurrencePreview.calculate(request(RecurrenceFrequency.BIWEEKLY,
+                AmountBasis.MONTHLY_TOTAL, "4000000", "2026-10-02", null));
+        assertThat(fortnightly.amountPerPayment()).isEqualByComparingTo("1846153.8462");
+        assertThat(fortnightly.fullMonthTotal()).isEqualByComparingTo("4000000");
+    }
+    @Test void dividesSemimonthlyTotalsWithoutLosingSupportedPrecision() {
+        var result = RecurrencePreview.calculate(request(RecurrenceFrequency.SEMIMONTHLY,
+                AmountBasis.MONTHLY_TOTAL, "100.01", "2026-10-02", null));
+        assertThat(result.amountPerPayment()).isEqualByComparingTo("50.0050");
+        assertThat(result.fullMonthTotal()).isEqualByComparingTo("100.01");
     }
 }

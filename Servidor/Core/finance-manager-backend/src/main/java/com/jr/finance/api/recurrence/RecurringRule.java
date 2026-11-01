@@ -1,6 +1,7 @@
 package com.jr.finance.api.recurrence;
 
 import com.jr.finance.api.account.Account;
+import com.jr.finance.api.credit.Credit;
 import com.jr.finance.api.expense.Category;
 import com.jr.finance.api.user.User;
 import jakarta.persistence.*;
@@ -24,6 +25,7 @@ public class RecurringRule {
     @Column(nullable = false, precision = 19, scale = 4) private BigDecimal amount;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "account_id") private Account account;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "category_id") private Category category;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "credit_id") private Credit credit;
     @Column(nullable = false, length = 3) private String currency;
     @Column(nullable = false, length = 64) private String timeZone;
     @Column(nullable = false) private LocalDate startDate;

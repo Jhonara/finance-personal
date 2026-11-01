@@ -19,8 +19,8 @@ import java.time.LocalDateTime;
         name = "categories",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_category_user_type_name",
-                        columnNames = {"user_id", "type", "name"}
+                        name = "uk_categories_id_user_type",
+                        columnNames = {"id", "user_id", "type"}
                 )
         }
 )
@@ -59,6 +59,10 @@ public class Category {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private CategoryType type = CategoryType.EXPENSE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_category_id")
+    private Category parentCategory;
 
     @Column(nullable = false)
     private boolean active = true;

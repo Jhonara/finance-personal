@@ -23,6 +23,11 @@ public class SavingGoalResponse {
             example = "Comprar moto"
     )
     private String name;
+    private String description;
+    private java.time.LocalDate targetDate;
+    private com.jr.finance.api.saving.SavingGoalStatus status;
+    private Long version;
+
 
     @Schema(description = "Moneda de la meta. Es null en metas creadas antes de guardar la moneda.", nullable = true)
     private String currency;

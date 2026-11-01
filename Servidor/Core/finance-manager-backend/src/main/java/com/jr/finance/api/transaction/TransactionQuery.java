@@ -7,15 +7,24 @@ import java.time.LocalDate;
 public record TransactionQuery(LocalDate from, LocalDate to, Integer year, Integer month, Long accountId,
                                Long categoryId, FinancialTransactionType type, FinancialTransactionStatus status,
                                int page, int size, String currency, boolean expenseReport, String reportCategory,
-                               String searchText) {
+                               String searchText, FinancialTransactionType reportType, Long reportCategoryId) {
     public TransactionQuery(LocalDate from, LocalDate to, Integer year, Integer month, Long accountId,
                             Long categoryId, FinancialTransactionType type, FinancialTransactionStatus status,
                             int page, int size, String currency, boolean expenseReport, String reportCategory) {
-        this(from, to, year, month, accountId, categoryId, type, status, page, size, currency, expenseReport, reportCategory, null);
+        this(from, to, year, month, accountId, categoryId, type, status, page, size, currency, expenseReport,
+                reportCategory, null, null, null);
+    }
+    public TransactionQuery(LocalDate from, LocalDate to, Integer year, Integer month, Long accountId,
+                            Long categoryId, FinancialTransactionType type, FinancialTransactionStatus status,
+                            int page, int size, String currency, boolean expenseReport, String reportCategory,
+                            String searchText) {
+        this(from, to, year, month, accountId, categoryId, type, status, page, size, currency, expenseReport,
+                reportCategory, searchText, null, null);
     }
     public TransactionQuery(LocalDate from, LocalDate to, Integer year, Integer month, Long accountId,
                             Long categoryId, FinancialTransactionType type, FinancialTransactionStatus status,
                             int page, int size) {
-        this(from, to, year, month, accountId, categoryId, type, status, page, size, null, false, null);
+        this(from, to, year, month, accountId, categoryId, type, status, page, size, null, false, null,
+                null, null, null);
     }
 }

@@ -56,6 +56,33 @@ final class TransactionSpecifications {
                     predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(name, query.reportCategory()));
                 }
             }
+            if (query.reportType() != null) {
+                var original = root.join("reversalOf", JoinType.LEFT);
+                var reversal = criteriaBuilder.equal(root.get("type"), FinancialTransactionType.REVERSAL);
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.notEqual(root.get("status"), FinancialTransactionStatus.VOIDED),
+                        criteriaBuilder.or(criteriaBuilder.equal(root.get("type"), query.reportType()),
+                                criteriaBuilder.and(reversal, criteriaBuilder.equal(original.get("type"), query.reportType()))));
+                if (query.reportCategoryId() == null && "Sin categoría".equals(query.reportCategory())) {
+                    var category = root.join("category", JoinType.LEFT);
+                    var originalCategory = original.join("category", JoinType.LEFT);
+                    predicate = criteriaBuilder.and(predicate, criteriaBuilder.or(
+                            criteriaBuilder.and(criteriaBuilder.not(reversal), criteriaBuilder.isNull(category.get("id"))),
+                            criteriaBuilder.and(reversal, criteriaBuilder.isNull(originalCategory.get("id")))));
+                } else if (query.reportCategoryId() != null) {
+                    var category = root.join("category", JoinType.LEFT);
+                    var categoryParent = category.join("parentCategory", JoinType.LEFT);
+                    var originalCategory = original.join("category", JoinType.LEFT);
+                    var originalCategoryParent = originalCategory.join("parentCategory", JoinType.LEFT);
+                    var ownMatch = criteriaBuilder.or(criteriaBuilder.equal(category.get("id"), query.reportCategoryId()),
+                            criteriaBuilder.equal(categoryParent.get("id"), query.reportCategoryId()));
+                    var originalMatch = criteriaBuilder.or(criteriaBuilder.equal(originalCategory.get("id"), query.reportCategoryId()),
+                            criteriaBuilder.equal(originalCategoryParent.get("id"), query.reportCategoryId()));
+                    predicate = criteriaBuilder.and(predicate, criteriaBuilder.or(
+                            criteriaBuilder.and(criteriaBuilder.not(reversal), ownMatch),
+                            criteriaBuilder.and(reversal, originalMatch)));
+                }
+            }
             if (query.from() != null) predicate = criteriaBuilder.and(predicate, criteriaBuilder.greaterThanOrEqualTo(root.get("effectiveDate"), query.from()));
             if (query.to() != null) predicate = criteriaBuilder.and(predicate, criteriaBuilder.lessThanOrEqualTo(root.get("effectiveDate"), query.to()));
             if (query.type() != null) predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("type"), query.type()));

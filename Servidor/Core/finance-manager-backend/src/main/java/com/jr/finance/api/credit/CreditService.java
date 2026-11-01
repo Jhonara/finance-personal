@@ -6,6 +6,7 @@ import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
 import com.jr.finance.api.ledger.LedgerService;
 import com.jr.finance.api.ledger.FinancialTransactionType;
+import com.jr.finance.api.recurrence.RecurringRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ public class CreditService {
     private final UserRepository userRepository;
     private final LedgerService ledgerService;
     private final CreditPaymentRepository creditPayments;
+    private final RecurringRuleRepository recurringRules;
 
     @org.springframework.transaction.annotation.Transactional
     public Credit create(Long userId, CreateCreditRequest req) {
@@ -144,6 +146,8 @@ public class CreditService {
                 .orElseThrow(() -> new NotFoundException("El crédito no existe"));
         if (credit.getDisbursementTransaction() != null || creditPayments.existsByCreditId(id))
             throw new com.jr.finance.api.common.exception.BadRequestException("No puedes eliminar un crédito con historial de pagos o desembolso vinculado");
+        if (recurringRules.existsByCreditId(id))
+            throw new com.jr.finance.api.common.exception.BadRequestException("Desvincula primero la programación de la cuota antes de eliminar este crédito");
         creditRepository.delete(credit);
     }
 

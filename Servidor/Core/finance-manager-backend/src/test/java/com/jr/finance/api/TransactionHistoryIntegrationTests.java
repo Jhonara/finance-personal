@@ -25,13 +25,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@org.springframework.transaction.annotation.Transactional
 class TransactionHistoryIntegrationTests {
     @Autowired MockMvc mvc; @Autowired JwtService jwt; @Autowired PasswordEncoder encoder;
     @Autowired UserRepository users; @Autowired RoleRepository roles; @Autowired AccountRepository accounts;
     @Autowired CategoryRepository categories; @Autowired FinancialTransactionRepository transactions;
     @Autowired LedgerEntryRepository entries; @Autowired LedgerService ledger; @Autowired TransferService transfers;
 
-    @BeforeEach void clean() { entries.deleteAll(); transactions.deleteAll(); categories.deleteAll(); accounts.deleteAll(); users.deleteAll(); roles.deleteAll(); }
+    // Tests roll back their own fixtures instead of erasing another suite's data.
 
     @Test void paginatesFiltersAndKeepsTransfersAsOneLogicalRow() throws Exception {
         User user = user(); Account source = account(user, "Source"); Account destination = account(user, "Destination"); Category food = category(user, "Food");

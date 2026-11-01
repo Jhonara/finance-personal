@@ -22,12 +22,18 @@ public final class RecurrencePreview {
             throw new BadRequestException("El primer día debe estar entre 1 y 27 y el segundo debe ser posterior");
         BigDecimal payment = request.amount();
         if (request.amountBasis() == AmountBasis.MONTHLY_TOTAL) {
-            if (!monthly && !twice)
-                throw new BadRequestException("Para semanas o cada 14 días, indica el importe por pago: las fechas varían cada mes");
+            int paymentsPerYear = switch (request.frequency()) {
+                case MONTHLY -> 12;
+                case SEMIMONTHLY -> 24;
+                case WEEKLY -> 52;
+                case BIWEEKLY -> 26;
+            };
             try {
-                payment = payment.divide(BigDecimal.valueOf(twice ? 2 : 1), 2, RoundingMode.UNNECESSARY);
+                payment = request.amount().multiply(BigDecimal.valueOf(12))
+                        .divide(BigDecimal.valueOf(paymentsPerYear), 4,
+                                monthly || twice ? RoundingMode.UNNECESSARY : RoundingMode.HALF_UP);
             } catch (ArithmeticException exception) {
-                throw new BadRequestException("El total debe dividirse en pagos iguales con hasta dos decimales. Ajusta el total o elige Por pago");
+                throw new BadRequestException("El total mensual debe repartirse en pagos iguales con hasta cuatro decimales");
             }
         }
         List<PreviewMonth> months = new ArrayList<>();
@@ -44,6 +50,9 @@ public final class RecurrencePreview {
             }
             months.add(new PreviewMonth(month.atDay(1), dates, payment.multiply(BigDecimal.valueOf(dates.size()))));
         }
-        return new Preview(payment, monthly || twice ? payment.multiply(BigDecimal.valueOf(twice ? 2 : 1)) : null, months);
+        BigDecimal fullMonthTotal = request.amountBasis() == AmountBasis.MONTHLY_TOTAL
+                ? request.amount()
+                : monthly || twice ? payment.multiply(BigDecimal.valueOf(twice ? 2 : 1)) : null;
+        return new Preview(payment, fullMonthTotal, months);
     }
 }

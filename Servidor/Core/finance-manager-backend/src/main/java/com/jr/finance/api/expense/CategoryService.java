@@ -4,6 +4,8 @@ import com.jr.finance.api.common.exception.ConflictException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.expense.dto.UpdateCategoryRequest;
+import org.springframework.dao.DataIntegrityViolationException;
+import com.jr.finance.api.expense.CategoryType;
 import com.jr.finance.api.user.User;
 import com.jr.finance.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,12 @@ public class CategoryService {
 
     @Transactional
     public Category create(Long userId, String name, CategoryType type, String iconKey, String colorKey) {
+        return create(userId, name, type, iconKey, colorKey, null);
+    }
+
+    @Transactional
+    public Category create(Long userId, String name, CategoryType type, String iconKey, String colorKey,
+                           Long parentCategoryId) {
 
         log.info("Creando categoría '{}' para el usuario {}.", name, userId);
 
@@ -33,9 +41,10 @@ public class CategoryService {
                 });
 
         String normalizedName = normalizeName(name);
-        if (categoryRepository.existsByUserIdAndTypeAndNameIgnoreCase(userId, type, normalizedName)) {
+        Category parent = resolveParent(userId, type, parentCategoryId, null);
+        if (nameExists(userId, type, parent, normalizedName, null)) {
             log.warn("El usuario {} intentó crear una categoría duplicada: {}.", userId, name);
-            throw new ConflictException("Ya existe una categoría con ese nombre");
+            throw new ConflictException("Ya existe una categoría hermana con ese nombre");
         }
 
         Category category = new Category();
@@ -45,8 +54,14 @@ public class CategoryService {
         category.setIconKey(normalizeVisualKey(iconKey, 40));
         category.setColorKey(normalizeVisualKey(colorKey, 24));
         category.setUser(user);
+        category.setParentCategory(parent);
 
-        Category savedCategory = categoryRepository.save(category);
+        Category savedCategory;
+        try {
+            savedCategory = categoryRepository.saveAndFlush(category);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException("Ya existe una categoría hermana con ese nombre");
+        }
 
         log.info("Categoría {} creada correctamente para el usuario {}.",
                 savedCategory.getId(),
@@ -67,7 +82,7 @@ public class CategoryService {
     }
 
     public Category get(Long userId, Long categoryId) {
-        return categoryRepository.findByIdAndUserId(categoryId, userId)
+        return categoryRepository.findWithParentByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new NotFoundException("La categoría no existe"));
     }
 
@@ -77,6 +92,9 @@ public class CategoryService {
         log.info("Desactivando categoría {} del usuario {}.", categoryId, userId);
 
         Category category = get(userId, categoryId);
+        if (categoryRepository.existsByParentCategoryIdAndUserIdAndActiveTrue(categoryId, userId)) {
+            throw new ConflictException("Reasigna o desactiva primero las subcategorías activas");
+        }
         category.setActive(false);
         categoryRepository.saveAndFlush(category);
 
@@ -89,22 +107,79 @@ public class CategoryService {
         if (!category.getVersion().equals(request.getVersion())) {
             throw new ConflictException("La categoría fue modificada por otra operación. Intenta nuevamente.");
         }
-        if (request.getName() == null && request.getActive() == null && request.getIconKey() == null && request.getColorKey() == null) {
+        if (request.getName() == null && request.getActive() == null && request.getIconKey() == null
+                && request.getColorKey() == null && request.getParentCategoryId() == null
+                && !Boolean.TRUE.equals(request.getClearParent())) {
             throw new BadRequestException("Debes enviar al menos un campo editable");
+        }
+        Category destination = category.getParentCategory();
+        if (Boolean.TRUE.equals(request.getClearParent())) {
+            destination = null;
+        } else if (request.getParentCategoryId() != null) {
+            destination = resolveParent(userId, category.getType(), request.getParentCategoryId(), categoryId);
         }
         if (request.getName() != null) {
             String normalizedName = normalizeName(request.getName());
-            if (categoryRepository.existsByUserIdAndTypeAndNameIgnoreCaseAndIdNot(userId, category.getType(), normalizedName, categoryId)) {
-                throw new ConflictException("Ya existe una categoría con ese nombre y tipo");
+            if (nameExists(userId, category.getType(), destination, normalizedName, categoryId)) {
+                throw new ConflictException("Ya existe una categoría hermana con ese nombre");
             }
             category.setName(normalizedName);
+        } else if ((Boolean.TRUE.equals(request.getClearParent()) || request.getParentCategoryId() != null)
+                && nameExists(userId, category.getType(), destination, category.getName(), categoryId)) {
+            throw new ConflictException("Ya existe una categoría hermana con ese nombre");
+        }
+        if (destination != category.getParentCategory()) {
+            if (categoryRepository.existsByParentCategoryIdAndUserId(categoryId, userId)) {
+                throw new BadRequestException("Una categoría con subcategorías no puede convertirse en subcategoría");
+            }
+            category.setParentCategory(destination);
         }
         if (request.getActive() != null) {
+            if (request.getActive() && destination != null && !destination.isActive()) {
+                throw new BadRequestException("Activa primero la categoría padre");
+            }
+            if (!request.getActive() && categoryRepository.existsByParentCategoryIdAndUserIdAndActiveTrue(categoryId, userId)) {
+                throw new ConflictException("Reasigna o desactiva primero las subcategorías activas");
+            }
             category.setActive(request.getActive());
         }
         if (request.getIconKey() != null) category.setIconKey(normalizeVisualKey(request.getIconKey(), 40));
         if (request.getColorKey() != null) category.setColorKey(normalizeVisualKey(request.getColorKey(), 24));
-        return categoryRepository.saveAndFlush(category);
+        try {
+            return categoryRepository.saveAndFlush(category);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException("Ya existe una categoría hermana con ese nombre");
+        }
+    }
+
+    private Category resolveParent(Long userId, CategoryType type, Long parentCategoryId, Long categoryId) {
+        if (parentCategoryId == null) return null;
+        if (parentCategoryId.equals(categoryId)) {
+            throw new BadRequestException("Una categoría no puede ser su propio padre");
+        }
+        Category parent = categoryRepository.findWithParentByIdAndUserId(parentCategoryId, userId)
+                .orElseThrow(() -> new NotFoundException("La categoría padre no existe"));
+        if (parent.getType() != type) {
+            throw new BadRequestException("La categoría padre debe ser del mismo tipo");
+        }
+        if (!parent.isActive()) {
+            throw new BadRequestException("La categoría padre está inactiva");
+        }
+        if (parent.getParentCategory() != null) {
+            throw new BadRequestException("Solo se permiten categorías padre y subcategorías");
+        }
+        return parent;
+    }
+
+    private boolean nameExists(Long userId, CategoryType type, Category parent, String name, Long excludingId) {
+        if (parent == null) {
+            return excludingId == null
+                    ? categoryRepository.existsByUserIdAndTypeAndParentCategoryIsNullAndNameIgnoreCase(userId, type, name)
+                    : categoryRepository.existsByUserIdAndTypeAndParentCategoryIsNullAndNameIgnoreCaseAndIdNot(userId, type, name, excludingId);
+        }
+        return excludingId == null
+                ? categoryRepository.existsByUserIdAndTypeAndParentCategoryIdAndNameIgnoreCase(userId, type, parent.getId(), name)
+                : categoryRepository.existsByUserIdAndTypeAndParentCategoryIdAndNameIgnoreCaseAndIdNot(userId, type, parent.getId(), name, excludingId);
     }
 
     private String normalizeVisualKey(String value, int maxLength) {

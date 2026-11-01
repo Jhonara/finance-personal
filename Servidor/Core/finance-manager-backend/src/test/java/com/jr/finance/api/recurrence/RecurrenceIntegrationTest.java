@@ -49,6 +49,8 @@ class RecurrenceIntegrationTest {
     @Autowired RoleRepository roles;
     @Autowired AccountRepository accounts;
     @Autowired CategoryRepository categories;
+    @Autowired com.jr.finance.api.credit.CreditService creditService;
+    @Autowired com.jr.finance.api.credit.CreditPaymentRepository creditPaymentRepository;
     @Autowired LedgerService ledger;
     @Autowired IncomeService incomes;
     @Autowired ExpenseService expenses;
@@ -77,7 +79,7 @@ class RecurrenceIntegrationTest {
     SaveRule request(RecurrenceKind kind, RecurrenceMode mode, LocalDate start) {
         return new SaveRule("Salario o servicio", kind, RecurrenceFrequency.MONTHLY, mode, new BigDecimal("100"),
                 account.getId(), kind == RecurrenceKind.EXPENSE ? category.getId() : null, "America/Bogota",
-                start, null, start.getDayOfMonth(), null, UUID.randomUUID().toString(), null);
+                start, null, start.getDayOfMonth(), null, null, UUID.randomUUID().toString(), null);
     }
     @Test void futureDoesNotAffectBalancesOrReportsAndDueIsPostedOnlyOnce() {
         var request = request(RecurrenceKind.INCOME, RecurrenceMode.AUTOMATIC, today.plusDays(1));
@@ -112,6 +114,48 @@ class RecurrenceIntegrationTest {
         assertThat(service.confirm(user.getId(), rule.id(), today, confirmation).transactionId()).isEqualTo(entry.transactionId());
         assertThat(expenses.totalByPeriod(user.getId(), today, today.withDayOfMonth(31))).isZero();
         assertThat(expenses.totalByPeriod(user.getId(), confirmation.date(), confirmation.date())).isEqualByComparingTo("120");
+    }
+    @Test void linkedCreditRecurrencePostsOneCreditPaymentAndOneCashMovement() {
+        clock.now = Instant.parse("2026-10-29T15:00:00Z");
+        LocalDate due = LocalDate.of(2026, 10, 29);
+        ledger.recordOpeningBalance(user.getId(), account.getId(),
+                new FinancialOperationCommand(new BigDecimal("100000"), due.minusDays(1), "Saldo inicial", null, null));
+        var creditRequest = new com.jr.finance.api.credit.dto.CreateCreditRequest();
+        creditRequest.setName("Crédito de prueba");
+        creditRequest.setPrincipal(new BigDecimal("1000000"));
+        creditRequest.setAnnualRate(BigDecimal.ZERO);
+        creditRequest.setTermMonths(12);
+        creditRequest.setDisbursementDate(due.minusMonths(1));
+        creditRequest.setPaymentDay(due.getDayOfMonth());
+        creditRequest.setCurrency("COP");
+        var credit = creditService.create(user.getId(), creditRequest);
+        var linked = new SaveRule("Cuota de crédito de prueba", RecurrenceKind.EXPENSE,
+                RecurrenceFrequency.MONTHLY, RecurrenceMode.AUTOMATIC, new BigDecimal("50000"),
+                account.getId(), null, "America/Bogota", due, null, due.getDayOfMonth(), null,
+                credit.getId(), UUID.randomUUID().toString(), null);
+
+        var rule = service.create(user.getId(), linked);
+        var entry = service.agenda(user.getId(), due.getYear(), due.getMonthValue()).entries().stream()
+                .filter(item -> item.ruleId().equals(rule.id())).findFirst().orElseThrow();
+
+        assertThat(entry.status()).isEqualTo("POSTED");
+        assertThat(entry.creditId()).isEqualTo(credit.getId());
+        assertThat(entry.transactionId()).isNotNull();
+        assertThat(ledger.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("50000");
+        assertThat(creditPaymentRepository.findByCreditIdOrderByPaymentDateAsc(credit.getId()))
+                .singleElement().satisfies(payment -> {
+                    assertThat(payment.getTotalAmount()).isEqualByComparingTo("50000");
+                    assertThat(payment.getPrincipalAmount()).isEqualByComparingTo("50000");
+                });
+        assertThat(expenses.totalByPeriod(user.getId(), due, due)).isZero();
+
+        var duplicate = new SaveRule("Otra cuota", RecurrenceKind.EXPENSE, RecurrenceFrequency.MONTHLY,
+                RecurrenceMode.CONFIRM, new BigDecimal("50000"), account.getId(), null,
+                "America/Bogota", due.plusMonths(1), null, due.getDayOfMonth(), null,
+                credit.getId(), UUID.randomUUID().toString(), null);
+        assertThatThrownBy(() -> service.create(user.getId(), duplicate))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("Este crédito ya tiene una programación activa");
     }
     @Test void failuresStayPendingAndDoNotPoisonOtherRules() {
         var rule = service.create(user.getId(), request(RecurrenceKind.EXPENSE, RecurrenceMode.AUTOMATIC, today));
@@ -153,6 +197,38 @@ class RecurrenceIntegrationTest {
         assertThat(service.agenda(user.getId(), 2026, 10).entries().getFirst().status()).isEqualTo("REVERSED");
         assertThat(ledger.getAccountBalance(user.getId(), account.getId())).isZero();
     }
+    @Test void completedLastPaymentCannotBeResumedAgainOnItsDueDate() {
+        var base = request(RecurrenceKind.INCOME, RecurrenceMode.AUTOMATIC, today);
+        var finished = service.create(user.getId(), new SaveRule(base.name(), base.kind(), base.frequency(), base.mode(),
+                base.amount(), base.accountId(), null, base.timeZone(), today, today,
+                today.getDayOfMonth(), null, null, base.requestKey(), null));
+        assertThat(finished.state()).isEqualTo("FINISHED");
+        assertThat(finished.active()).isFalse();
+        assertThatThrownBy(() -> service.setActive(user.getId(), finished.id(), new SetActive(true, finished.version())))
+                .isInstanceOf(BadRequestException.class).hasMessageContaining("terminó");
+        assertThat(service.list(user.getId()).getFirst().state()).isEqualTo("FINISHED");
+        assertThat(service.agenda(user.getId(), 2026, 10).entries()).singleElement()
+                .satisfies(entry -> assertThat(entry.status()).isEqualTo("POSTED"));
+        assertThat(ledger.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("100");
+    }
+    @Test void resumingOnAnAlreadyPostedDueDateUsesTheNextUnprocessedDate() {
+        var rule = service.create(user.getId(), request(RecurrenceKind.INCOME, RecurrenceMode.AUTOMATIC, today));
+        var paused = service.setActive(user.getId(), rule.id(), new SetActive(false, rule.version()));
+        var resumed = service.setActive(user.getId(), rule.id(), new SetActive(true, paused.version()));
+        assertThat(resumed.nextDate()).isEqualTo(today.plusMonths(1));
+        worker.process(rule.id());
+        assertThat(ledger.getAccountBalance(user.getId(), account.getId())).isEqualByComparingTo("100");
+        assertThat(service.agenda(user.getId(), 2026, 10).entries()).hasSize(1);
+    }
+    @Test void resumingKeepsAPendingSnapshotAndAdvancesTheRule() {
+        var rule = service.create(user.getId(), request(RecurrenceKind.EXPENSE, RecurrenceMode.CONFIRM, today));
+        var paused = service.setActive(user.getId(), rule.id(), new SetActive(false, rule.version()));
+        var resumed = service.setActive(user.getId(), rule.id(), new SetActive(true, paused.version()));
+        assertThat(resumed.nextDate()).isEqualTo(today.plusMonths(1));
+        assertThat(service.agenda(user.getId(), 2026, 10).entries()).singleElement()
+                .satisfies(entry -> assertThat(entry.status()).isEqualTo("PENDING"));
+        assertThat(ledger.getAccountBalance(user.getId(), account.getId())).isZero();
+    }
     @Test void concurrentSchedulerAndConfirmationDoNotDuplicateMoney() throws Exception {
         var rule = service.create(user.getId(), request(RecurrenceKind.INCOME, RecurrenceMode.CONFIRM, today));
         try (var pool = Executors.newFixedThreadPool(4)) {
@@ -177,7 +253,7 @@ class RecurrenceIntegrationTest {
         var base = request(RecurrenceKind.INCOME, RecurrenceMode.AUTOMATIC, today.plusDays(1));
         var request = new SaveRule(base.name(), base.kind(), base.frequency(), base.mode(), base.amount(),
                 base.accountId(), null, base.timeZone(), base.startDate(), LocalDate.of(2026, 11, 21),
-                21, null, base.requestKey(), null);
+                21, null, null, base.requestKey(), null);
         var rule = service.create(user.getId(), request);
         clock.now = Instant.parse("2027-02-01T15:00:00Z");
         worker.process(rule.id()); worker.process(rule.id());
@@ -191,7 +267,7 @@ class RecurrenceIntegrationTest {
         var rule = service.create(user.getId(), request(RecurrenceKind.EXPENSE, RecurrenceMode.CONFIRM, today));
         var updated = service.update(user.getId(), rule.id(), new SaveRule("Nuevo importe", rule.kind(), rule.frequency(),
                 rule.mode(), new BigDecimal("150"), rule.accountId(), rule.categoryId(), rule.timeZone(),
-                today.plusMonths(1), null, 20, null, rule.requestKey(), rule.version()));
+                today.plusMonths(1), null, 20, null, null, rule.requestKey(), rule.version()));
         var original = service.agenda(user.getId(), 2026, 10).entries().getFirst();
         assertThat(original.amount()).isEqualByComparingTo("100");
         assertThat(original.name()).isEqualTo(rule.name());
@@ -230,7 +306,7 @@ class RecurrenceIntegrationTest {
         var base = request(RecurrenceKind.INCOME, RecurrenceMode.CONFIRM, today.plusDays(1));
         var rule = service.create(user.getId(), new SaveRule(base.name(), base.kind(), base.frequency(), base.mode(),
                 base.amount(), base.accountId(), null, base.timeZone(), base.startDate(), today.plusDays(1),
-                21, null, base.requestKey(), null));
+                21, null, null, base.requestKey(), null));
         var paused = service.setActive(user.getId(), rule.id(), new SetActive(false, rule.version()));
         assertThat(paused.state()).isEqualTo("PAUSED");
         clock.now = Instant.parse("2026-10-22T15:00:00Z");
@@ -240,7 +316,7 @@ class RecurrenceIntegrationTest {
                 .isInstanceOf(BadRequestException.class);
         var edited = service.update(user.getId(), rule.id(), new SaveRule(base.name(), base.kind(), base.frequency(), base.mode(),
                 base.amount(), base.accountId(), null, base.timeZone(), today.plusDays(2), null,
-                21, null, base.requestKey(), finished.version()));
+                21, null, null, base.requestKey(), finished.version()));
         assertThat(edited.state()).isEqualTo("PAUSED");
         assertThat(service.setActive(user.getId(), rule.id(), new SetActive(true, edited.version())).state()).isEqualTo("ACTIVE");
     }

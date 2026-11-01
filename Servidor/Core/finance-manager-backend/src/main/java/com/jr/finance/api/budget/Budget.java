@@ -44,6 +44,9 @@ public class Budget {
     @Column(name = "limit_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal limitAmount;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -16,6 +16,8 @@ public class CategoryMapper {
                 category.getIconKey(),
                 category.getColorKey(),
                 category.getType(),
+                category.getParentCategory() == null ? null : category.getParentCategory().getId(),
+                category.getParentCategory() == null ? null : category.getParentCategory().getName(),
                 category.isActive(),
                 category.getCreatedAt(),
                 category.getUpdatedAt(),

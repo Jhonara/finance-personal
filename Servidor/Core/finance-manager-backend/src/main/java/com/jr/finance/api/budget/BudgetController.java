@@ -37,8 +37,9 @@ public class BudgetController {
     @Operation(summary = "Listar presupuestos", description = "Permite filtrar por año y mes. spent, remaining, percentage y status se calculan al consultar.")
     public List<BudgetResponse> list(@RequestParam(required = false) Integer year,
                                      @RequestParam(required = false) Integer month,
+                                     @RequestParam(defaultValue = "false") boolean includeInactive,
                                      Authentication authentication) {
-        return budgetService.list(userId(authentication), year, month);
+        return budgetService.list(userId(authentication), year, month, includeInactive);
     }
 
     @GetMapping("/{id}")
@@ -53,6 +54,18 @@ public class BudgetController {
     public BudgetResponse update(@PathVariable Long id, @Valid @RequestBody UpdateBudgetRequest request,
                                  Authentication authentication) {
         return budgetService.update(userId(authentication), id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Desactivar un presupuesto", description = "Conserva el presupuesto, su límite, categorías y movimientos. Excluye su límite del plan activo. Se puede reactivar; no desactiva subcategorías.")
+    public ResponseEntity<Void> deactivate(@PathVariable Long id, @RequestParam Long version, Authentication authentication) {
+        budgetService.changeActive(userId(authentication), id, false, version);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/state")
+    public BudgetResponse state(@PathVariable Long id, @Valid @RequestBody com.jr.finance.api.budget.dto.BudgetStateRequest request, Authentication authentication) {
+        return budgetService.changeActive(userId(authentication), id, request.active(), request.version());
     }
 
     private Long userId(Authentication authentication) {

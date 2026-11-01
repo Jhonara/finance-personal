@@ -7,7 +7,7 @@ Backend REST de Finance Personal, construido con Spring Boot, Maven y Java 21.
 - JDK 21.
 - No requiere una instalación global de Maven: el proyecto incluye Maven Wrapper.
 - PostgreSQL para ejecutar la aplicación localmente.
-- Docker Desktop activo para las pruebas de integración con PostgreSQL temporal.
+- Docker Desktop activo o un clúster PostgreSQL temporal aislado para las pruebas de integración.
 
 ## Ejecutar localmente
 
@@ -60,7 +60,15 @@ Flyway tiene la limpieza deshabilitada permanentemente. Nunca ejecutes `flyway c
 
 En macOS/Linux, sustituye `mvnw.cmd` por `./mvnw`.
 
-El perfil `test` mantiene H2 para pruebas rápidas de aplicación. Las pruebas de esquema usan Testcontainers con PostgreSQL 16 temporal, ejecutan Flyway y validan JPA; no se conectan ni modifican PostgreSQL local. Para el cierre de calidad del proyecto Docker debe estar disponible: la suite exige cero pruebas omitidas.
+El perfil `test` mantiene H2 para pruebas rápidas de aplicación. Las pruebas de esquema usan por defecto Testcontainers con PostgreSQL 16 temporal, ejecutan Flyway y validan JPA; no se conectan ni modifican la base personal. La suite exige cero pruebas omitidas y también admite el clúster temporal aislado descrito a continuación.
+
+Si Docker no puede arrancar, las mismas pruebas PostgreSQL también admiten un clúster temporal creado con `initdb`, escuchando solo en `127.0.0.1` y en un puerto distinto de 5432. Debe tener un rol cuyo nombre comience por `finance_test`. Por ejemplo, con un clúster de pruebas ya iniciado en 55432:
+
+```powershell
+.\mvnw.cmd "-Dfinance.test.postgres.adminUrl=jdbc:postgresql://127.0.0.1:55432/postgres" "-Dfinance.test.postgres.username=finance_test" verify
+```
+
+El soporte de pruebas crea una base con nombre aleatorio para cada clase y la elimina al terminar. Rechaza conexiones que no sean de loopback, el puerto 5432 y roles habituales como `postgres`; esta opción es exclusivamente para un clúster de pruebas separado. Sin esas propiedades se mantiene Testcontainers como opción predeterminada.
 
 ## Configuración futura por entorno
 

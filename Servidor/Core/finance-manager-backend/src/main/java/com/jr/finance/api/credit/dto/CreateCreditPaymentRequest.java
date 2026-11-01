@@ -22,6 +22,8 @@ public class CreateCreditPaymentRequest {
     )
     @NotNull(message = "El monto del pago es obligatorio")
     @Positive(message = "El monto del pago debe ser mayor que 0")
+    @jakarta.validation.constraints.Digits(integer = 15, fraction = 2,
+            message = "El pago admite hasta 15 dígitos enteros y 2 decimales")
     private BigDecimal amount;
 
     @Schema(
@@ -37,6 +39,8 @@ public class CreateCreditPaymentRequest {
             nullable = true
     )
     @PositiveOrZero(message = "El abono extra no puede ser negativo")
+    @jakarta.validation.constraints.Digits(integer = 15, fraction = 2,
+            message = "El abono extra admite hasta 15 dígitos enteros y 2 decimales")
     private BigDecimal extraPrincipalAmount;
     @Schema(description = "Cuenta opcional desde la que salió el efectivo. Si se envía crea CREDIT_PAYMENT en el ledger.", example = "1")
     private Long accountId;

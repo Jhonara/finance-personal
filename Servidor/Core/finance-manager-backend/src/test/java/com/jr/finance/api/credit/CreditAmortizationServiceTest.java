@@ -44,4 +44,47 @@ class CreditAmortizationServiceTest {
         assertThat(schedule.getLast().getEndingBalance()).isEqualByComparingTo("0.00");
         assertThat(schedule).allSatisfy(row -> assertThat(row.getEndingBalance()).isNotNegative());
     }
+
+    @Test
+    void earlyPayoffCapsExtraAtOutstandingPrincipalWithoutInventingInterest() {
+        var schedule = service.schedule(new BigDecimal("1000"), BigDecimal.ZERO, 2,
+                LocalDate.of(2026, 1, 15), 15, java.util.Map.of(1, new BigDecimal("900")));
+
+        assertThat(schedule).hasSize(1);
+        var payoff = schedule.getFirst();
+        assertThat(payoff.getInterest()).isEqualByComparingTo("0.00");
+        assertThat(payoff.getPrincipalPayment()).isEqualByComparingTo("500.00");
+        assertThat(payoff.getExtraPayment()).isEqualByComparingTo("500.00");
+        assertThat(payoff.getEndingBalance()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void lastInstallmentPreservesAccruedInterestInsteadOfFillingTheFixedPayment() {
+        BigDecimal principal = new BigDecimal("1000");
+        BigDecimal rate = new BigDecimal("12");
+        var schedule = service.schedule(principal, rate, 3,
+                LocalDate.of(2026, 1, 15), 15, java.util.Map.of(1, new BigDecimal("500")));
+
+        assertThat(schedule).hasSize(2);
+        assertThat(schedule).allSatisfy(row -> {
+            BigDecimal accrued = row.getOpeningBalance().multiply(service.monthlyRate(rate), CreditAmortizationService.MC)
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+            assertThat(row.getInterest()).isEqualByComparingTo(accrued);
+        });
+        assertThat(schedule.stream().map(row -> row.getPrincipalPayment().add(row.getExtraPayment()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add)).isEqualByComparingTo(principal);
+        assertThat(schedule.getLast().getEndingBalance()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void finalContractualInstallmentSettlesCentRoundingWithoutExtraInterest() {
+        var schedule = service.schedule(new BigDecimal("1000"), BigDecimal.ZERO, 3,
+                LocalDate.of(2026, 1, 15), 15, null);
+
+        assertThat(schedule).hasSize(3);
+        assertThat(schedule.getFirst().getPrincipalPayment()).isEqualByComparingTo("333.33");
+        assertThat(schedule.getLast().getPrincipalPayment()).isEqualByComparingTo("333.34");
+        assertThat(schedule.getLast().getEndingBalance()).isEqualByComparingTo("0.00");
+        assertThat(schedule).allSatisfy(row -> assertThat(row.getInterest()).isZero());
+    }
 }

@@ -21,4 +21,7 @@ public class BudgetResponse {
     private BigDecimal percentageUsed;
     private BudgetStatus status;
     private Long version;
+    private Long parentCategoryId;
+    private String parentCategoryName;
+    private boolean active;
 }

@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -48,9 +49,30 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleConstraint(ConstraintViolationException ex, HttpServletRequest request) { return response("Request validation failed", "VALIDATION_ERROR", HttpStatus.BAD_REQUEST, request); }
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleJsonParse(HttpServletRequest request) { return response("El cuerpo de la solicitud contiene un JSON inválido.", "INVALID_REQUEST_BODY", HttpStatus.BAD_REQUEST, request); }
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleParameterType(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        return response("Revisa los parámetros de la solicitud.", "VALIDATION_ERROR", HttpStatus.BAD_REQUEST,
+                request, Map.of(ex.getName(), "Revisa este valor."));
+    }
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(
+            org.springframework.web.bind.MissingServletRequestParameterException ex,
+            HttpServletRequest request) {
+        return response("Completa los parámetros de la solicitud.", "VALIDATION_ERROR", HttpStatus.BAD_REQUEST,
+                request, Map.of(ex.getParameterName(), "Este dato es obligatorio."));
+    }
     @ExceptionHandler(RateLimitException.class)
     public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", String.valueOf(ex.getRetryAfterSeconds())).body(error("Too many attempts. Try again later.", "RATE_LIMITED", HttpStatus.TOO_MANY_REQUESTS, request, Map.of()));
+    }
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .headers(ex.getHeaders())
+                .body(error("Esta operación no admite el método solicitado.", "METHOD_NOT_ALLOWED",
+                        HttpStatus.METHOD_NOT_ALLOWED, request, Map.of()));
     }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception ex, HttpServletRequest request) {

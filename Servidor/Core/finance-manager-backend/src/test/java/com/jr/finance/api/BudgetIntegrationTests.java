@@ -38,6 +38,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -175,6 +176,113 @@ class BudgetIntegrationTests {
         mockMvc.perform(get("/api/v1/budgets?year=2026&month=8").header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].spentAmount").value(200));
+    }
+
+    @Test
+    void hierarchicalReportsGroupBothMovementTypesAndApplyParentBudgetAsOneCeiling() throws Exception {
+        User user = createUser();
+        Category food = category(user, "Alimentación");
+        Category breakfast = subcategory(user, "Desayunos", food);
+        Category snacks = subcategory(user, "Mecato", food);
+        Category other = category(user, "Otros gastos");
+        Category workIncome = category(user, "Ingresos laborales");
+        workIncome.setType(com.jr.finance.api.expense.CategoryType.INCOME);
+        categoryRepository.saveAndFlush(workIncome);
+        Category salary = subcategory(user, "Nómina", workIncome);
+        Account account = account(user, "Hierarchy report");
+        ledgerService.recordOpeningBalance(user.getId(), account.getId(), command("5000", LocalDate.of(2026, 8, 1), null));
+
+        ledgerService.recordExpense(user.getId(), account.getId(), command("80", LocalDate.of(2026, 8, 2), breakfast.getId()));
+        ledgerService.recordExpense(user.getId(), account.getId(), command("50", LocalDate.of(2026, 8, 3), snacks.getId()));
+        ledgerService.recordExpense(user.getId(), account.getId(), command("20", LocalDate.of(2026, 8, 4), food.getId()));
+        ledgerService.recordExpense(user.getId(), account.getId(), command("30", LocalDate.of(2026, 8, 5), other.getId()));
+        ledgerService.recordExpense(user.getId(), account.getId(), command("10", LocalDate.of(2026, 8, 6), null));
+        ledgerService.recordIncome(user.getId(), account.getId(), command("4000", LocalDate.of(2026, 8, 7), salary.getId()));
+        createBudget(user, food, "500");
+        createBudget(user, breakfast, "100"); // A child allocation is not added above the parent ceiling.
+
+        mockMvc.perform(get("/api/v1/reports/categories?year=2026&month=8&currency=COP&type=EXPENSE")
+                        .header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAmount").value(190))
+                .andExpect(jsonPath("$.groups[0].categoryName").value("Alimentación"))
+                .andExpect(jsonPath("$.groups[0].amount").value(150))
+                .andExpect(jsonPath("$.groups[0].directAmount").value(20))
+                .andExpect(jsonPath("$.groups[0].subcategories[0].categoryName").value("Desayunos"))
+                .andExpect(jsonPath("$.groups[0].subcategories[0].amount").value(80))
+                .andExpect(jsonPath("$.groups[-1].categoryName").value("Sin categoría"));
+
+        mockMvc.perform(get("/api/v1/reports/categories?year=2026&month=8&currency=COP&type=INCOME")
+                        .header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAmount").value(4000))
+                .andExpect(jsonPath("$.groups[0].categoryName").value("Ingresos laborales"))
+                .andExpect(jsonPath("$.groups[0].subcategories[0].categoryName").value("Nómina"))
+                .andExpect(jsonPath("$.groups[0].subcategories[0].amount").value(4000));
+
+        mockMvc.perform(get("/api/v1/reports/budget-vs-actual?year=2026&month=8")
+                        .header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalBudgetedAmount").value(500))
+                .andExpect(jsonPath("$.totalSpentAmount").value(190))
+                .andExpect(jsonPath("$.totalSpentOnBudgetedCategories").value(150))
+                .andExpect(jsonPath("$.totalUnbudgetedAmount").value(40))
+                .andExpect(jsonPath("$.groups[0].limitAmount").value(500))
+                .andExpect(jsonPath("$.groups[0].spentAmount").value(150))
+                .andExpect(jsonPath("$.groups[0].budgetedSpentAmount").value(150))
+                .andExpect(jsonPath("$.groups[0].percentageUsed").value(30))
+                .andExpect(jsonPath("$.groups[0].hasParentBudget").value(true))
+                .andExpect(jsonPath("$.groups[0].subcategories[0].limitAmount").value(100))
+                .andExpect(jsonPath("$.groups[0].subcategories[0].percentageUsed").value(80))
+                .andExpect(jsonPath("$.unbudgetedCategories.length()").value(2));
+
+        mockMvc.perform(get("/api/v1/reports/categories/{id}/transactions?year=2026&month=8&currency=COP&type=EXPENSE", food.getId())
+                        .header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(3));
+
+        Category gasoline = subcategory(user, "Gasolina", other);
+        createBudget(user, gasoline, "100");
+        ledgerService.recordExpense(user.getId(), account.getId(), command("10", LocalDate.of(2026, 8, 8), gasoline.getId()));
+        mockMvc.perform(get("/api/v1/reports/budget-vs-actual?year=2026&month=8")
+                        .header("Authorization", bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalBudgetedAmount").value(600))
+                .andExpect(jsonPath("$.totalSpentOnBudgetedCategories").value(160))
+                .andExpect(jsonPath("$.totalUnbudgetedAmount").value(40))
+                .andExpect(jsonPath("$.groups[1].hasBudget").value(true))
+                .andExpect(jsonPath("$.groups[1].hasParentBudget").value(false))
+                .andExpect(jsonPath("$.groups[1].spentAmount").value(40))
+                .andExpect(jsonPath("$.groups[1].budgetedSpentAmount").value(10))
+                .andExpect(jsonPath("$.groups[1].percentageUsed").value(10));
+    }
+
+    @Test
+    void uncategorizedDrilldownSeparatesTypesOwnersCurrenciesAndReversals() throws Exception {
+        User owner = createUser();
+        User other = createUser();
+        Account account = account(owner, "Sin clasificar");
+        Account foreignAccount = account(other, "Ajena");
+        ledgerService.recordOpeningBalance(owner.getId(), account.getId(), command("5000", LocalDate.of(2026, 8, 1), null));
+        ledgerService.recordOpeningBalance(other.getId(), foreignAccount.getId(), command("5000", LocalDate.of(2026, 8, 1), null));
+        var expense = ledgerService.recordExpense(owner.getId(), account.getId(), command("25", LocalDate.of(2026, 8, 2), null));
+        ledgerService.recordIncome(owner.getId(), account.getId(), command("50", LocalDate.of(2026, 8, 3), null));
+        Category classifiedIncome = category(owner, "Clasificada");
+        classifiedIncome.setType(com.jr.finance.api.expense.CategoryType.INCOME);
+        categoryRepository.saveAndFlush(classifiedIncome);
+        ledgerService.recordIncome(owner.getId(), account.getId(), command("70", LocalDate.of(2026, 8, 4), classifiedIncome.getId()));
+        ledgerService.recordExpense(other.getId(), foreignAccount.getId(), command("99", LocalDate.of(2026, 8, 2), null));
+        reverseInAugust(expense.getId(), owner.getId());
+        mockMvc.perform(get("/api/v1/reports/categories/uncategorized/transactions?year=2026&month=8&currency=COP&type=EXPENSE")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mockMvc.perform(get("/api/v1/reports/categories/uncategorized/transactions?year=2026&month=8&currency=COP&type=INCOME")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].amount").value(50));
+        mockMvc.perform(get("/api/v1/reports/categories/uncategorized/transactions?year=2026&month=8&currency=USD&type=EXPENSE")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
@@ -462,6 +570,32 @@ class BudgetIntegrationTests {
                 .satisfies(budget -> assertThat(budget.getCategoryName()).isEqualTo("Foreign"));
     }
 
+    @Test
+    void deactivatesAndRestoresLimitsWithoutDeletingCategoriesExpensesOrDoubleCountingChildren() throws Exception {
+        User user = createUser(); User other = createUser();
+        Category parent = category(user, "Grupo"); Category child = subcategory(user, "Detalle", parent);
+        Account account = account(user, "Savings-independent budget account");
+        var expense = ledgerService.recordExpense(user.getId(), account.getId(), command("10", LocalDate.of(2026, 8, 2), child.getId()));
+        Long ceiling = createBudget(user, parent, "100"); Long allocation = createBudget(user, child, "50");
+        mockMvc.perform(delete("/api/v1/budgets/" + ceiling + "?version=0").header("Authorization", bearer(other))).andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/budgets/" + ceiling + "?version=0").header("Authorization", bearer(user))).andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/v1/budgets/" + ceiling + "?version=0").header("Authorization", bearer(user))).andExpect(status().isConflict());
+        mockMvc.perform(get("/api/v1/budgets?year=2026&month=8").header("Authorization", bearer(user))).andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/v1/budgets?year=2026&month=8&includeInactive=true").header("Authorization", bearer(user))).andExpect(jsonPath("$.length()").value(2));
+        mockMvc.perform(get("/api/v1/reports/budget-vs-actual?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(jsonPath("$.totalBudgetedAmount").value(50));
+        mockMvc.perform(delete("/api/v1/budgets/" + allocation + "?version=0").header("Authorization", bearer(user))).andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/reports/budget-vs-actual?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(jsonPath("$.totalBudgetedAmount").value(0)).andExpect(jsonPath("$.totalSpentAmount").value(10));
+        mockMvc.perform(patch("/api/v1/budgets/" + ceiling + "/state").header("Authorization", bearer(user)).contentType(MediaType.APPLICATION_JSON).content("{\"active\":true,\"version\":1}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(true)).andExpect(jsonPath("$.limitAmount").value(100));
+        mockMvc.perform(get("/api/v1/reports/budget-vs-actual?year=2026&month=8").header("Authorization", bearer(user)))
+                .andExpect(jsonPath("$.totalBudgetedAmount").value(100)).andExpect(jsonPath("$.totalSpentAmount").value(10));
+        assertThat(categoryRepository.findById(child.getId())).isPresent();
+        assertThat(financialTransactionRepository.findById(expense.getId()).orElseThrow().getStatus()).isEqualTo(com.jr.finance.api.ledger.FinancialTransactionStatus.POSTED);
+        assertThat(budgetRepository.findById(allocation).orElseThrow().isActive()).isFalse();
+    }
+
     private Long createBudget(User user, Category category, String limit) throws Exception {
         return createBudget(user, category, limit, 2026, 8);
     }
@@ -517,6 +651,13 @@ class BudgetIntegrationTests {
 
     private Category category(User user, String name) {
         Category category = new Category(); category.setUser(user); category.setName(name);
+        return categoryRepository.saveAndFlush(category);
+    }
+
+    private Category subcategory(User user, String name, Category parent) {
+        Category category = category(user, name);
+        category.setParentCategory(parent);
+        category.setType(parent.getType());
         return categoryRepository.saveAndFlush(category);
     }
 

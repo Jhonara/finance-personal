@@ -39,6 +39,16 @@ public class SavingMovement {
     )
     private SavingGoal savingGoal;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SavingMovementType type = SavingMovementType.CONTRIBUTION;
+
+    @Column(name = "request_id", length = 64)
+    private String requestId;
+
+    @Column(length = 255)
+    private String description;
+
     @Column(nullable = false, precision = 19, scale = 4)
     @Schema(
             description = "Valor del aporte realizado.",

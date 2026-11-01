@@ -30,4 +30,7 @@ public class CreateCategoryRequest {
 
     @Size(max = 24)
     private String colorKey;
+
+    @Schema(description = "Categoría padre opcional. Solo se admiten categorías raíz del mismo usuario y tipo.", example = "4")
+    private Long parentCategoryId;
 }

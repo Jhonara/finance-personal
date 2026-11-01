@@ -17,6 +17,8 @@ public class CreateIncomeRequest {
 
     @NotNull(message = "El monto del ingreso es obligatorio")
     @Positive(message = "El monto del ingreso debe ser mayor que 0")
+    @jakarta.validation.constraints.Digits(integer = 15, fraction = 4,
+            message = "El monto admite hasta 15 dígitos enteros y 4 decimales")
     @Schema(
             description = "Valor del ingreso.",
             example = "3500000.00",

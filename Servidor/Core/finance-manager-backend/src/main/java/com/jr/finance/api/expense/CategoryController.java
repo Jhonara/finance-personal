@@ -52,7 +52,8 @@ public class CategoryController {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         Long userId = principal.getUser().getId();
 
-        Category category = categoryService.create(userId, req.getName(), req.getType(), req.getIconKey(), req.getColorKey());
+        Category category = categoryService.create(userId, req.getName(), req.getType(), req.getIconKey(),
+                req.getColorKey(), req.getParentCategoryId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryMapper.toResponse(category));
     }

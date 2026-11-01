@@ -1,6 +1,8 @@
 package com.jr.finance.api.recurrence;
 
 import com.jr.finance.api.account.Account;
+import com.jr.finance.api.credit.Credit;
+import com.jr.finance.api.credit.CreditPayment;
 import com.jr.finance.api.expense.Category;
 import com.jr.finance.api.ledger.FinancialTransaction;
 import jakarta.persistence.*;
@@ -24,7 +26,9 @@ public class RecurringOccurrence {
     @Column(nullable = false, length = 3) private String currency;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "account_id") private Account account;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "category_id") private Category category;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "credit_id") private Credit credit;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16) private Status status = Status.PENDING;
     @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "transaction_id", unique = true) private FinancialTransaction transaction;
+    @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "credit_payment_id", unique = true) private CreditPayment creditPayment;
     @Column(length = 180) private String issue;
 }

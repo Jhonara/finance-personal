@@ -10,6 +10,8 @@ import java.time.LocalDate;
 @Schema(name = "CreateOpeningBalanceRequest", description = "Saldo inicial único de una cuenta. Puede ser positivo o negativo.")
 public record CreateOpeningBalanceRequest(
         @NotNull(message = "El monto del saldo de apertura es obligatorio")
+        @jakarta.validation.constraints.Digits(integer = 15, fraction = 4,
+                message = "El monto admite hasta 15 dígitos enteros y 4 decimales")
         @Schema(example = "1500000.00", requiredMode = Schema.RequiredMode.REQUIRED)
         BigDecimal amount,
         @NotNull(message = "La fecha efectiva es obligatoria")

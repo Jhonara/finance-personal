@@ -21,6 +21,8 @@ public class CreateExpenseRequest {
     )
     @NotNull(message = "El monto es obligatorio")
     @Positive(message = "El monto debe ser mayor que 0")
+    @jakarta.validation.constraints.Digits(integer = 15, fraction = 4,
+            message = "El monto admite hasta 15 dígitos enteros y 4 decimales")
     private BigDecimal amount;
 
     @Schema(

@@ -7,6 +7,7 @@ import com.jr.finance.api.common.FinancialPeriod;
 import com.jr.finance.api.common.exception.ConflictException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.expense.CategoryRepository;
+import com.jr.finance.api.expense.Category;
 import com.jr.finance.api.expense.CategoryType;
 import com.jr.finance.api.ledger.FinancialTransactionStatus;
 import com.jr.finance.api.ledger.FinancialTransactionType;
@@ -49,7 +50,7 @@ public class BudgetService {
         }
         if (budgetRepository.existsByUserIdAndCategoryIdAndYearAndMonth(userId, category.getId(),
                 period.getYear(), period.getMonthValue())) {
-            throw new ConflictException("Ya existe un presupuesto para esa categoría y período");
+            throw new ConflictException("Ya existe un presupuesto activo o desactivado para esa categoría y período. Puedes editarlo o reactivarlo");
         }
         Budget budget = new Budget();
         budget.setUser(userRepository.findById(userId)
@@ -61,12 +62,17 @@ public class BudgetService {
         try {
             return response(budgetRepository.saveAndFlush(budget));
         } catch (DataIntegrityViolationException ex) {
-            throw new ConflictException("Ya existe un presupuesto para esa categoría y período");
+            throw new ConflictException("Ya existe un presupuesto activo o desactivado para esa categoría y período. Puedes editarlo o reactivarlo");
         }
     }
 
     @Transactional(readOnly = true)
     public List<BudgetResponse> list(Long userId, Integer year, Integer month) {
+        return list(userId, year, month, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BudgetResponse> list(Long userId, Integer year, Integer month, boolean includeInactive) {
         if ((year == null) != (month == null)) {
             throw new com.jr.finance.api.common.exception.BadRequestException("Año y mes deben enviarse juntos");
         }
@@ -78,6 +84,7 @@ public class BudgetService {
             budgets = budgetRepository.findByUserIdAndYearAndMonthOrderByCategoryNameAsc(userId,
                     period.getYear(), period.getMonthValue());
         }
+        if (!includeInactive) budgets = budgets.stream().filter(Budget::isActive).toList();
         if (year == null) {
             return budgets.stream().map(this::response).toList();
         }
@@ -100,6 +107,14 @@ public class BudgetService {
         return response(budgetRepository.saveAndFlush(budget));
     }
 
+    @Transactional
+    public BudgetResponse changeActive(Long userId, Long budgetId, boolean active, Long version) {
+        Budget budget = owned(userId, budgetId);
+        if (!budget.getVersion().equals(version)) throw new ConflictException("El presupuesto cambió. Actualiza antes de continuar.");
+        budget.setActive(active);
+        return response(budgetRepository.saveAndFlush(budget));
+    }
+
     private Budget owned(Long userId, Long budgetId) {
         return budgetRepository.findByIdAndUserId(budgetId, userId)
                 .orElseThrow(() -> new NotFoundException("El presupuesto no existe"));
@@ -113,23 +128,36 @@ public class BudgetService {
     }
 
     private Map<Long, BigDecimal> spentByCategory(Long userId, YearMonth period) {
-        return ledgerEntryRepository.sumSpentByCategoryForUserAndPeriod(userId, period.atDay(1),
+        Map<Long, BigDecimal> direct = ledgerEntryRepository.sumSpentByCategoryForUserAndPeriod(userId, period.atDay(1),
                         period.atEndOfMonth(), FinancialTransactionType.EXPENSE,
                         FinancialTransactionType.REVERSAL, FinancialTransactionStatus.VOIDED, "COP")
                 .stream()
                 .collect(Collectors.toMap(com.jr.finance.api.budget.dto.BudgetCategorySpent::getCategoryId,
                         com.jr.finance.api.budget.dto.BudgetCategorySpent::getSpentAmount));
+        var categories = categoryRepository.findByUserIdAndTypeOrderByNameAsc(userId, CategoryType.EXPENSE);
+        Map<Long, Long> rootByCategory = categories.stream().collect(Collectors.toMap(Category::getId,
+                category -> category.getParentCategory() == null ? category.getId() : category.getParentCategory().getId()));
+        Map<Long, BigDecimal> grouped = new java.util.HashMap<>();
+        direct.forEach((categoryId, amount) -> {
+            Long rootId = rootByCategory.get(categoryId);
+            if (rootId != null) grouped.merge(rootId, amount, BigDecimal::add);
+            if (!categoryId.equals(rootId)) grouped.put(categoryId, amount);
+        });
+        return grouped;
     }
 
     private BudgetResponse response(Budget budget, BigDecimal spent) {
         YearMonth period = YearMonth.of(budget.getYear(), budget.getMonth());
         BigDecimal remaining = budget.getLimitAmount().subtract(spent);
-        BigDecimal percentage = spent.multiply(BigDecimal.valueOf(100))
+        BigDecimal percentage = budget.getLimitAmount().signum() == 0 ? BigDecimal.ZERO
+                : spent.multiply(BigDecimal.valueOf(100))
                 .divide(budget.getLimitAmount(), PERCENTAGE_SCALE, RoundingMode.HALF_UP);
         BudgetStatus status = percentage.compareTo(BigDecimal.valueOf(100)) > 0 ? BudgetStatus.EXCEEDED
                 : percentage.compareTo(WARNING_PERCENTAGE) >= 0 ? BudgetStatus.WARNING : BudgetStatus.OK;
+        var parent = budget.getCategory().getParentCategory();
         return new BudgetResponse(budget.getId(), budget.getCategory().getId(), budget.getCategory().getName(),
                 budget.getYear(), budget.getMonth(), period.toString(), budget.getLimitAmount(), spent,
-                remaining, percentage, status, budget.getVersion());
+                remaining, percentage, status, budget.getVersion(), parent == null ? null : parent.getId(),
+                parent == null ? null : parent.getName(), budget.isActive());
     }
 }

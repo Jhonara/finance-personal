@@ -24,12 +24,13 @@ public class TransactionService {
     private final LedgerEntryRepository entries;
     private final AccountRepository accounts;
     private final CategoryRepository categories;
+    private final LedgerService ledger;
 
     @Transactional(readOnly = true)
     public TransactionResponse detail(Long userId, Long id) {
         var transaction = transactions.findById(id).filter(item -> item.getUser().getId().equals(userId))
                 .orElseThrow(() -> new NotFoundException("Movimiento no encontrado"));
-        return map(transaction, entries.findByFinancialTransactionIdInWithAccount(List.of(id)));
+        return map(transaction, entries.findByFinancialTransactionIdInWithAccount(List.of(id)), reversalIds(userId, List.of(id)).get(id));
     }
 
     @Transactional(readOnly = true)
@@ -42,8 +43,9 @@ public class TransactionService {
         Map<Long, List<LedgerEntry>> byTransaction = ids.isEmpty() ? Map.of() : entries
                 .findByFinancialTransactionIdInWithAccount(ids).stream()
                 .collect(Collectors.groupingBy(entry -> entry.getFinancialTransaction().getId()));
+        var reversals = reversalIds(userId, ids);
         return new TransactionPageResponse(page.getContent().stream().map(transaction -> map(transaction,
-                byTransaction.getOrDefault(transaction.getId(), List.of()))).toList(), page.getNumber(), page.getSize(),
+                byTransaction.getOrDefault(transaction.getId(), List.of()), reversals.get(transaction.getId()))).toList(), page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages(), page.isFirst(), page.isLast());
     }
 
@@ -53,20 +55,46 @@ public class TransactionService {
         if (query.year() != null) {
             if (query.from() != null || query.to() != null) throw new BadRequestException("No combines year/month con from/to");
             YearMonth period = com.jr.finance.api.common.FinancialPeriod.of(query.year(), query.month());
-            query = new TransactionQuery(period.atDay(1), period.atEndOfMonth(), null, null, query.accountId(), query.categoryId(), query.type(), query.status(), query.page(), query.size(), query.currency(), query.expenseReport(), query.reportCategory(), query.searchText());
+            query = new TransactionQuery(period.atDay(1), period.atEndOfMonth(), null, null, query.accountId(),
+                    query.categoryId(), query.type(), query.status(), query.page(), query.size(), query.currency(),
+                    query.expenseReport(), query.reportCategory(), query.searchText(), query.reportType(),
+                    query.reportCategoryId());
         }
         if (query.accountId() != null && accounts.findByIdAndUserId(query.accountId(), userId).isEmpty()) throw new NotFoundException("Cuenta no encontrada");
         if (query.categoryId() != null && categories.findByIdAndUserId(query.categoryId(), userId).isEmpty()) throw new NotFoundException("Categoría no encontrada");
+        if (query.reportCategoryId() != null && categories.findByIdAndUserId(query.reportCategoryId(), userId).isEmpty()) throw new NotFoundException("Categoría no encontrada");
         return query;
     }
 
-    private TransactionResponse map(FinancialTransaction transaction, List<LedgerEntry> values) {
+    @Transactional
+    public TransactionResponse reverse(Long userId, Long id, String reason) {
+        var original = transactions.findOwnedForReversal(id, userId)
+                .orElseThrow(() -> new NotFoundException("Movimiento no encontrado"));
+        if (!supported(original.getType())) throw new BadRequestException("Esta operación se administra desde su función de origen");
+        var reversal = ledger.reverseTransaction(id, userId, reason);
+        return detail(userId, reversal.getId());
+    }
+
+    private boolean supported(FinancialTransactionType type) {
+        return type == FinancialTransactionType.EXPENSE || type == FinancialTransactionType.INCOME
+                || type == FinancialTransactionType.TRANSFER;
+    }
+
+    private Map<Long, Long> reversalIds(Long userId, List<Long> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return transactions.findReversals(userId, ids).stream().collect(Collectors.toMap(t -> t.getReversalOf().getId(), FinancialTransaction::getId));
+    }
+
+    private TransactionResponse map(FinancialTransaction transaction, List<LedgerEntry> values, Long reversalId) {
         List<LedgerEntry> sorted = new ArrayList<>(values); sorted.sort(Comparator.comparing(entry -> entry.getAccount().getId()));
         LedgerEntry negative = sorted.stream().filter(entry -> entry.getSignedAmount().signum() < 0).findFirst().orElse(null);
         LedgerEntry positive = sorted.stream().filter(entry -> entry.getSignedAmount().signum() > 0).findFirst().orElse(null);
-        boolean transfer = transaction.getType() == FinancialTransactionType.TRANSFER;
+        boolean transfer = transaction.getType() == FinancialTransactionType.TRANSFER
+                || transaction.getReversalOf() != null && transaction.getReversalOf().getType() == FinancialTransactionType.TRANSFER;
         LedgerEntry single = sorted.isEmpty() ? null : sorted.getFirst();
         BigDecimal amount = single == null ? BigDecimal.ZERO : transaction.getType() == FinancialTransactionType.OPENING_BALANCE ? single.getSignedAmount() : single.getSignedAmount().abs();
-        return new TransactionResponse(transaction.getId(), transaction.getType().name(), transaction.getStatus().name(), transaction.getEffectiveDate(), transaction.getCreatedAt(), transaction.getDescription(), amount, transaction.getCurrency(), transaction.getCategory() == null ? null : transaction.getCategory().getId(), transaction.getCategory() == null ? null : transaction.getCategory().getName(), transfer || single == null ? null : single.getAccount().getId(), transfer || single == null ? null : single.getAccount().getName(), transfer && negative != null ? negative.getAccount().getId() : null, transfer && negative != null ? negative.getAccount().getName() : null, transfer && positive != null ? positive.getAccount().getId() : null, transfer && positive != null ? positive.getAccount().getName() : null, transaction.getReversalOf() == null ? null : transaction.getReversalOf().getId());
+        return new TransactionResponse(transaction.getId(), transaction.getType().name(), transaction.getStatus().name(), transaction.getEffectiveDate(), transaction.getCreatedAt(), transaction.getDescription(), amount, transaction.getCurrency(), transaction.getCategory() == null ? null : transaction.getCategory().getId(), transaction.getCategory() == null ? null : transaction.getCategory().getName(), transfer || single == null ? null : single.getAccount().getId(), transfer || single == null ? null : single.getAccount().getName(), transfer && negative != null ? negative.getAccount().getId() : null, transfer && negative != null ? negative.getAccount().getName() : null, transfer && positive != null ? positive.getAccount().getId() : null, transfer && positive != null ? positive.getAccount().getName() : null, transaction.getReversalOf() == null ? null : transaction.getReversalOf().getId(), reversalId,
+                transaction.getReversalOf() == null ? null : transaction.getReversalOf().getType().name(), transaction.getReversalReason(),
+                transaction.getStatus() == FinancialTransactionStatus.POSTED && supported(transaction.getType()) && reversalId == null);
     }
 }

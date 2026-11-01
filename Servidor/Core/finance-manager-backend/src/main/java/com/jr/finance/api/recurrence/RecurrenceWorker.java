@@ -3,6 +3,10 @@ package com.jr.finance.api.recurrence;
 import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.common.exception.NotFoundException;
 import com.jr.finance.api.account.AccountRepository;
+import com.jr.finance.api.credit.CreditPaymentRepository;
+import com.jr.finance.api.credit.CreditPaymentService;
+import com.jr.finance.api.credit.CreditSnapshotService;
+import com.jr.finance.api.credit.dto.CreateCreditPaymentRequest;
 import com.jr.finance.api.expense.CategoryType;
 import com.jr.finance.api.ledger.FinancialOperationCommand;
 import com.jr.finance.api.ledger.LedgerService;
@@ -20,6 +24,9 @@ public class RecurrenceWorker {
     private final RecurringOccurrenceRepository occurrences;
     private final LedgerService ledger;
     private final AccountRepository accounts;
+    private final CreditPaymentService creditPayments;
+    private final CreditPaymentRepository creditPaymentRepository;
+    private final CreditSnapshotService creditSnapshots;
     private final Clock recurrenceClock;
 
     public LocalDate today(RecurringRule rule) {
@@ -49,9 +56,13 @@ public class RecurrenceWorker {
                 occurrence.setCurrency(rule.getCurrency());
                 occurrence.setAccount(rule.getAccount());
                 occurrence.setCategory(rule.getCategory());
+                occurrence.setCredit(rule.getCredit());
                 if (rule.getMode() == RecurrenceMode.AUTOMATIC) {
-                    accounts.findByIdAndUserIdForUpdate(rule.getAccount().getId(), rule.getUser().getId());
                     String issue = unavailable(occurrence);
+                    // CreditPaymentService locks credit before account; preserve that lock order here.
+                    if (issue == null && occurrence.getCredit() == null) {
+                        accounts.findByIdAndUserIdForUpdate(rule.getAccount().getId(), rule.getUser().getId());
+                    }
                     if (issue == null && occurrence.getKind() == RecurrenceKind.EXPENSE
                             && ledger.getAccountBalance(rule.getUser().getId(), occurrence.getAccount().getId())
                             .compareTo(occurrence.getAmount()) < 0) {
@@ -71,6 +82,9 @@ public class RecurrenceWorker {
         if (!occurrence.getAccount().isActive()) return "La cuenta está inactiva. Reactívala para registrar este pago.";
         if (!occurrence.getCurrency().equals(occurrence.getAccount().getCurrency()))
             return "La moneda de la cuenta cambió. Revisa esta programación.";
+        if (occurrence.getCredit() != null
+                && creditSnapshots.snapshot(occurrence.getCredit()).remainingBalance().signum() <= 0)
+            return "Este crédito ya aparece como pagado. Revisa o pausa su programación.";
         if (occurrence.getCategory() != null && (!occurrence.getCategory().isActive()
                 || occurrence.getCategory().getType() != (occurrence.getKind() == RecurrenceKind.INCOME
                 ? CategoryType.INCOME : CategoryType.EXPENSE)))
@@ -84,6 +98,19 @@ public class RecurrenceWorker {
         var command = new FinancialOperationCommand(amount, date, occurrence.getName() + " · Recurrente",
                 occurrence.getCurrency(), occurrence.getCategory() == null ? null : occurrence.getCategory().getId());
         Long userId = occurrence.getRule().getUser().getId();
+        if (occurrence.getCredit() != null) {
+            CreateCreditPaymentRequest request = new CreateCreditPaymentRequest();
+            request.setAmount(amount);
+            request.setPaymentDate(date);
+            request.setAccountId(occurrence.getAccount().getId());
+            var payment = creditPayments.registerPayment(userId, occurrence.getCredit().getId(), request);
+            occurrence.setAmount(amount);
+            occurrence.setCreditPayment(creditPaymentRepository.findById(payment.paymentId())
+                    .orElseThrow(() -> new IllegalStateException("El pago de crédito no quedó guardado")));
+            occurrence.setStatus(RecurringOccurrence.Status.POSTED);
+            occurrence.setIssue(null);
+            return;
+        }
         var transaction = occurrence.getKind() == RecurrenceKind.INCOME
                 ? ledger.recordIncome(userId, occurrence.getAccount().getId(), command)
                 : ledger.recordExpense(userId, occurrence.getAccount().getId(), command, null, "FIXED");

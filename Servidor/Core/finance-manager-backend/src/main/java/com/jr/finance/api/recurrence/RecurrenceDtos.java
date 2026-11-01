@@ -28,6 +28,7 @@ public final class RecurrenceDtos {
             @NotBlank @Size(max = 64) String timeZone,
             @NotNull LocalDate startDate, LocalDate endDate,
             @Min(1) @Max(31) int firstDay, @Min(1) @Max(31) Integer secondDay,
+            Long creditId,
             @NotBlank @Pattern(regexp = "[a-zA-Z0-9-]{16,36}") String requestKey,
             Long version) {}
     @Schema(name = "RecurringRuleResponse")
@@ -35,12 +36,13 @@ public final class RecurrenceDtos {
                        RecurrenceMode mode, BigDecimal amount, Long accountId, String accountName,
                        Long categoryId, String currency, String timeZone, LocalDate startDate,
                        LocalDate endDate, int firstDay, Integer secondDay, LocalDate nextDate,
-                       boolean active, Long version, String requestKey, String state) {}
+                       boolean active, Long version, String requestKey, String state,
+                       Long creditId, String creditName) {}
     @Schema(name = "RecurringEntryResponse", description = "PLANNED and PENDING never affect balances or reports.")
     public record Entry(Long id, Long ruleId, String name, RecurrenceKind kind, RecurrenceMode mode,
                         LocalDate dueDate, BigDecimal amount, String currency, Long accountId,
                         String accountName, String status, String issue, Long transactionId,
-                        LocalDate recordedDate) {}
+                        LocalDate recordedDate, Long creditId, String creditName) {}
     @Schema(name = "RecurringAgendaResponse")
     public record Agenda(List<Entry> entries) {}
     @Schema(name = "RecurringUpcomingResponse")

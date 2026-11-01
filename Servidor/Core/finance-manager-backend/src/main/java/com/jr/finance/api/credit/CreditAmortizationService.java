@@ -45,15 +45,14 @@ public class CreditAmortizationService {
         for (int number = 1; number <= termMonths && balance.signum() > 0; number++) {
             LocalDate due = dueDate(disbursementDate, number, paymentDay);
             BigDecimal interest = balance.multiply(rate, MC).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-            BigDecimal regularPrincipal = payment.subtract(interest).max(BigDecimal.ZERO);
+            BigDecimal regularPrincipal = payment.subtract(interest).max(BigDecimal.ZERO).min(balance);
+            // Settle the fixed-payment rounding remainder in the last contractual installment.
+            if (number == termMonths) regularPrincipal = balance;
             BigDecimal extra = extraByInstallment == null ? BigDecimal.ZERO
                     : extraByInstallment.getOrDefault(number, BigDecimal.ZERO).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-            BigDecimal maxPrincipal = balance;
-            if (regularPrincipal.add(extra).compareTo(maxPrincipal) > 0) {
-                regularPrincipal = maxPrincipal.subtract(extra).max(BigDecimal.ZERO);
-                extra = maxPrincipal.subtract(regularPrincipal);
-                interest = payment.subtract(regularPrincipal).max(BigDecimal.ZERO).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-            }
+            // An early payoff reduces the cash payment; its unused part is never interest.
+            // Apply the regular principal first, then cap the extra at the remaining debt.
+            extra = extra.min(balance.subtract(regularPrincipal));
             BigDecimal ending = balance.subtract(regularPrincipal).subtract(extra).max(BigDecimal.ZERO)
                     .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
             rows.add(new AmortizationRow(number, due, balance, 0, interest, regularPrincipal, ending, extra));

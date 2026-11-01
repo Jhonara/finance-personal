@@ -94,6 +94,101 @@ class CategoryIntegrationTests {
     }
 
     @Test
+    void supportsSafeTwoLevelHierarchyReparentingAndSiblingNames() throws Exception {
+        User owner = user();
+        User other = user();
+        String food = create(owner, "Alimentación", "EXPENSE");
+        String transport = create(owner, "Transporte", "EXPENSE");
+        String income = create(owner, "Ingresos laborales", "INCOME");
+
+        String breakfastBody = mvc.perform(post("/api/v1/categories").header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Desayunos\",\"type\":\"EXPENSE\",\"parentCategoryId\":" + food + "}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.parentCategoryId").value(food))
+                .andExpect(jsonPath("$.parentCategoryName").value("Alimentación"))
+                .andReturn().getResponse().getContentAsString();
+        String breakfast = breakfastBody.replaceAll(".*\\\"id\\\":(\\d+).*", "$1");
+
+        // Existing root names and child names are independently scoped; sibling duplicates still fail.
+        create(owner, "Desayunos", "EXPENSE");
+        mvc.perform(post("/api/v1/categories").header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\" desayunos \",\"type\":\"EXPENSE\",\"parentCategoryId\":" + food + "}"))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/v1/categories").header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Sueldo\",\"type\":\"INCOME\",\"parentCategoryId\":" + food + "}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/categories").header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Ajena\",\"type\":\"EXPENSE\",\"parentCategoryId\":" + create(other, "Raíz ajena", "EXPENSE") + "}"))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(patch("/api/v1/categories/{id}", food).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parentCategoryId\":" + transport + ",\"version\":0}"))
+                .andExpect(status().isBadRequest()); // a parent with children cannot be nested
+        mvc.perform(patch("/api/v1/categories/{id}", transport).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parentCategoryId\":" + transport + ",\"version\":0}"))
+                .andExpect(status().isBadRequest()); // no self-parenting
+        mvc.perform(post("/api/v1/categories").header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Tercer nivel\",\"type\":\"EXPENSE\",\"parentCategoryId\":" + breakfast + "}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(patch("/api/v1/categories/{id}", breakfast).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parentCategoryId\":" + transport + ",\"version\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(breakfast))
+                .andExpect(jsonPath("$.parentCategoryId").value(transport));
+        mvc.perform(patch("/api/v1/categories/{id}", breakfast).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clearParent\":true,\"version\":1}"))
+                .andExpect(status().isConflict()); // an existing root has the same name
+        mvc.perform(patch("/api/v1/categories/{id}", breakfast).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Desayunos sin grupo\",\"clearParent\":true,\"version\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(breakfast))
+                .andExpect(jsonPath("$.parentCategoryId").doesNotExist());
+        mvc.perform(delete("/api/v1/categories/{id}", transport).header("Authorization", bearer(owner)))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/categories/{id}", income).header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.parentCategoryId").doesNotExist());
+    }
+
+    @Test
+    void reactivationRequiresAnActiveParentAndPreservesTheRelationship() throws Exception {
+        User owner = user();
+        String parent = create(owner, "Alimentación", "EXPENSE");
+        String childBody = mvc.perform(post("/api/v1/categories").header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Desayunos","type":"EXPENSE","parentCategoryId":%s}
+                                """.formatted(parent)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String child = childBody.replaceAll(".*\"id\":(\\d+).*", "$1");
+        mvc.perform(delete("/api/v1/categories/{id}", child).header("Authorization", bearer(owner)))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/categories/{id}", parent).header("Authorization", bearer(owner)))
+                .andExpect(status().isNoContent());
+        mvc.perform(patch("/api/v1/categories/{id}", child).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":true,\"version\":1}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(patch("/api/v1/categories/{id}", parent).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":true,\"version\":1}"))
+                .andExpect(status().isOk());
+        mvc.perform(patch("/api/v1/categories/{id}", child).header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":true,\"version\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.parentCategoryId").value(parent));
+    }
+
+    @Test
     void deactivateAndReactivateKeepTheCategoryAndEnforceOwnership() throws Exception {
         User owner = user();
         User other = user();

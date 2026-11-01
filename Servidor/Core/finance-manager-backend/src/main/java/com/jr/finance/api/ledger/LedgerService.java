@@ -89,7 +89,8 @@ public class LedgerService {
                                                           String description) {
         if (type != FinancialTransactionType.CREDIT_DISBURSEMENT && type != FinancialTransactionType.CREDIT_PAYMENT)
             throw new IllegalArgumentException("Tipo de movimiento de crédito inválido");
-        Account account = getOwnedAccount(userId, accountId);
+        Account account = accountRepository.findByIdAndUserIdForUpdate(accountId, userId)
+                .orElseThrow(() -> new NotFoundException("La cuenta no existe"));
         if (!account.isActive()) throw new BadRequestException("La cuenta está inactiva");
         if (!account.getCurrency().equals(currency)) throw new BadRequestException("La moneda del crédito no coincide con la cuenta");
         if (type == FinancialTransactionType.CREDIT_PAYMENT && getAccountBalance(userId, accountId).compareTo(amount) < 0)
@@ -112,6 +113,12 @@ public class LedgerService {
      */
     @Transactional
     public FinancialTransaction reverseTransaction(Long transactionId, Long userId) {
+        return reverseTransaction(transactionId, userId, null);
+    }
+
+    @Transactional
+    public FinancialTransaction reverseTransaction(Long transactionId, Long userId, String reason) {
+        String normalizedReason = normalizeDescription(reason);
         FinancialTransaction original = financialTransactionRepository.findOwnedForReversal(transactionId, userId)
                 .orElseThrow(() -> new NotFoundException("La operación no existe"));
         if (original.getType() == FinancialTransactionType.REVERSAL) {
@@ -129,6 +136,18 @@ public class LedgerService {
             throw new ConflictException("La operación no tiene entradas para revertir");
         }
 
+        // Same account locks and stable order as transfers; all cash writers also lock accounts.
+        var ids = originalEntries.stream().map(e -> e.getAccount().getId()).distinct().sorted().toList();
+        var locked = accountRepository.lockByIds(ids);
+        if (locked.size() != ids.size() || locked.stream().anyMatch(a -> !a.getUser().getId().equals(userId)))
+            throw new ConflictException("No se pueden verificar las cuentas de la operación");
+        for (var account : locked) {
+            BigDecimal debit = originalEntries.stream().filter(e -> e.getAccount().getId().equals(account.getId()))
+                    .map(LedgerEntry::getSignedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (debit.signum() > 0 && getAccountBalance(userId, account.getId()).compareTo(debit) < 0)
+                throw new ConflictException("Saldo insuficiente para revertir. Repón el dinero en la cuenta que lo recibió.");
+        }
+
         FinancialTransaction reversal = new FinancialTransaction();
         reversal.setUser(original.getUser());
         reversal.setType(FinancialTransactionType.REVERSAL);
@@ -141,6 +160,7 @@ public class LedgerService {
         reversal.setPaymentType(original.getPaymentType());
         reversal.setExpenseType(original.getExpenseType());
         reversal.setReversalOf(original);
+        reversal.setReversalReason(normalizedReason);
         FinancialTransaction savedReversal = financialTransactionRepository.saveAndFlush(reversal);
 
         List<LedgerEntry> reversalEntries = originalEntries.stream().map(originalEntry -> {
@@ -176,7 +196,8 @@ public class LedgerService {
                                                      FinancialOperationCommand command, BigDecimal signedAmount,
                                                      Category category, String incomeType, String paymentType,
                                                      String expenseType) {
-        Account account = getOwnedAccount(userId, accountId);
+        Account account = accountRepository.findByIdAndUserIdForUpdate(accountId, userId)
+                .orElseThrow(() -> new NotFoundException("La cuenta no existe"));
         if (!account.isActive()) {
             throw new BadRequestException("La cuenta está inactiva");
         }

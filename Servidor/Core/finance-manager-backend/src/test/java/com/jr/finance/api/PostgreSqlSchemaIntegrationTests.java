@@ -48,9 +48,7 @@ import org.springframework.test.context.bean.override.mockito.MockReset;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -68,14 +66,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 
 @SpringBootTest
-@Testcontainers(disabledWithoutDocker = true)
 class PostgreSqlSchemaIntegrationTests {
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("finance_test")
-            .withUsername("finance")
-            .withPassword("finance");
+    @RegisterExtension
+    static final PostgreSqlTestDatabase POSTGRES = new PostgreSqlTestDatabase("schema");
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -148,14 +142,15 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(13)
+                .hasSize(24)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
                 });
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
-                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
+                        "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
@@ -164,7 +159,44 @@ class PostgreSqlSchemaIntegrationTests {
                         "add legacy operation metadata to financial transactions",
                         "enforce unique reversals and shared operation ids",
                         "add legacy migration tracking", "create budgets", "create refresh tokens",
-                        "add category type and active", "consolidate credit core", "integrate credit with ledger");
+                        "add category type and active", "consolidate credit core", "integrate credit with ledger",
+                        "credit opening position", "category visual identity", "saving goal currency",
+                        "recurring income expenses", "financial alert lifecycle", "purchase review inbox",
+                        "purchase draft source", "native purchase intents", "purchase draft capture sources",
+                        "link recurring credit payments", "category hierarchy");
+    }
+
+    @Test
+    void categoryHierarchyMigrationPreservesRootsAndEnforcesTwoLevelsInPostgres() {
+        Long userId = jdbcTemplate.queryForObject(
+                "insert into users (name, email, password) values (?, ?, ?) returning id",
+                Long.class, "Category hierarchy", "category-hierarchy-" + UUID.randomUUID() + "@test.local", "password");
+        Long rootId = jdbcTemplate.queryForObject("""
+                insert into categories (name, user_id, type, active) values (?, ?, 'EXPENSE', true) returning id
+                """, Long.class, "Food", userId);
+        Long unassignedRootId = jdbcTemplate.queryForObject("""
+                insert into categories (name, user_id, type, active) values (?, ?, 'EXPENSE', true) returning id
+                """, Long.class, "Existing root", userId);
+        Long childId = jdbcTemplate.queryForObject("""
+                insert into categories (name, user_id, type, active, parent_category_id)
+                values (?, ?, 'EXPENSE', true, ?) returning id
+                """, Long.class, "Breakfast", userId, rootId);
+
+        assertThat(jdbcTemplate.queryForObject("select parent_category_id from categories where id = ?", Long.class,
+                unassignedRootId)).isNull();
+        assertThat(jdbcTemplate.queryForObject("select parent_category_id from categories where id = ?", Long.class,
+                childId)).isEqualTo(rootId);
+
+        assertThatThrownBy(() -> jdbcTemplate.update("update categories set parent_category_id = ? where id = ?",
+                unassignedRootId, rootId)).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                insert into categories (name, user_id, type, active, parent_category_id)
+                values ('Third level', ?, 'EXPENSE', true, ?)
+                """, userId, childId)).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        assertThat(jdbcTemplate.queryForObject("select id from categories where id = ?", Long.class, rootId)).isEqualTo(rootId);
+        assertThat(jdbcTemplate.queryForObject("select parent_category_id from categories where id = ?", Long.class,
+                unassignedRootId)).isNull();
     }
 
     @Test

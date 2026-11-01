@@ -81,6 +81,9 @@ public class FinancialTransaction {
     @JoinColumn(name = "reversal_of_id")
     private FinancialTransaction reversalOf;
 
+    @Column(name = "reversal_reason", length = 255)
+    private String reversalReason;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

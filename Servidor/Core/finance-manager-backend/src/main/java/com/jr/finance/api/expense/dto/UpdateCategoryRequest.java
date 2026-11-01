@@ -22,6 +22,12 @@ public class UpdateCategoryRequest {
     @Size(max = 24)
     private String colorKey;
 
+    @Schema(description = "Nuevo padre; se usa junto con clearParent=false para reasignar la subcategoría.", example = "4")
+    private Long parentCategoryId;
+
+    @Schema(description = "Indica que la categoría pasa a ser raíz. Tiene prioridad sobre parentCategoryId.", example = "true")
+    private Boolean clearParent;
+
     @Null(message = "El tipo de categoría no se puede modificar")
     private CategoryType type;
 

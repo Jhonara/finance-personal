@@ -59,8 +59,11 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     @Query("""
             select entry from LedgerEntry entry
             join fetch entry.financialTransaction transaction
-            left join fetch transaction.category
+            left join fetch transaction.category category
+            left join fetch category.parentCategory
             left join transaction.reversalOf original
+            left join fetch original.category originalCategory
+            left join fetch originalCategory.parentCategory
             where transaction.user.id = :userId
               and (transaction.type = :type
                    or (transaction.type = :reversalType
