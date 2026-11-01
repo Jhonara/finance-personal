@@ -1,0 +1,12 @@
+# Local validation artifacts and source backups
+/.tmp/
+/qa-local-build*.log
+/qa-autolink-check.log
+/android-bundle-diagnosis/
+/android-home-polish-validation/
+
+# Generated Expo exports and native module outputs (source remains tracked)
+**/.expo-*-validation/
+**/android/build/
+**/android/.cxx/
+**/android/.gradle/
