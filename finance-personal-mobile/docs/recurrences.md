@@ -4,7 +4,8 @@ Acceso: **Cuentas → Ingresos y gastos fijos**, también desde Plan.
 
 ## Uso
 
-- Salario: elige la cuenta que recibe el dinero y el importe **de cada pago**. Para un salario de 3.000.000 en dos pagos iguales, programa 1.500.000 dos veces al mes.
+- Ingresos y gastos: elige la cuenta y escribe el **total mensual**. La vista previa muestra la frecuencia y el importe estimado de cada pago. Por ejemplo, 3.000.000 en dos pagos iguales son 1.500.000 por pago.
+- Semanal y cada 14 días: el importe por fecha se calcula sobre el promedio anual (52 o 26 pagos al año). Como algunos meses tienen más fechas que otros, el total real de un mes puede variar; el promedio anual corresponde al total mensual indicado.
 - Frecuencias: semanal (7 días), cada 14 días, dos días del mes o mensual. Dos veces al mes y cada 14 días son opciones distintas.
 - Para días 29, 30 o 31 en meses cortos se usa el último día disponible; el mes siguiente recupera el día elegido. No se adelantan fechas por fines de semana.
 - Automático: registra el importe al llegar la fecha, según la zona horaria guardada. No conecta con el banco ni realiza transferencias.
@@ -21,7 +22,7 @@ El servidor procesa cada minuto; debe estar ejecutándose. No depende de que la 
 
 La migración V17 añade reglas y ocurrencias. Todas las contabilizaciones pasan por LedgerService: se conserva la moneda de la cuenta y no se calculan saldos en el teléfono. Los gastos se clasifican como fijos. Los reportes usan la fecha efectiva del movimiento; una confirmación tardía queda en el mes en que ocurrió.
 
-La combinación regla/fecha es única. El bloqueo de la regla serializa ejecución, confirmación y edición. Crear usa una clave estable para reintentos; editar usa versión para detectar cambios simultáneos. Los movimientos revertidos no se generan otra vez.
+La combinación regla/fecha es única. El bloqueo de la regla serializa ejecución, confirmación y edición. Crear usa una clave estable para reintentos; editar usa versión para detectar cambios simultáneos. Los movimientos revertidos no se generan otra vez. Las reglas guardan el importe de cada ocurrencia; al editarlas se presenta su equivalente mensual según la frecuencia.
 
 Si falta saldo registrado para un gasto automático, o la cuenta/categoría está inactiva, la ocurrencia queda pendiente con explicación. No se fuerza el movimiento ni se repite automáticamente un gasto fallido; se confirma u omite desde la agenda. Los errores técnicos inesperados se reintentan en el próximo ciclo mediante la transacción del servidor.
 
