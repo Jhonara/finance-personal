@@ -1,0 +1,19 @@
+// Invoked only by build-android-qa.ps1 in the isolated physical build copy.
+def staging = System.getenv('FINANCE_NATIVE_STAGING')
+if (!staging) throw new GradleException('FINANCE_NATIVE_STAGING must point to the short build directory.')
+
+gradle.beforeProject { project ->
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+        project.plugins.withId(pluginId) {
+            project.extensions.getByName('androidComponents').finalizeDsl { androidDsl ->
+                androidDsl.defaultConfig.externalNativeBuild.cmake.arguments.add('-DCMAKE_OBJECT_PATH_MAX=240')
+                androidDsl.defaultConfig.externalNativeBuild.cmake.arguments.add('-DCMAKE_JOB_POOLS=finance_compile=2;finance_link=1')
+                androidDsl.defaultConfig.externalNativeBuild.cmake.arguments.add('-DCMAKE_JOB_POOL_COMPILE=finance_compile')
+                androidDsl.defaultConfig.externalNativeBuild.cmake.arguments.add('-DCMAKE_JOB_POOL_LINK=finance_link')
+                androidDsl.externalNativeBuild.cmake.buildStagingDirectory = new File(
+                    staging, Integer.toHexString(project.path.hashCode())
+                )
+            }
+        }
+    }
+}

@@ -43,3 +43,6 @@ example
 /ios
 /android
 /.tmp/
+
+# Verified local APKs and their reports; reproducible with build-android-qa.ps1
+/outputs/

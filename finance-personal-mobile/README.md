@@ -51,6 +51,8 @@ Los tokens no se guardan en AsyncStorage. SecureStore conserva el bundle de sesi
 
 ## Calidad
 
+Para generar un APK Release local en Windows sin rutas largas de Ninja, ejecuta `./build-android-qa.ps1`. Consulta [compilación Android QA desde ruta física corta](docs/android-qa-windows.md) para rutas de salida, firma, parámetros y verificación de código actualizado.
+
 La auditoría, las decisiones del sistema visual, la política de navegación y la validación de la renovación están en [Renovación UX/UI](docs/ux-renewal-2026-11-01.md). El catálogo de componentes está en `/(app)/component-catalog`, solo durante desarrollo.
 
 ```powershell
