@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useAppTheme } from '@/theme/theme-provider';
 import { spacing, typography } from '@/theme';
@@ -26,6 +26,7 @@ export default function ComponentCatalog() {
   return (
     <Screen scroll keyboard>
       <ScreenHeader title="Catálogo de componentes" subtitle="Desarrollo · datos ilustrativos" back />
+      <Button onPress={() => router.push('/design-lab')}>Comparar tres direcciones de Mi mes</Button>
       <Text style={typography.bodySecondary}>{notice}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {(['system', 'light', 'dark'] as const).map((next) => (
