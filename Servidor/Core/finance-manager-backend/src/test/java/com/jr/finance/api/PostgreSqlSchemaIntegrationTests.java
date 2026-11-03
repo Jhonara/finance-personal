@@ -142,7 +142,7 @@ class PostgreSqlSchemaIntegrationTests {
                 """);
 
         assertThat(migrations)
-                .hasSize(24)
+                .hasSize(29)
                 .allSatisfy(migration -> {
                     assertThat(migration.get("checksum")).isNotNull();
                     assertThat(migration.get("success")).isEqualTo(true);
@@ -150,7 +150,8 @@ class PostgreSqlSchemaIntegrationTests {
         assertThat(migrations)
                 .extracting(migration -> migration.get("version"))
                 .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13",
-                        "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24");
+                        "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26",
+                        "27", "28", "29");
         assertThat(migrations)
                 .extracting(migration -> migration.get("description"))
                 .containsExactly("legacy schema baseline", "reconcile jpa schema constraints and indexes",
@@ -163,7 +164,9 @@ class PostgreSqlSchemaIntegrationTests {
                         "credit opening position", "category visual identity", "saving goal currency",
                         "recurring income expenses", "financial alert lifecycle", "purchase review inbox",
                         "purchase draft source", "native purchase intents", "purchase draft capture sources",
-                        "link recurring credit payments", "category hierarchy");
+                        "link recurring credit payments", "category hierarchy", "transaction reversal reason",
+                        "savings administration", "budget lifecycle", "explicit profile names",
+                        "account identity color");
     }
 
     @Test

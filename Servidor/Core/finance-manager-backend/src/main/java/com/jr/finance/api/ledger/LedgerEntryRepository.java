@@ -11,6 +11,28 @@ import java.util.Optional;
 import com.jr.finance.api.budget.dto.BudgetCategorySpent;
 
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
+    interface DailyAccountMovement {
+        LocalDate getDate();
+        BigDecimal getAmount();
+    }
+
+    @Query("""
+            select sum(e.signedAmount) from LedgerEntry e
+            join e.financialTransaction t
+            where e.account.id = :accountId and t.user.id = :owner
+              and t.status <> :voided and t.effectiveDate < :start
+            """)
+    BigDecimal accountBalanceBefore(Long owner, Long accountId, LocalDate start, FinancialTransactionStatus voided);
+
+    @Query("""
+            select t.effectiveDate as date, sum(e.signedAmount) as amount
+            from LedgerEntry e join e.financialTransaction t
+            where e.account.id = :accountId and t.user.id = :owner
+              and t.status <> :voided and t.effectiveDate between :start and :end
+            group by t.effectiveDate order by t.effectiveDate
+            """)
+    List<DailyAccountMovement> accountMovementsByDay(Long owner, Long accountId, LocalDate start, LocalDate end,
+                                                     FinancialTransactionStatus voided);
 
     long countByFinancialTransactionId(Long financialTransactionId);
 

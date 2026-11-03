@@ -18,6 +18,9 @@ public class UpdateAccountRequest {
 
     private Boolean active;
 
+    @jakarta.validation.constraints.Pattern(regexp = "[a-z0-9-]{1,24}")
+    private String colorKey;
+
     @Null(message = "La moneda no se puede modificar")
     @Schema(hidden = true)
     private String currency;

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import com.jr.finance.api.common.FinancialPeriod;
+import com.jr.finance.api.common.exception.BadRequestException;
 import com.jr.finance.api.expense.CategoryType;
 import com.jr.finance.api.ledger.FinancialTransactionType;
 import com.jr.finance.api.reports.dto.CategoryReportResponse;
@@ -29,16 +31,32 @@ public class ReportController {
     private final ReportService reports;
     private final TransactionService transactions;
     private final CategoryReportService categoryReports;
+    private final AccountHistoryService accountHistory;
+
+    @GetMapping("/accounts/{accountId}/history")
+    @Operation(operationId = "getAccountBalanceHistory", summary = "Saldo de cierre diario por fecha efectiva")
+    public AccountHistoryService.History accountHistory(@PathVariable Long accountId, @RequestParam int year,
+            @RequestParam int month, Authentication authentication) {
+        Long owner = ((UserPrincipal) authentication.getPrincipal()).getUser().getId();
+        return accountHistory.month(owner, accountId, year, month);
+    }
 
     @GetMapping("/transactions")
     @Operation(operationId = "getReportTransactions", summary = "Movimientos que explican el ingreso o gasto mensual neto")
     public TransactionPageResponse reportTransactions(@RequestParam int year, @RequestParam int month,
             @RequestParam @Pattern(regexp = "[A-Z]{3}") String currency, @RequestParam CategoryType type,
+            @RequestParam(required = false) @Min(1) @Max(31) Integer day,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size, Authentication authentication) {
         Long owner = ((UserPrincipal) authentication.getPrincipal()).getUser().getId();
         var financialType = type == CategoryType.INCOME ? FinancialTransactionType.INCOME : FinancialTransactionType.EXPENSE;
-        return transactions.find(owner, new TransactionQuery(null, null, year, month, null, null, null,
+        var period = FinancialPeriod.of(year, month);
+        if (day != null && day > period.atEndOfMonth().getDayOfMonth()) {
+            throw new BadRequestException("El día no pertenece al mes indicado.");
+        }
+        var date = day == null ? null : period.atDay(day);
+        return transactions.find(owner, new TransactionQuery(date, date, day == null ? year : null,
+                day == null ? month : null, null, null, null,
                 null, page, size, currency, false, null, null, financialType, null));
     }
 

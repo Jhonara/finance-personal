@@ -615,6 +615,32 @@ class BudgetIntegrationTests {
         ledgerService.recordExpense(owner.getId(), source.getId(), command("25", LocalDate.of(2026, 8, 4), null));
         transferService.create(owner.getId(), transfer(source.getId(), destination.getId(), "7"));
 
+        String balanceHistory = "/api/v1/reports/accounts/" + source.getId() + "/history?year=2026&month=8";
+        mockMvc.perform(get(balanceHistory).header("Authorization", bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currency").value("COP"))
+                .andExpect(jsonPath("$.openingBalance").value(20))
+                .andExpect(jsonPath("$.points.length()").value(6))
+                .andExpect(jsonPath("$.points[4].movement").value(-7))
+                .andExpect(jsonPath("$.points[5].movement").value(-100))
+                .andExpect(jsonPath("$.points[5].balance").value(5028));
+        mockMvc.perform(get(balanceHistory).header("Authorization", bearer(other)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/reports/month?year=2026&month=8")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.COP.expensesByDay['2026-08-04']").value(25))
+                .andExpect(jsonPath("$.COP.expense").value(25));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=EXPENSE&day=4")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=EXPENSE&day=5")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=2&currency=COP&type=EXPENSE&day=30")
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isBadRequest());
+
         mockMvc.perform(get("/api/v1/reports/transactions?year=2026&month=8&currency=COP&type=INCOME&size=2")
                         .header("Authorization", bearer(owner)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3))

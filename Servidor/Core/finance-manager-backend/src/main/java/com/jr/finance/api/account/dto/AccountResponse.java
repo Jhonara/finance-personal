@@ -21,4 +21,5 @@ public class AccountResponse {
     private LocalDateTime updatedAt;
     @Schema(description = "Versión requerida para actualizaciones optimistas.", example = "0")
     private Long version;
+    private String colorKey;
 }

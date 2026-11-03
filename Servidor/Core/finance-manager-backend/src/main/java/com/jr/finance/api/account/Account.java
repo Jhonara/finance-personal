@@ -55,6 +55,9 @@ public class Account {
     @Column(nullable = false, length = 3, updatable = false)
     private String currency;
 
+    @Column(name = "color_key", length = 24)
+    private String colorKey;
+
     @Column(nullable = false)
     private boolean active = true;
 

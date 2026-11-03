@@ -12,7 +12,7 @@ public class AccountMapper {
     public AccountResponse toResponse(Account account) {
         return new AccountResponse(
                 account.getId(), account.getName(), account.getType(), account.getCurrency(), account.isActive(),
-                account.getCreatedAt(), account.getUpdatedAt(), account.getVersion());
+                account.getCreatedAt(), account.getUpdatedAt(), account.getVersion(), account.getColorKey());
     }
 
     public List<AccountResponse> toResponseList(List<Account> accounts) {

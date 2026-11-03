@@ -25,6 +25,7 @@ class ReportServiceTest {
         food.setName("Comida");
         var originalExpense = transaction(FinancialTransactionType.EXPENSE, "COP", food);
         var reversal = transaction(FinancialTransactionType.REVERSAL, "COP", null);
+        reversal.setEffectiveDate(LocalDate.of(2026, 10, 3));
         reversal.setReversalOf(originalExpense);
         when(entries.findByUserTypeAndPeriod(eq(9L), eq(FinancialTransactionType.INCOME),
                 eq(FinancialTransactionType.REVERSAL), any(LocalDate.class), any(LocalDate.class),
@@ -43,6 +44,10 @@ class ReportServiceTest {
         assertThat(report.get("COP").income()).isEqualByComparingTo("100");
         assertThat(report.get("COP").expense()).isEqualByComparingTo("40");
         assertThat(report.get("COP").expensesByCategory()).containsEntry("Comida", new BigDecimal("40"));
+        assertThat(report.get("COP").expensesByDay())
+                .containsEntry("2026-10-02", new BigDecimal("50"))
+                .containsEntry("2026-10-03", new BigDecimal("-10"));
+        assertThat(report.get("USD").expensesByDay()).containsEntry("2026-10-02", new BigDecimal("8"));
         assertThat(report.get("USD").income()).isEqualByComparingTo("20");
         assertThat(report.get("USD").expense()).isEqualByComparingTo("8");
     }
@@ -51,6 +56,7 @@ class ReportServiceTest {
         var result = new FinancialTransaction();
         result.setType(type);
         result.setCurrency(currency);
+        result.setEffectiveDate(LocalDate.of(2026, 10, 2));
         result.setCategory(category);
         return result;
     }

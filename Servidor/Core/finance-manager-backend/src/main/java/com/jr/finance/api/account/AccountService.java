@@ -56,7 +56,8 @@ public class AccountService {
         if (!account.getVersion().equals(request.getVersion())) {
             throw new ConflictException("La cuenta fue modificada por otra operación. Intenta nuevamente.");
         }
-        if (request.getName() == null && request.getType() == null && request.getActive() == null) {
+        if (request.getName() == null && request.getType() == null && request.getActive() == null
+                && request.getColorKey() == null) {
             throw new BadRequestException("Debes enviar al menos un campo editable");
         }
 
@@ -72,6 +73,9 @@ public class AccountService {
         }
         if (request.getActive() != null) {
             account.setActive(request.getActive());
+        }
+        if (request.getColorKey() != null) {
+            account.setColorKey("auto".equals(request.getColorKey()) ? null : request.getColorKey());
         }
 
         return accountRepository.saveAndFlush(account);

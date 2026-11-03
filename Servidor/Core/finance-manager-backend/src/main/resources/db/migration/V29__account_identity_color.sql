@@ -1,0 +1,1 @@
+ALTER TABLE accounts ADD COLUMN color_key VARCHAR(24);

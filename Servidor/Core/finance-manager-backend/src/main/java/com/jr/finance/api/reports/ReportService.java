@@ -23,6 +23,7 @@ public class ReportService {
         Map<String, BigDecimal> incomes = new HashMap<>();
         Map<String, BigDecimal> expenses = new HashMap<>();
         Map<String, Map<String, BigDecimal>> categories = new HashMap<>();
+        Map<String, Map<String, BigDecimal>> days = new HashMap<>();
         for (var entry : entries.findByUserTypeAndPeriod(userId, FinancialTransactionType.INCOME,
                 FinancialTransactionType.REVERSAL, period.atDay(1), period.atEndOfMonth(),
                 FinancialTransactionStatus.VOIDED)) {
@@ -35,6 +36,8 @@ public class ReportService {
             var amount = entry.getSignedAmount().negate();
             expenses.merge(currency, amount, BigDecimal::add);
             var transaction = entry.getFinancialTransaction();
+            days.computeIfAbsent(currency, ignored -> new HashMap<>())
+                    .merge(transaction.getEffectiveDate().toString(), amount, BigDecimal::add);
             var category = transaction.getType() == FinancialTransactionType.REVERSAL
                     && transaction.getReversalOf() != null
                     ? transaction.getReversalOf().getCategory() : transaction.getCategory();
@@ -45,9 +48,11 @@ public class ReportService {
         incomes.keySet().forEach(currency -> result.put(currency, new MonthlyCurrencyReport(
                 incomes.getOrDefault(currency, BigDecimal.ZERO),
                 expenses.getOrDefault(currency, BigDecimal.ZERO),
-                Map.copyOf(categories.getOrDefault(currency, Map.of())))));
+                Map.copyOf(categories.getOrDefault(currency, Map.of())),
+                Map.copyOf(days.getOrDefault(currency, Map.of())))));
         expenses.keySet().forEach(currency -> result.putIfAbsent(currency, new MonthlyCurrencyReport(
-                BigDecimal.ZERO, expenses.get(currency), Map.copyOf(categories.getOrDefault(currency, Map.of())))));
+                BigDecimal.ZERO, expenses.get(currency), Map.copyOf(categories.getOrDefault(currency, Map.of())),
+                Map.copyOf(days.getOrDefault(currency, Map.of())))));
         return result;
     }
 }
