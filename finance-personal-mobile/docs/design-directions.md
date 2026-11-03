@@ -56,6 +56,8 @@ Pasaron TypeScript, ESLint, las 795 pruebas existentes y dos pruebas nuevas de c
 
 La medición exploratoria en desarrollo, con renderizado por software, registró 49 fotogramas, 28 fuera de plazo y un percentil 95 de 97 ms. Permite confirmar la ejecución de las interacciones, pero deja pendiente una medición representativa con aceleración gráfica en dispositivo. No se presenta como rendimiento aprobado de producción.
 
+Editorial se revisó visualmente con la fuente del sistema al 140 %. Los importes y controles principales permanecieron legibles. El cambio de escala recreó la actividad Android y Expo mostró una advertencia de configuración múltiple de enlaces. Se pudo reabrir la galería y se restauró la escala original. Esa advertencia del cliente de desarrollo requiere revisión antes de ampliar esta propuesta a producción.
+
 ## Referencias
 
 La selección contextual de tiempo y los valores al tocar se contrastaron con [Monzo Trends](https://monzo.com/help/budgeting-overdrafts-savings/trends-months-years-web). La organización por gasto e ingreso se revisó en [Revolut Analytics](https://help.revolut.com/en-US/help/accounts/budget-and-analytics/what-is-the-analytics-dashboard/).
