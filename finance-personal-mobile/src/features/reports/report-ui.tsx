@@ -3,11 +3,11 @@ import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, radius, spacing, typography } from '@/theme';
 import { themedStyleSheet } from '@/theme/themed-styles';
-import { Card, Button } from '@/ui/primitives';
+import { Button } from '@/ui/primitives';
 import { MotionPressable } from '@/ui/motion';
 
 export const reportStyles = themedStyleSheet(() => ({
-  panel: { padding: spacing.lg, gap: spacing.md },
+  panel: { paddingVertical: spacing.lg, gap: spacing.md, borderTopWidth: 1, borderColor: colors.divider },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   between: {
     flexDirection: 'row',
@@ -70,7 +70,7 @@ export function ReportPanel({
   children,
 }: PropsWithChildren<{ title: string; subtitle?: string; icon: ComponentProps<typeof Ionicons>['name'] }>) {
   return (
-    <Card style={reportStyles.panel}>
+    <View style={reportStyles.panel}>
       <View style={reportStyles.row}>
         <View style={reportStyles.icon}>
           <Ionicons name={icon} size={20} color={colors.primary} />
@@ -83,7 +83,7 @@ export function ReportPanel({
         </View>
       </View>
       {children}
-    </Card>
+    </View>
   );
 }
 export function ReportNotice({ children }: PropsWithChildren) {

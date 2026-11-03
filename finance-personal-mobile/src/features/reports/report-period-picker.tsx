@@ -38,7 +38,7 @@ export function ReportPeriodPicker({
         <Arrow
           label="Mes anterior"
           back
-          disabled={period.year === 1900 && period.month === 1}
+          disabled={period.year <= 2000 && period.month === 1}
           onPress={() => onChange(shiftDashboardPeriod(period, -1))}
         />
         <MotionPressable
@@ -58,7 +58,7 @@ export function ReportPeriodPicker({
         </MotionPressable>
         <Arrow
           label="Mes siguiente"
-          disabled={period.year === 9999 && period.month === 12}
+          disabled={period.year >= 2100 && period.month === 12}
           onPress={() => onChange(shiftDashboardPeriod(period, 1))}
         />
       </View>
@@ -83,9 +83,9 @@ export function ReportPeriodPicker({
                 <Arrow label="Cerrar calendario" close onPress={modal.close} />
               </View>
               <View style={s.between}>
-                <Arrow label="Año anterior" back disabled={year <= 1900} onPress={() => setYear(year - 1)} />
+                <Arrow label="Año anterior" back disabled={year <= 2000} onPress={() => setYear(year - 1)} />
                 <Text style={s.amount}>{year}</Text>
-                <Arrow label="Año siguiente" disabled={year >= 9999} onPress={() => setYear(year + 1)} />
+                <Arrow label="Año siguiente" disabled={year >= 2100} onPress={() => setYear(year + 1)} />
               </View>
               <View style={styles.grid}>
                 {Array.from({ length: 12 }, (_, index) => {

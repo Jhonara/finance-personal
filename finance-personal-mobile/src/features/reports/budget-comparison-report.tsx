@@ -9,6 +9,7 @@ import { useCategories } from '@/features/categories/use-categories';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import { colors } from '@/theme';
 import { Button } from '@/ui/primitives';
+import { Progress } from '@/ui/progress';
 import { ModalSelector } from '@/ui/modal-selector';
 import { ReportAmountBars } from './report-charts';
 import { BudgetUtilizationCards } from './budget-utilization-cards';
@@ -132,6 +133,18 @@ export function BudgetComparisonReport({
       onPress: () => openTransactions(item.categoryId, `${selected.categoryName} › ${item.categoryName}`),
     })) ?? [];
   const selectedBudget = budgets.find((budget) => budget.categoryId === selected?.categoryId);
+  const now = new Date();
+  const monthStart = new Date(period.year, period.month - 1, 1);
+  const daysInMonth = new Date(period.year, period.month, 0).getDate();
+  const sameMonth = now.getFullYear() === period.year && now.getMonth() + 1 === period.month;
+  const elapsed = sameMonth ? now.getDate() - 1 : now < monthStart ? 0 : daysInMonth;
+  const used =
+    data.totalBudgetedAmount > 0
+      ? (data.totalSpentOnBudgetedCategories / data.totalBudgetedAmount) * 100
+      : undefined;
+  const nearLimit = data.groups.filter(
+    (group) => group.hasBudget && (group.percentageUsed ?? 0) >= 80,
+  ).length;
 
   return (
     <ReportPanel
@@ -166,6 +179,34 @@ export function BudgetComparisonReport({
               <Text style={s.label}>{money(data.totalUnbudgetedAmount)}</Text>
             </View>
           </View>
+          {used !== undefined && !hidden && (
+            <View style={s.stack}>
+              <Text accessibilityRole="header" style={s.label}>
+                Ritmo del mes
+              </Text>
+              <Text style={s.caption}>
+                {elapsed} de {daysInMonth} días completos
+              </Text>
+              <Progress
+                value={(elapsed / daysInMonth) * 100}
+                label="Avance del calendario"
+                animated={false}
+              />
+              <Text style={s.caption}>
+                {used.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% del presupuesto utilizado
+              </Text>
+              <Progress value={used} color={colors.expense} label="Uso del presupuesto" animated={false} />
+              {nearLimit > 0 && (
+                <Text style={s.label}>
+                  {nearLimit} {nearLimit === 1 ? 'grupo llegó' : 'grupos llegaron'} al 80% de su límite.
+                </Text>
+              )}
+              <Text style={s.caption}>
+                El uso compara solo gasto cubierto por el presupuesto. El calendario es una referencia, no una
+                proyección.
+              </Text>
+            </View>
+          )}
           <ReportNotice>
             El techo de una categoría padre incluye sus subcategorías. Los límites individuales no se vuelven
             a sumar a ese techo.

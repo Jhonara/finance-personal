@@ -17,7 +17,7 @@ import {
   updateSavingGoal,
   type SavingGoal,
 } from '@/features/secondary/secondary-api';
-import { typography } from '@/theme';
+import { colors, typography } from '@/theme';
 import { formatLocalDate } from '@/utils/local-date';
 import { savingGoalSchema } from './savings-schemas';
 import { requestAmount, savingsAmount } from './savings-money';
@@ -267,6 +267,9 @@ export function SavingManagement({
           <Text accessibilityRole="header" style={typography.sectionTitle}>
             Historial de la meta
           </Text>
+          <Text style={typography.caption}>
+            Anotaciones de dinero apartado. No son movimientos bancarios.
+          </Text>
           {history.isPending && <Text style={typography.bodySecondary}>Consultando movimientos…</Text>}
           {history.isError && (
             <Button variant="secondary" onPress={() => void history.refetch()}>
@@ -277,7 +280,16 @@ export function SavingManagement({
             <Text style={typography.bodySecondary}>Aún no tiene movimientos.</Text>
           )}
           {history.data?.map((movement) => (
-            <View key={movement.id}>
+            <View
+              key={movement.id}
+              style={{
+                borderLeftWidth: 2,
+                borderColor: movement.type === 'WITHDRAWAL' ? colors.info : colors.success,
+                paddingLeft: 12,
+                paddingVertical: 5,
+                gap: 4,
+              }}
+            >
               <Text style={typography.label}>
                 {movement.type === 'WITHDRAWAL' ? 'Retiro' : 'Aporte'} ·{' '}
                 {savingsAmount(movement.amount, hidden, goal.currency)}

@@ -117,6 +117,14 @@ export const categoryColors = [
   { key: 'violet', label: 'Violeta', soft: '#E9E4FF', ink: '#66509E' },
   { key: 'coral', label: 'Coral', soft: '#FFE5E8', ink: '#A74455' },
   { key: 'pink', label: 'Rosa', soft: '#FFE9F4', ink: '#9B4870' },
+  { key: 'jade', label: 'Jade', soft: '#DFF1DD', ink: '#285B30' },
+  { key: 'lagoon', label: 'Laguna', soft: '#D8F4F2', ink: '#14575C' },
+  { key: 'indigo', label: 'Índigo', soft: '#E3EAFF', ink: '#344686' },
+  { key: 'plum', label: 'Ciruela', soft: '#F2E3F7', ink: '#693677' },
+  { key: 'brick', label: 'Terracota', soft: '#FFE8DF', ink: '#853C2B' },
+  { key: 'olive', label: 'Oliva', soft: '#EDF1D8', ink: '#495517' },
+  { key: 'slate', label: 'Pizarra', soft: '#E4EDF1', ink: '#354F5D' },
+  { key: 'sand', label: 'Arena', soft: '#F5EBDD', ink: '#66492D' },
 ] as const;
 
 export type CategoryColorKey = (typeof categoryColors)[number]['key'];
@@ -128,6 +136,14 @@ const darkCategoryColors: Record<CategoryColorKey, { soft: string; ink: string }
   violet: { soft: '#342E4D', ink: '#C3B4F6' },
   coral: { soft: '#472E34', ink: '#F3A6B0' },
   pink: { soft: '#442D40', ink: '#EEAED3' },
+  jade: { soft: '#263C2A', ink: '#AFE3AD' },
+  lagoon: { soft: '#1D383D', ink: '#93E0DF' },
+  indigo: { soft: '#293551', ink: '#B6C7FF' },
+  plum: { soft: '#3B2C45', ink: '#E6B9F3' },
+  brick: { soft: '#482E27', ink: '#FFB7A3' },
+  olive: { soft: '#353B23', ink: '#D4E5A1' },
+  slate: { soft: '#263A46', ink: '#BBD5E2' },
+  sand: { soft: '#42362A', ink: '#E9CCAA' },
 };
 
 /** Category identity stays constant; only its readable colors follow the app theme. */

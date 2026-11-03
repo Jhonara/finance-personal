@@ -84,10 +84,11 @@ export const getReportTransactions = async (
   currency: string,
   type: ReportCategoryType,
   page: number,
+  day?: number,
 ) =>
   (
     await api.get<TransactionPage>('/reports/transactions', {
-      params: { year, month, currency, type, page, size: 20 },
+      params: { year, month, currency, type, page, size: 20, ...(day === undefined ? {} : { day }) },
     })
   ).data;
 
@@ -131,6 +132,7 @@ export const getReportMonth = async (
         income: entry.income ?? 0,
         expense: entry.expense ?? 0,
         expensesByCategory: entry.expensesByCategory ?? {},
+        ...(entry.expensesByDay ? { expensesByDay: entry.expensesByDay } : {}),
       },
     ]),
   );

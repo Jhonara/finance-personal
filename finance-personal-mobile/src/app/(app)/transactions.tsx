@@ -39,18 +39,30 @@ export default function TransactionsScreen() {
     const timer = setTimeout(() => setSearchQuery(search.trim()), 300);
     return () => clearTimeout(timer);
   }, [search]);
-  const { year, month } = useLocalSearchParams<{ year?: string; month?: string }>();
-  const [filters, setFilters] = useState<TransactionFilters>(
-    () => dashboardPeriodFromParams(year, month) ?? {},
+  const { year, month, from, to, accountId } = useLocalSearchParams<{
+    year?: string;
+    month?: string;
+    from?: string;
+    to?: string;
+    accountId?: string;
+  }>();
+  const accountFilter = Number(accountId);
+  const rangeIsValid = Boolean(
+    from && to && /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && from <= to,
   );
+  const routeFilters = (): TransactionFilters => ({
+    ...(rangeIsValid ? { from, to } : (dashboardPeriodFromParams(year, month) ?? {})),
+    ...(Number.isSafeInteger(accountFilter) && accountFilter > 0 ? { accountId: accountFilter } : {}),
+  });
+  const [filters, setFilters] = useState<TransactionFilters>(routeFilters);
   useEffect(() => {
-    const requested = dashboardPeriodFromParams(year, month);
-    if (requested) {
+    const requested = routeFilters();
+    if (Object.keys(requested).length > 0) {
       setFilters(requested);
       setSearch('');
       setSearchQuery('');
     }
-  }, [year, month]);
+  }, [year, month, from, to, accountId]);
   const [selectedTransaction, setSelectedTransaction] = useState<PresentedTransaction>();
   const { hidden, toggle } = usePrivacy();
   const accounts = useAccounts();

@@ -42,6 +42,10 @@ import { themedStyleSheet } from '@/theme/themed-styles';
 import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { Button, Screen } from '@/ui/primitives';
 import { ScreenHeader } from '@/ui/headers';
+import { ModalSelector } from '@/ui/modal-selector';
+
+const overviewViews = reportViews.slice(0, 3);
+const additionalViews = reportViews.slice(3);
 
 export default function ReportsScreen() {
   useAppTheme();
@@ -65,6 +69,7 @@ export default function ReportsScreen() {
     if (requestedReport && reportViews.some((item) => item.id === requestedReport)) setView(requestedReport);
   }, [requestedReport]);
   const [count, setCount] = useState(6);
+  const [choosingReport, setChoosingReport] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<string>(requestedCurrency ?? '');
   useEffect(() => {
     if (requestedCurrency) setSelectedCurrency(requestedCurrency);
@@ -78,7 +83,8 @@ export default function ReportsScreen() {
     queries: periods.map((entry) => ({
       queryKey: ['reports', 'month', entry.year, entry.month],
       queryFn: ({ signal }: { signal: AbortSignal }) => getReportMonth(entry.year, entry.month, signal),
-      enabled: monthly,
+      enabled:
+        monthly && (view === 'summary' || (entry.year === period.year && entry.month === period.month)),
       staleTime: 60_000,
     })),
   });
@@ -138,7 +144,9 @@ export default function ReportsScreen() {
       : view === 'credits'
         ? [snapshot, credits]
         : view === 'expenses' || view === 'income'
-          ? [categoryReport]
+          ? currency
+            ? [categoryReport]
+            : [accounts, currentQuery]
           : monthly
             ? [currentQuery]
             : [snapshot];
@@ -150,11 +158,13 @@ export default function ReportsScreen() {
     (monthly && queries.some((query) => query.isRefetching));
   const refresh = () => {
     void accounts.refetch();
-    if (monthly) queries.forEach((query) => void query.refetch());
-    else void snapshot.refetch();
+    if (monthly) {
+      if (view === 'summary') queries.forEach((query) => void query.refetch());
+      else void currentQuery.refetch();
+    } else void snapshot.refetch();
     if (view === 'budgets') void budgets.refetch();
     if (view === 'budgets') void budgetComparison.refetch();
-    if (view === 'expenses' || view === 'income') void categoryReport.refetch();
+    if (currency && (view === 'expenses' || view === 'income')) void categoryReport.refetch();
     if (view === 'credits') void credits.refetch();
   };
   return (
@@ -167,7 +177,7 @@ export default function ReportsScreen() {
     >
       <ScreenHeader title="Reportes" back onBack={() => router.back()} />
       <View style={styles.navigation}>
-        {reportViews.map((item) => (
+        {overviewViews.map((item) => (
           <MotionPressable
             key={item.id}
             accessibilityRole="button"
@@ -179,7 +189,31 @@ export default function ReportsScreen() {
             <Text style={view === item.id ? s.selectedText : s.caption}>{item.label}</Text>
           </MotionPressable>
         ))}
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel="Más reportes"
+          accessibilityState={{
+            expanded: choosingReport,
+            selected: additionalViews.some((item) => item.id === view),
+          }}
+          onPress={() => setChoosingReport(true)}
+          style={[styles.tab, additionalViews.some((item) => item.id === view) && styles.activeTab]}
+        >
+          <Text style={s.caption}>{additionalViews.find((item) => item.id === view)?.label ?? 'Más'} ▾</Text>
+        </MotionPressable>
       </View>
+      <ModalSelector
+        visible={choosingReport}
+        label="Más reportes"
+        subtitle="Presupuesto, saldos, deuda y metas."
+        options={additionalViews.map((item, index) => ({ id: index, label: item.label, icon: item.icon }))}
+        selectedId={additionalViews.findIndex((item) => item.id === view)}
+        onClose={() => setChoosingReport(false)}
+        onSelect={(id) => {
+          const selected = additionalViews[id];
+          if (selected) setView(selected.id);
+        }}
+      />
       {monthly ? (
         <>
           <ReportPeriodPicker period={period} onChange={setPeriod} />
@@ -325,22 +359,19 @@ export default function ReportsScreen() {
   );
 }
 const styles = themedStyleSheet(() => ({
-  navigation: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  navigation: { flexDirection: 'row', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: colors.divider },
   tab: {
-    flexBasis: '30%',
+    minHeight: 48,
     flexGrow: 1,
-    minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: radius.medium,
+    borderBottomWidth: 2,
+    borderColor: 'transparent',
   },
-  activeTab: { borderColor: colors.success, backgroundColor: colors.primarySoft },
+  activeTab: { borderColor: colors.success },
   privacy: {
     width: 44,
     height: 44,

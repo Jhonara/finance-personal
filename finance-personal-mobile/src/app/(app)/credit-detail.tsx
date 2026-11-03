@@ -223,7 +223,7 @@ function CreditDetailContent({ id }: { id: number }) {
               </View>
             </Card>
           )}
-          <Card style={styles.amortization}>
+          <View style={styles.amortization}>
             <View style={styles.amortizationHeading}>
               <View style={styles.amortizationIcon}>
                 <Ionicons name="layers-outline" size={23} color={colors.primary} />
@@ -255,7 +255,7 @@ function CreditDetailContent({ id }: { id: number }) {
                 <Text style={typography.caption}>Comparación pendiente de actualizar.</Text>
               )}
             </Disclosure>
-          </Card>
+          </View>
           {!plan.data && (credit.paidPrincipal !== undefined || credit.paidInterest !== undefined) && (
             <Card style={creditPanel}>
               <Text accessibilityRole="header" style={typography.sectionTitle}>
@@ -424,7 +424,12 @@ function CreditDetailContent({ id }: { id: number }) {
 
 const styles = themedStyleSheet(() => ({
   screen: { gap: spacing.lg },
-  amortization: { gap: spacing.md, padding: spacing.lg },
+  amortization: {
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    borderTopWidth: 1,
+    borderColor: colors.divider,
+  },
   amortizationHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   amortizationIcon: {
     width: 48,

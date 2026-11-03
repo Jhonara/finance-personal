@@ -24,6 +24,10 @@ import { useDashboardMonth } from '@/features/dashboard/use-dashboard-month';
 import { balanceForAccount } from '@/features/accounts/account-balances';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { ErrorState, SkeletonRow } from '@/ui/states';
+import { Disclosure } from '@/ui/disclosure';
+import { AccountBalanceHistory } from '@/features/reports/account-balance-history';
+import { ReportChoice } from '@/features/reports/report-ui';
+import { categoryColors, categoryColorAppearance } from '@/features/categories/category-appearance';
 function AccountDetail() {
   const activeSession = useFormSessionActive();
   const submitting = useRef(false);
@@ -36,7 +40,7 @@ function AccountDetail() {
   const [amount, setAmount] = useState('');
   const [amountError, setAmountError] = useState('');
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<{ name: string; version: number }>();
+  const [draft, setDraft] = useState<{ name: string; version: number; colorKey?: string }>();
   useEffect(() => {
     if (!draft && account && typeof account.version === 'number')
       setDraft({ name: account.name ?? '', version: account.version });
@@ -50,7 +54,7 @@ function AccountDetail() {
   const balance = balanceForAccount(dashboard, account?.id);
   const openingReady = !openingExists.isPending && !ordinaryMovement.isPending;
   const guard = useUnsavedForm({
-    dirty: (editing && draft?.name !== account?.name) || Boolean(amount),
+    dirty: (editing && (draft?.name !== account?.name || draft?.colorKey !== undefined)) || Boolean(amount),
     busy: update.isPending || opening.isPending,
     suspended: confirm || Boolean(conflict),
     enabled: Boolean(account),
@@ -106,6 +110,7 @@ function AccountDetail() {
           type: account.type,
           active: account.active,
           version: draft.version,
+          colorKey: draft.colorKey,
         },
       },
       {
@@ -126,6 +131,8 @@ function AccountDetail() {
       },
     );
   };
+  const identityKey = categoryColors.find((color) => color.key === (draft.colorKey ?? account.colorKey))?.key;
+  const identity = identityKey ? categoryColorAppearance(identityKey) : undefined;
   return (
     <Screen entry scroll keyboard style={{ gap: spacing.lg }}>
       <ScreenHeader
@@ -134,23 +141,35 @@ function AccountDetail() {
         back
         onBack={() => guard.request(() => router.back())}
       />
-      <LinearGradient colors={[colors.heroStart, colors.heroEnd]} style={styles.hero}>
+      <LinearGradient
+        colors={identity ? [identity.soft, identity.soft] : [colors.heroStart, colors.heroEnd]}
+        style={styles.hero}
+      >
         <View style={styles.heroHead}>
           <View style={styles.heroIcon}>
-            <Ionicons name="wallet-outline" size={23} color={colors.mint} />
+            <Ionicons name="wallet-outline" size={23} color={identity?.ink ?? colors.mint} />
           </View>
-          <Text style={styles.heroCurrency}>{account.currency ?? 'COP'}</Text>
+          <Text style={[styles.heroCurrency, identity && { color: identity.ink }]}>
+            {account.currency ?? 'COP'}
+          </Text>
         </View>
-        <Text style={styles.heroLabel}>SALDO REGISTRADO</Text>
+        <Text style={[styles.heroLabel, identity && { color: identity.ink }]}>SALDO REGISTRADO</Text>
         <AccountBalanceAmount
           balance={balance}
           currency={account.currency ?? 'COP'}
           hidden={hidden}
-          style={styles.balance}
+          style={[styles.balance, identity && { color: identity.ink }]}
         />
-        <Text style={styles.heroHint}>Se actualiza con tus movimientos registrados.</Text>
+        <Text style={[styles.heroHint, identity && { color: identity.ink }]}>
+          Se actualiza con tus movimientos registrados.
+        </Text>
       </LinearGradient>
-      <Card style={styles.detail}>
+      {!editing && !amount && (
+        <Disclosure title="Evolución del saldo" icon="analytics-outline">
+          <AccountBalanceHistory accountId={account.id!} hidden={hidden} />
+        </Disclosure>
+      )}
+      <View style={styles.detail}>
         <Text style={styles.sectionTitle}>Detalles de la cuenta</Text>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Estado</Text>
@@ -164,15 +183,24 @@ function AccountDetail() {
           <Text style={styles.infoLabel}>Moneda</Text>
           <Text style={styles.infoValue}>{account.currency}</Text>
         </View>
-      </Card>
+      </View>
       {editing ? (
         <Card tone="info" style={styles.detail}>
-          <Text style={typography.cardTitle}>Editar nombre</Text>
+          <Text style={typography.cardTitle}>Editar cuenta</Text>
           <Input
             label="Nombre"
             value={draft.name}
             onChangeText={(name) => setDraft({ ...draft, name })}
             editable={!update.isPending}
+          />
+          <ReportChoice
+            label="Color de la cuenta"
+            choices={[
+              { value: 'auto', label: 'Por tipo' },
+              ...categoryColors.map((color) => ({ value: color.key, label: color.label })),
+            ]}
+            selected={draft.colorKey ?? account.colorKey ?? 'auto'}
+            onSelect={(colorKey) => setDraft({ ...draft, colorKey })}
           />
           <Button onPress={save} loading={update.isPending} disabled={!draft.name.trim()}>
             Guardar cambios

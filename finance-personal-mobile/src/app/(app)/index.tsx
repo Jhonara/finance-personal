@@ -47,7 +47,7 @@ import { useFeedback } from '@/feedback/feedback-provider';
 import { usePrivacy } from '@/privacy/privacy-provider';
 import { colors, motion, radius, spacing, typography } from '@/theme';
 import { TransactionRow } from '@/ui/financial';
-import { Card, Screen } from '@/ui/primitives';
+import { Screen } from '@/ui/primitives';
 import { ErrorState, SkeletonCard, SkeletonRow } from '@/ui/states';
 import { MotionPressable } from '@/ui/motion';
 import { FirstRunFabHint, FirstRunGuide } from '@/ui/first-run-guide';
@@ -396,7 +396,7 @@ export default function HomeScreen() {
                 <Text accessibilityRole="header" style={[styles.sectionTitle, styles.movementsHeading]}>
                   Últimos movimientos
                 </Text>
-                <Card style={styles.recentList}>
+                <View style={styles.recentList}>
                   {recent.slice(0, 3).map((transaction) => (
                     <TransactionRow
                       key={transaction.transactionId}
@@ -414,7 +414,7 @@ export default function HomeScreen() {
                   >
                     <Text style={styles.transactionsLinkText}>Ver movimientos →</Text>
                   </MotionPressable>
-                </Card>
+                </View>
               </>
             ) : null}
           </Animated.View>
@@ -500,7 +500,12 @@ const styles = themedStyleSheet(() => ({
   sectionAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.xs },
   sectionActionText: { ...typography.caption, color: colors.success, fontWeight: '700' },
   movementsHeading: { marginTop: spacing.xl, marginBottom: spacing.sm },
-  recentList: { paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm },
+  recentList: {
+    borderTopWidth: 1,
+    borderColor: colors.divider,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
   transactionsLink: {
     minHeight: 42,
     alignItems: 'center',

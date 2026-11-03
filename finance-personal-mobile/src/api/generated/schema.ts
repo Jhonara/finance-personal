@@ -1110,6 +1110,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/accounts/{accountId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Saldo de cierre diario por fecha efectiva */
+        get: operations["getAccountBalanceHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/recurrences/upcoming": {
         parameters: {
             query?: never;
@@ -2641,6 +2658,7 @@ export interface components {
              * @example 0
              */
             version?: number;
+            colorKey?: string;
         };
         /** @description Saldo inicial único de una cuenta. Puede ser positivo o negativo. */
         CreateOpeningBalanceRequest: {
@@ -2719,6 +2737,7 @@ export interface components {
             /** @enum {string} */
             type?: "CASH" | "BANK" | "DIGITAL_WALLET" | "SAVINGS" | "INVESTMENT" | "OTHER";
             active?: boolean;
+            colorKey?: string;
             /** Format: int64 */
             version: number;
         };
@@ -2758,6 +2777,9 @@ export interface components {
             income?: number;
             expense?: number;
             expensesByCategory?: {
+                [key: string]: number;
+            };
+            expensesByDay?: {
                 [key: string]: number;
             };
         };
@@ -2834,6 +2856,17 @@ export interface components {
             categoryName?: string;
             parentCategoryName?: string;
             spentAmount?: number;
+        };
+        History: {
+            currency?: string;
+            openingBalance?: number;
+            points?: components["schemas"]["Point"][];
+        };
+        Point: {
+            /** Format: date */
+            date?: string;
+            balance?: number;
+            movement?: number;
         };
         RecurringUpcomingResponse: {
             /** Format: date */
@@ -5768,6 +5801,7 @@ export interface operations {
                 month: number;
                 currency: string;
                 type: "EXPENSE" | "INCOME";
+                day?: number;
                 page?: number;
                 size?: number;
             };
@@ -5940,6 +5974,31 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["BudgetComparisonResponse"];
+                };
+            };
+        };
+    };
+    getAccountBalanceHistory: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+            };
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["History"];
                 };
             };
         };

@@ -29,6 +29,7 @@ export default function ReportTransactions() {
     currency = '',
     category = '',
     categoryId = '',
+    day,
     type = 'EXPENSE',
   } = useLocalSearchParams<{
     year?: string;
@@ -36,6 +37,7 @@ export default function ReportTransactions() {
     currency?: string;
     category?: string;
     categoryId?: string;
+    day?: string;
     type?: 'EXPENSE' | 'INCOME';
   }>();
   const period = dashboardPeriodFromParams(year, month);
@@ -43,16 +45,23 @@ export default function ReportTransactions() {
   const hasCategoryId = Number.isInteger(parsedCategoryId) && parsedCategoryId > 0;
   const uncategorized = categoryId === 'uncategorized';
   const hierarchyReport = hasCategoryId || uncategorized;
+  const selectedDay = day == null ? undefined : Number(day);
   const valid = Boolean(
     period &&
     /^[A-Z]{3}$/.test(currency) &&
     (!categoryId || hierarchyReport) &&
+    (selectedDay === undefined ||
+      (!category &&
+        !hierarchyReport &&
+        Number.isInteger(selectedDay) &&
+        selectedDay >= 1 &&
+        selectedDay <= new Date(period.year, period.month, 0).getDate())) &&
     (type === 'EXPENSE' || type === 'INCOME'),
   );
   const { hidden } = usePrivacy();
   const [selected, setSelected] = useState<PresentedTransaction>();
   const query = useInfiniteQuery({
-    queryKey: ['transactions', 'report-expenses', period, currency, category, categoryId, type],
+    queryKey: ['transactions', 'report-expenses', period, currency, category, categoryId, type, selectedDay],
     enabled: valid,
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
@@ -66,7 +75,7 @@ export default function ReportTransactions() {
             pageParam,
           )
         : type === 'INCOME' || !category
-          ? getReportTransactions(period!.year, period!.month, currency, type, pageParam)
+          ? getReportTransactions(period!.year, period!.month, currency, type, pageParam, selectedDay)
           : getReportExpenses(period!.year, period!.month, currency, category, pageParam),
     getNextPageParam: (page) => (page.last ? undefined : (page.page ?? 0) + 1),
   });
@@ -87,6 +96,7 @@ export default function ReportTransactions() {
       />
       {period && (
         <Text style={typography.label}>
+          {selectedDay === undefined ? '' : `Día ${selectedDay} · `}
           {formatDashboardPeriod(period)} · {currency}
         </Text>
       )}

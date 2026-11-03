@@ -104,6 +104,12 @@ vi.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children }: React.PropsWithChildren) =>
     React.createElement('Gradient', undefined, children),
 }));
+vi.mock('react-native-svg', () => ({
+  default: 'Svg',
+  Circle: 'Circle',
+  Line: 'Line',
+  Polyline: 'Polyline',
+}));
 vi.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void | (() => void)) =>
     React.useEffect(effect, [effect, mocks.focusVersion]),

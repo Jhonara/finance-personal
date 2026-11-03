@@ -205,6 +205,10 @@ async function settle(check: () => void) {
   });
 }
 async function press(tree: ReturnType<typeof create>, label: string) {
+  if (/^Reporte: (Presupuestos|Cuentas|Créditos|Metas)$/.test(label)) {
+    await press(tree, 'Más reportes');
+    label = label.slice('Reporte: '.length);
+  }
   const button = tree.root
     .findAll((node) => (node.type as unknown) === 'Pressable')
     .find((node) => node.props.accessibilityLabel === label || text(node) === label);

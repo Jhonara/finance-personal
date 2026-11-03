@@ -23,6 +23,7 @@ import { Screen } from '@/ui/primitives';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 import { Disclosure } from '@/ui/disclosure';
 import { SettingsRow } from '@/ui/settings-row';
+import { categoryColors, categoryColorAppearance } from '@/features/categories/category-appearance';
 
 const filters = [
   { key: 'ALL', label: 'Todas' },
@@ -78,8 +79,13 @@ function AccountTile({
   hidden: boolean;
 }) {
   const looks = accountLooks();
-  const look = looks[account.type ?? 'OTHER'] ?? looks.OTHER!;
-  const dark = account.type === 'BANK';
+  const defaultLook = looks[account.type ?? 'OTHER'] ?? looks.OTHER!;
+  const key = categoryColors.find((color) => color.key === account.colorKey)?.key;
+  const identity = key ? categoryColorAppearance(key) : undefined;
+  const look = identity
+    ? { ...defaultLook, background: identity.soft, ink: identity.ink, accent: identity.ink }
+    : defaultLook;
+  const dark = !identity && account.type === 'BANK';
   const currency = account.currency ?? 'COP';
   const name = account.name ?? 'Cuenta';
   return (

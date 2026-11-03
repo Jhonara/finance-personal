@@ -10,12 +10,14 @@ import { Progress } from '@/ui/progress';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
 import {
   formatDashboardPeriod,
+  currentDashboardPeriod,
   shiftDashboardPeriod,
   type DashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
 import { categoryRows, comparisonPercent, type CurrencyMonth, type TrendPoint } from './report-model';
 import { chartColors, ReportRing, ReportAmountBars } from './report-charts';
 import { InteractiveHistory } from './interactive-history';
+import { SpendingCalendar } from './spending-calendar';
 import { reportStyles as s, ReportChoice, ReportEmpty, ReportNotice, ReportPanel } from './report-ui';
 
 export function MonthlyOverview({
@@ -47,6 +49,14 @@ export function MonthlyOverview({
   const ratio =
     current.income > 0 && current.expense >= 0 ? (current.expense / current.income) * 100 : undefined;
   const largest = categoryRows(current)[0];
+  const today = currentDashboardPeriod();
+  const completePeriod = period.year * 12 + period.month < today.year * 12 + today.month;
+  const growth =
+    completePeriod && previous
+      ? categoryRows(current, previous)
+          .filter((row) => row.amount > 0 && (row.previous ?? 0) >= 0 && row.amount > (row.previous ?? 0))
+          .sort((a, b) => b.amount - (b.previous ?? 0) - (a.amount - (a.previous ?? 0)))[0]
+      : undefined;
   return (
     <>
       <BrandSurface tone="panorama" style={{ gap: spacing.lg }}>
@@ -55,12 +65,18 @@ export function MonthlyOverview({
           <Text style={[s.eyebrow, { color: '#B7EDE0' }]}>TU MES EN {currency}</Text>
         </View>
         <View style={{ gap: spacing.xs }}>
-          <Text style={{ color: '#B9D4D5' }}>Ingresos registrados</Text>
-          <Text style={[s.value, { color: '#FFFFFF' }]}>{money(current.income)}</Text>
+          <Text style={{ color: '#B9D4D5' }}>Flujo neto registrado</Text>
+          <Text style={[s.value, { color: '#FFFFFF' }]}>{money(current.income - current.expense)}</Text>
         </View>
-        <View style={{ gap: spacing.xs }}>
-          <Text style={{ color: '#B9D4D5' }}>Gastos registrados</Text>
-          <Text style={[s.value, { color: '#FFFFFF' }]}>{money(current.expense)}</Text>
+        <View style={s.between}>
+          <View>
+            <Text style={{ color: '#B9D4D5' }}>Ingresos registrados</Text>
+            <Text style={[s.amount, { color: '#FFFFFF' }]}>{money(current.income)}</Text>
+          </View>
+          <View>
+            <Text style={{ color: '#B9D4D5' }}>Gastos registrados</Text>
+            <Text style={[s.amount, { color: '#FFFFFF' }]}>{money(current.expense)}</Text>
+          </View>
         </View>
         <Text style={[s.caption, { color: '#B9D4D5' }]}>
           Ingresos y gastos de {formatDashboardPeriod(period)}. Los traspasos, saldos iniciales y pagos de
@@ -147,22 +163,39 @@ export function MonthlyOverview({
           </MotionPressable>
         ) : null}
       </ReportPanel>
+      {current.expensesByDay && (
+        <SpendingCalendar period={period} days={current.expensesByDay} currency={currency} hidden={hidden} />
+      )}
+      {growth && !hidden && (
+        <ReportPanel title="Qué cambió" icon="search-outline">
+          <Text style={s.body}>
+            {growth.name} tuvo el mayor aumento de gasto neto frente al mes anterior:{' '}
+            {money(growth.amount - (growth.previous ?? 0))}.
+          </Text>
+          <Button variant="ghost" onPress={onExpenses}>
+            Explorar categorías de gasto
+          </Button>
+        </ReportPanel>
+      )}
       <ReportPanel
         title="Frente al mes anterior"
         subtitle={formatDashboardPeriod(shiftDashboardPeriod(period, -1))}
         icon="git-compare-outline"
       >
+        {!completePeriod && (
+          <ReportNotice>Períodos no equivalentes: el mes seleccionado aún no está cerrado.</ReportNotice>
+        )}
         <Comparison
           label="Ingresos"
           current={current.income}
-          previous={previous?.income}
+          previous={completePeriod ? previous?.income : undefined}
           currency={currency}
           hidden={hidden}
         />
         <Comparison
           label="Gastos"
           current={current.expense}
-          previous={previous?.expense}
+          previous={completePeriod ? previous?.expense : undefined}
           currency={currency}
           hidden={hidden}
         />

@@ -4,6 +4,7 @@ export type CurrencyMonth = {
   income: number;
   expense: number;
   expensesByCategory: Record<string, number>;
+  expensesByDay?: Record<string, number>;
 };
 export type ReportMonth = Record<string, CurrencyMonth>;
 

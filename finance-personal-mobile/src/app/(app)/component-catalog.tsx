@@ -9,6 +9,13 @@ import { Disclosure } from '@/ui/disclosure';
 import { EmptyState, ErrorState, SkeletonRow } from '@/ui/states';
 import { FinancialMetric, StatusBadge } from '@/ui/financial-metric';
 import { ReportAmountBars } from '@/features/reports/report-charts';
+import { InteractiveHistory } from '@/features/reports/interactive-history';
+
+const sampleHistory = [
+  { year: 2026, month: 8, income: 900_000, expense: 420_000 },
+  { year: 2026, month: 9, income: 850_000, expense: 610_000 },
+  { year: 2026, month: 10, income: 950_000, expense: -30_000 },
+];
 
 export default function ComponentCatalog() {
   const { palette, mode, setMode } = useAppTheme();
@@ -33,6 +40,11 @@ export default function ComponentCatalog() {
         ))}
       </View>
       <SectionHeader title="Tipografía y cifras" />
+      <SectionHeader title="Laboratorio · ritmo mensual" />
+      <Text style={typography.caption}>
+        Datos ilustrativos: selecciona un mes y prueba el cambio de gráfica.
+      </Text>
+      <InteractiveHistory points={sampleHistory} currency="COP" hidden={false} />
       <Text style={typography.screenTitle}>Tu dinero, con claridad</Text>
       <Text style={typography.body}>Inter · una familia, jerarquía consistente y texto adaptable.</Text>
       <Card style={{ padding: spacing.lg }}>
