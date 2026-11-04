@@ -83,7 +83,7 @@ export function SpendingCalendar({
                           inset: 0,
                           borderRadius: radius.small,
                           backgroundColor: colors.expense,
-                          opacity: intensity * 0.055,
+                          opacity: intensity * 0.085,
                         }}
                       />
                     )}

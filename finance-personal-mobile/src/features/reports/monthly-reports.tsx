@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { colors, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 import { Card, Button } from '@/ui/primitives';
 import { BrandSurface } from '@/ui/brand-surface';
-import { MotionPressable } from '@/ui/motion';
+import { MotionEntry, MotionPressable } from '@/ui/motion';
 import { Progress } from '@/ui/progress';
 import { formatPrivateMoney } from '@/privacy/privacy-format';
+import { categoryAppearance } from '@/features/categories/category-appearance';
 import {
   formatDashboardPeriod,
   currentDashboardPeriod,
@@ -15,7 +16,7 @@ import {
   type DashboardPeriod,
 } from '@/features/dashboard/dashboard-period';
 import { categoryRows, comparisonPercent, type CurrencyMonth, type TrendPoint } from './report-model';
-import { chartColors, ReportRing, ReportAmountBars } from './report-charts';
+import { chartColors, ReportRing } from './report-charts';
 import { InteractiveHistory } from './interactive-history';
 import { SpendingCalendar } from './spending-calendar';
 import { reportStyles as s, ReportChoice, ReportEmpty, ReportNotice, ReportPanel } from './report-ui';
@@ -46,9 +47,11 @@ export function MonthlyOverview({
   onRetryHistory: () => void;
 }) {
   const money = (value: number) => formatPrivateMoney(value, currency, hidden);
+  const [lens, setLens] = useState<'activity' | 'comparison' | 'history'>('activity');
   const ratio =
     current.income > 0 && current.expense >= 0 ? (current.expense / current.income) * 100 : undefined;
-  const largest = categoryRows(current)[0];
+  const rows = categoryRows(current);
+  const largest = rows[0];
   const today = currentDashboardPeriod();
   const completePeriod = period.year * 12 + period.month < today.year * 12 + today.month;
   const growth =
@@ -57,189 +60,283 @@ export function MonthlyOverview({
           .filter((row) => row.amount > 0 && (row.previous ?? 0) >= 0 && row.amount > (row.previous ?? 0))
           .sort((a, b) => b.amount - (b.previous ?? 0) - (a.amount - (a.previous ?? 0)))[0]
       : undefined;
+
+  const mosaicItems = rows.filter((row) => row.amount > 0).slice(0, 4);
+  const mosaicTotal = mosaicItems.reduce((sum, item) => sum + item.amount, 0);
+  const fitsMosaic = current.expense > 0 && mosaicItems.length >= 2;
+
   return (
     <>
-      <BrandSurface tone="panorama" style={{ gap: spacing.lg }}>
-        <View style={s.row}>
-          <Ionicons name="analytics-outline" size={22} color="#66E6BC" />
-          <Text style={[s.eyebrow, { color: '#B7EDE0' }]}>TU MES EN {currency}</Text>
-        </View>
-        <View style={{ gap: spacing.xs }}>
-          <Text style={{ color: '#B9D4D5' }}>Flujo neto registrado</Text>
-          <Text style={[s.value, { color: '#FFFFFF' }]}>{money(current.income - current.expense)}</Text>
-        </View>
-        <View style={s.between}>
-          <View>
-            <Text style={{ color: '#B9D4D5' }}>Ingresos registrados</Text>
-            <Text style={[s.amount, { color: '#FFFFFF' }]}>{money(current.income)}</Text>
-          </View>
-          <View>
-            <Text style={{ color: '#B9D4D5' }}>Gastos registrados</Text>
-            <Text style={[s.amount, { color: '#FFFFFF' }]}>{money(current.expense)}</Text>
-          </View>
-        </View>
-        <Text style={[s.caption, { color: '#B9D4D5' }]}>
-          Ingresos y gastos de {formatDashboardPeriod(period)}. Los traspasos, saldos iniciales y pagos de
-          créditos se consultan aparte.
+      <MotionEntry revision={period.year + '-' + period.month + currency} style={{ gap: spacing.sm }}>
+        <Text style={s.eyebrow}>FLUJO NETO · {currency}</Text>
+        <Text style={[s.value, { fontSize: 42, lineHeight: 54 }]}>
+          {money(current.income - current.expense)}
         </Text>
-      </BrandSurface>
-      <ReportPanel
-        title="Ingresos frente a gastos"
-        subtitle="La misma escala para ambos importes."
-        icon="swap-horizontal-outline"
-      >
-        <ReportAmountBars
-          currency={currency}
-          hidden={hidden}
-          items={[
+        <Text style={s.caption}>Ingresos menos gastos registrados</Text>
+        <View
+          style={[
+            s.chips,
             {
-              key: 'income',
-              name: 'Ingresos',
-              value: current.income,
-              color: colors.income,
-              caption: 'Ver los movimientos incluidos →',
-              accessibilityLabel: 'Ver ingresos del período',
-              onPress: () =>
-                router.push({
-                  pathname: '/(app)/report-transactions',
-                  params: { ...period, currency, type: 'INCOME' },
-                }),
-            },
-            {
-              key: 'expense',
-              name: 'Gastos',
-              value: current.expense,
-              color: colors.expense,
-              caption: 'Ver los movimientos incluidos →',
-              accessibilityLabel: 'Ver gastos del período',
-              onPress: () =>
-                router.push({
-                  pathname: '/(app)/report-transactions',
-                  params: { ...period, currency, type: 'EXPENSE' },
-                }),
+              borderTopWidth: 1,
+              borderBottomWidth: 1,
+              borderColor: colors.divider,
+              paddingVertical: spacing.sm,
             },
           ]}
-        />
-        <Text style={s.caption}>
-          Los ajustes conservan su signo. Estos flujos no son el saldo disponible de tus cuentas.
-        </Text>
-      </ReportPanel>
+        >
+          {(['INCOME', 'EXPENSE'] as const).map((type) => (
+            <MotionPressable
+              key={type}
+              accessibilityRole="button"
+              accessibilityLabel={type === 'INCOME' ? 'Ver ingresos del período' : 'Ver gastos del período'}
+              style={{ flexGrow: 1, minHeight: 48 }}
+              onPress={() =>
+                router.push({ pathname: '/(app)/report-transactions', params: { ...period, currency, type } })
+              }
+            >
+              <Text style={[s.label, { color: type === 'INCOME' ? colors.income : colors.expense }]}>
+                {type === 'INCOME' ? '↓ Ingresos' : '↑ Gastos'} ↗
+              </Text>
+              <Text style={s.amount}>{money(type === 'INCOME' ? current.income : current.expense)}</Text>
+            </MotionPressable>
+          ))}
+        </View>
+      </MotionEntry>
+      <ReportChoice
+        label="Explorar mi mes"
+        choices={[
+          { value: 'activity', label: 'Actividad' },
+          { value: 'comparison', label: 'Comparación' },
+          { value: 'history', label: 'Evolución' },
+        ]}
+        selected={lens}
+        onSelect={setLens}
+      />
       {current.income === 0 && current.expense === 0 ? (
         <ReportNotice>
           Este mes aún no tiene ingresos ni gastos en {currency}. Puedes cambiar el período o revisar los
           movimientos que registraste.
         </ReportNotice>
       ) : null}
-      <ReportPanel title="¿Cómo va este mes?" icon="pulse-outline">
-        {ratio !== undefined ? (
-          <>
-            <Text style={s.label}>
-              {hidden
-                ? 'Relación entre gastos e ingresos'
-                : `${ratio.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% de tus ingresos corresponde a gastos`}
-            </Text>
-            {!hidden ? (
-              <Progress
-                value={ratio}
-                color={ratio > 100 ? colors.warning : colors.success}
-                label="Gastos respecto a ingresos"
-              />
+      {lens === 'activity' && (
+        <>
+          <ReportPanel title="¿Cómo va este mes?" icon="pulse-outline">
+            {ratio !== undefined ? (
+              <>
+                <Text style={s.label}>
+                  {hidden
+                    ? 'Relación entre gastos e ingresos'
+                    : `${ratio.toLocaleString('es-CO', { maximumFractionDigits: 1 })}% de tus ingresos corresponde a gastos`}
+                </Text>
+                {!hidden ? (
+                  <Progress
+                    value={ratio}
+                    color={ratio > 100 ? colors.warning : colors.success}
+                    label="Gastos respecto a ingresos"
+                  />
+                ) : null}
+                <Text style={s.caption}>
+                  Compara solo ingresos y gastos. No indica dinero disponible ni cuánto ahorraste.
+                </Text>
+              </>
+            ) : (
+              <Text style={s.body}>
+                {current.income <= 0
+                  ? 'No hay ingresos positivos con los que comparar tus gastos.'
+                  : 'Hay ajustes o reversiones en este mes. Revisa el detalle de tus movimientos.'}
+              </Text>
+            )}
+            {largest && largest.amount > 0 ? (
+              <MotionPressable accessibilityRole="button" onPress={onExpenses} style={s.note}>
+                <Text style={s.label}>Tu categoría con mayor gasto: {largest.name}</Text>
+                <Text style={s.caption}>{money(largest.amount)} · Ver desglose de gastos →</Text>
+              </MotionPressable>
             ) : null}
-            <Text style={s.caption}>
-              Compara solo ingresos y gastos. No indica dinero disponible ni cuánto ahorraste.
-            </Text>
-          </>
-        ) : (
-          <Text style={s.body}>
-            {current.income <= 0
-              ? 'No hay ingresos positivos con los que comparar tus gastos.'
-              : 'Hay ajustes o reversiones en este mes. Revisa el detalle de tus movimientos.'}
-          </Text>
-        )}
-        {largest && largest.amount > 0 ? (
-          <MotionPressable accessibilityRole="button" onPress={onExpenses} style={s.note}>
-            <Text style={s.label}>Tu categoría con mayor gasto: {largest.name}</Text>
-            <Text style={s.caption}>{money(largest.amount)} · Ver desglose de gastos →</Text>
-          </MotionPressable>
-        ) : null}
-      </ReportPanel>
-      {current.expensesByDay && (
-        <SpendingCalendar period={period} days={current.expensesByDay} currency={currency} hidden={hidden} />
+          </ReportPanel>
+          {fitsMosaic && (
+            <ReportPanel
+              title="Mosaico de gastos"
+              subtitle="Categorías principales en proporción al gasto del mes."
+              icon="grid-outline"
+            >
+              {hidden ? (
+                <ReportNotice>Mosaico oculto mientras ocultas tus importes.</ReportNotice>
+              ) : (
+                <View style={{ gap: spacing.xs }}>
+                  {[mosaicItems.slice(0, 2), mosaicItems.slice(2)]
+                    .filter((row) => row.length > 0)
+                    .map((row, rIdx) => {
+                      const rowTotal = row.reduce((sum, item) => sum + item.amount, 0);
+                      return (
+                        <View
+                          key={`mosaic-row-${rIdx}`}
+                          style={{
+                            flexDirection: 'row',
+                            gap: spacing.xs,
+                            minHeight: (140 * rowTotal) / mosaicTotal,
+                          }}
+                        >
+                          {row.map((item) => {
+                            const look = categoryAppearance(item.name, 'EXPENSE');
+                            return (
+                              <MotionPressable
+                                key={item.name}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${item.name}, ${money(item.amount)}`}
+                                onPress={() =>
+                                  router.push({
+                                    pathname: '/(app)/report-transactions',
+                                    params: { ...period, currency, category: item.name },
+                                  })
+                                }
+                                style={{
+                                  flex: item.amount / rowTotal,
+                                  minWidth: 0,
+                                  minHeight: 52,
+                                  padding: spacing.sm,
+                                  borderRadius: radius.medium,
+                                  backgroundColor: look.soft,
+                                  justifyContent: 'space-between',
+                                  borderLeftWidth: 3,
+                                  borderLeftColor: look.ink,
+                                }}
+                              >
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: spacing.xs,
+                                  }}
+                                >
+                                  <Text
+                                    numberOfLines={1}
+                                    style={[
+                                      s.caption,
+                                      {
+                                        color: look.ink,
+                                        fontFamily: 'Inter_600SemiBold',
+                                        flex: 1,
+                                      },
+                                    ]}
+                                  >
+                                    {item.name}
+                                  </Text>
+                                  <Ionicons name={look.icon} size={15} color={look.ink} />
+                                </View>
+                                <Text
+                                  numberOfLines={1}
+                                  style={[s.label, { color: look.ink, fontVariant: ['tabular-nums'] }]}
+                                >
+                                  {money(item.amount)}
+                                </Text>
+                              </MotionPressable>
+                            );
+                          })}
+                        </View>
+                      );
+                    })}
+                  {rows.length > 4 && (
+                    <Text style={s.caption}>
+                      Mostrando las 4 categorías principales de {rows.length}.
+                    </Text>
+                  )}
+                  <Button variant="ghost" size="compact" onPress={onExpenses}>
+                    Explorar todas las categorías de gasto →
+                  </Button>
+                </View>
+              )}
+            </ReportPanel>
+          )}
+          {current.expensesByDay && (
+            <SpendingCalendar period={period} days={current.expensesByDay} currency={currency} hidden={hidden} />
+          )}
+        </>
       )}
-      {growth && !hidden && (
-        <ReportPanel title="Qué cambió" icon="search-outline">
-          <Text style={s.body}>
-            {growth.name} tuvo el mayor aumento de gasto neto frente al mes anterior:{' '}
-            {money(growth.amount - (growth.previous ?? 0))}.
-          </Text>
-          <Button variant="ghost" onPress={onExpenses}>
-            Explorar categorías de gasto
-          </Button>
+      {lens === 'comparison' && (
+        <>
+          {growth && !hidden && (
+            <ReportPanel title="Qué cambió" icon="search-outline">
+              <Text style={s.body}>
+                {growth.name} tuvo el mayor aumento de gasto neto frente al mes anterior:{' '}
+                {money(growth.amount - (growth.previous ?? 0))}.
+              </Text>
+              <Button variant="ghost" onPress={onExpenses}>
+                Explorar categorías de gasto
+              </Button>
+            </ReportPanel>
+          )}
+          <ReportPanel
+            title="Frente al mes anterior"
+            subtitle={formatDashboardPeriod(shiftDashboardPeriod(period, -1))}
+            icon="git-compare-outline"
+          >
+            {!completePeriod && (
+              <ReportNotice>Períodos no equivalentes: el mes seleccionado aún no está cerrado.</ReportNotice>
+            )}
+            <Comparison
+              label="Ingresos"
+              current={current.income}
+              previous={completePeriod ? previous?.income : undefined}
+              currency={currency}
+              hidden={hidden}
+            />
+            <Comparison
+              label="Gastos"
+              current={current.expense}
+              previous={completePeriod ? previous?.expense : undefined}
+              currency={currency}
+              hidden={hidden}
+            />
+            <Text style={s.caption}>
+              Compara los registros de cada mes completo. Si estás viendo el mes en curso, todavía faltan
+              días; la diferencia no es una proyección.
+            </Text>
+          </ReportPanel>
+        </>
+      )}
+      {lens === 'history' && (
+        <ReportPanel
+          title="Ingresos y gastos en el tiempo"
+          subtitle="Una misma escala para comparar tus meses."
+          icon="bar-chart-outline"
+        >
+          <ReportChoice
+            label="Historial"
+            choices={[
+              { value: 3, label: '3 meses' },
+              { value: 6, label: '6 meses' },
+              { value: 12, label: '12 meses' },
+            ]}
+            selected={count}
+            onSelect={onCount}
+          />
+          {historyIncomplete ? (
+            <>
+              <ReportNotice>Faltan meses por cargar. Los datos disponibles siguen visibles.</ReportNotice>
+              <Button variant="ghost" size="compact" onPress={onRetryHistory}>
+                Reintentar historial
+              </Button>
+            </>
+          ) : null}
+          <BrandSurface tone="panorama" style={{ padding: spacing.xs }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: spacing.sm }}>
+              <InteractiveHistory
+                key={`${currency}-${period.year}-${period.month}-${count}`}
+                points={points}
+                currency={currency}
+                hidden={hidden}
+                onOpenPeriod={(type, selected) =>
+                  router.push({
+                    pathname: '/(app)/report-transactions',
+                    params: { year: selected.year, month: selected.month, currency, type },
+                  })
+                }
+              />
+            </View>
+          </BrandSurface>
         </ReportPanel>
       )}
-      <ReportPanel
-        title="Frente al mes anterior"
-        subtitle={formatDashboardPeriod(shiftDashboardPeriod(period, -1))}
-        icon="git-compare-outline"
-      >
-        {!completePeriod && (
-          <ReportNotice>Períodos no equivalentes: el mes seleccionado aún no está cerrado.</ReportNotice>
-        )}
-        <Comparison
-          label="Ingresos"
-          current={current.income}
-          previous={completePeriod ? previous?.income : undefined}
-          currency={currency}
-          hidden={hidden}
-        />
-        <Comparison
-          label="Gastos"
-          current={current.expense}
-          previous={completePeriod ? previous?.expense : undefined}
-          currency={currency}
-          hidden={hidden}
-        />
-        <Text style={s.caption}>
-          Compara los registros de cada mes completo. Si estás viendo el mes en curso, todavía faltan días; la
-          diferencia no es una proyección.
-        </Text>
-      </ReportPanel>
-      <ReportPanel
-        title="Ingresos y gastos en el tiempo"
-        subtitle="Una misma escala para comparar tus meses."
-        icon="bar-chart-outline"
-      >
-        <ReportChoice
-          label="Historial"
-          choices={[
-            { value: 3, label: '3 meses' },
-            { value: 6, label: '6 meses' },
-            { value: 12, label: '12 meses' },
-          ]}
-          selected={count}
-          onSelect={onCount}
-        />
-        {historyIncomplete ? (
-          <>
-            <ReportNotice>Faltan meses por cargar. Los datos disponibles siguen visibles.</ReportNotice>
-            <Button variant="ghost" size="compact" onPress={onRetryHistory}>
-              Reintentar historial
-            </Button>
-          </>
-        ) : null}
-        <InteractiveHistory
-          key={`${currency}-${period.year}-${period.month}-${count}`}
-          points={points}
-          currency={currency}
-          hidden={hidden}
-          onOpenPeriod={(type, selected) =>
-            router.push({
-              pathname: '/(app)/report-transactions',
-              params: { year: selected.year, month: selected.month, currency, type },
-            })
-          }
-        />
-      </ReportPanel>
       <Button
         variant="secondary"
         onPress={() => router.push({ pathname: '/(app)/transactions', params: period })}

@@ -30,7 +30,7 @@ export function CategoryHierarchyReport({
   hidden: boolean;
 }) {
   const [level, setLevel] = useState<'summary' | 'detail'>('summary');
-  const [visual, setVisual] = useState<'distribution' | 'ranking'>();
+  const [visual, setVisual] = useState<'mosaic' | 'distribution' | 'ranking'>();
   const [selectedKey, setSelectedKey] = useState<string>();
   const [choosingGroup, setChoosingGroup] = useState(false);
   const categories = useCategories(type, null);
@@ -127,7 +127,13 @@ export function CategoryHierarchyReport({
   const total = level === 'summary' ? data.totalAmount : (selected?.amount ?? 0);
   const canShowShares = total > 0 && !hasNegative;
   const singleDetail = level === 'detail' && items.length === 1 && !hasNegative;
-  const visualMode = visual ?? (items.length > 5 ? 'ranking' : 'distribution');
+  const mosaicItems = items.filter((item) => item.value / total >= 0.1).slice(0, 4);
+  const mosaicTotal = mosaicItems.reduce((sum, item) => sum + item.value, 0);
+  const fitsMosaic = expense && canShowShares && mosaicItems.length >= 2;
+  const visualMode =
+    visual === 'mosaic' && !fitsMosaic
+      ? 'ranking'
+      : (visual ?? (items.length > 5 ? 'ranking' : fitsMosaic ? 'mosaic' : 'distribution'));
   const showRanking = !singleDetail && (visualMode === 'ranking' || hasNegative || !canShowShares);
   const share = (amount: number) =>
     `${((amount / total) * 100).toLocaleString('es-CO', { maximumFractionDigits: 1 })}%`;
@@ -170,6 +176,7 @@ export function CategoryHierarchyReport({
             <ReportChoice
               label={`Gráfica de ${noun}`}
               choices={[
+                ...(fitsMosaic ? [{ value: 'mosaic' as const, label: 'Mosaico' }] : []),
                 { value: 'distribution', label: 'Distribución' },
                 { value: 'ranking', label: 'Ranking' },
               ]}
@@ -182,6 +189,53 @@ export function CategoryHierarchyReport({
               Hay reversiones o ajustes. Las barras conservan su signo y el total neto; no se dibuja una
               distribución circular con importes negativos.
             </ReportNotice>
+          ) : visualMode === 'mosaic' && !hidden ? (
+            <View style={{ gap: spacing.xs }}>
+              {mosaicItems.length < items.length && (
+                <Text style={s.caption}>Grupos principales · desglose completo debajo</Text>
+              )}
+              {[mosaicItems.slice(0, 2), mosaicItems.slice(2)]
+                .filter((row) => row.length)
+                .map((row) => {
+                  const rowTotal = row.reduce((sum, item) => sum + item.value, 0);
+                  return (
+                    <View
+                      key={row[0]!.key}
+                      style={{
+                        flexDirection: 'row',
+                        gap: spacing.xs,
+                        minHeight: (250 * rowTotal) / mosaicTotal,
+                      }}
+                    >
+                      {row.map((item) => {
+                        const look = appearance(item.categoryId, item.name);
+                        return (
+                          <MotionPressable
+                            key={item.key}
+                            accessibilityRole={item.onPress ? 'button' : undefined}
+                            accessibilityLabel={item.name + ', ' + money(item.value)}
+                            onPress={item.onPress}
+                            style={{
+                              flex: item.value / rowTotal,
+                              minWidth: 0,
+                              minHeight: 48,
+                              padding: spacing.xs,
+                              borderRadius: 8,
+                              backgroundColor: look.soft,
+                              justifyContent: 'flex-end',
+                              borderLeftWidth: 3,
+                              borderLeftColor: item.color,
+                            }}
+                          >
+                            <Text style={[s.caption, { color: look.ink }]}>{item.name}</Text>
+                            <Text style={[s.label, { color: look.ink }]}>{money(item.value)}</Text>
+                          </MotionPressable>
+                        );
+                      })}
+                    </View>
+                  );
+                })}
+            </View>
           ) : canShowShares && visualMode === 'distribution' && !singleDetail ? (
             <ReportRing
               parts={items.map(({ key, name, value, color }) => ({ key, name, value, color }))}

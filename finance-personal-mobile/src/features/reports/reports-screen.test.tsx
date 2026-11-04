@@ -385,6 +385,7 @@ describe('Report journeys', () => {
       />
     );
     const tree = await render(component(data));
+    await press(tree, 'Gráfica de gastos: Distribución');
     const firstParts = tree.root.findByType(ReportRing).props.parts as {
       key: string;
       value: number;
@@ -536,8 +537,9 @@ describe('Report journeys', () => {
     const tree = await render();
     await settle(() => expect(content(tree)).toContain('25% de tus ingresos'));
     await press(tree, 'Moneda del reporte: USD');
-    await settle(() => expect(content(tree)).toContain('TU MES EN USD'));
+    await settle(() => expect(content(tree)).toContain('FLUJO NETO · USD'));
     expect(content(tree)).not.toContain('Mercado');
+    await press(tree, 'Explorar mi mes: Evolución');
     await press(tree, 'Historial: 12 meses');
     await settle(() => expect(tree.root.findByType(ReportTrend).props.points).toHaveLength(12));
     await press(tree, 'Mes siguiente');
@@ -551,13 +553,16 @@ describe('Report journeys', () => {
   it('shows the current month when an older request fails and retries only failed history', async () => {
     failMonth = 9;
     const tree = await render();
-    await settle(() => expect(content(tree)).toContain('Faltan meses por cargar'));
-    expect(content(tree)).toContain('25% de tus ingresos');
+    await settle(() => expect(content(tree)).toContain('25% de tus ingresos'));
+    await press(tree, 'Explorar mi mes: Comparación');
     expect(content(tree)).toContain('Mes anterior no disponible');
+    await press(tree, 'Explorar mi mes: Evolución');
+    await settle(() => expect(content(tree)).toContain('Faltan meses por cargar'));
     expect(tree.root.findByType(ReportTrend).props.points.at(-2).expense).toBeUndefined();
     failMonth = undefined;
     await press(tree, 'Reintentar historial');
     await settle(() => expect(content(tree)).not.toContain('Faltan meses por cargar'));
+    await press(tree, 'Explorar mi mes: Comparación');
     expect(content(tree)).toContain('25% más que el mes anterior');
   });
   it('isolates report errors so another report remains usable', async () => {
@@ -573,7 +578,7 @@ describe('Report journeys', () => {
   });
   it('opens the exact account, credit and goal from their report', async () => {
     const tree = await render();
-    await settle(() => expect(content(tree)).toContain('TU MES EN COP'));
+    await settle(() => expect(content(tree)).toContain('FLUJO NETO · COP'));
     await press(tree, 'Reporte: Cuentas');
     await settle(() => expect(content(tree)).toContain('Principal'));
     await press(tree, 'Ver cuenta Principal');
@@ -589,7 +594,7 @@ describe('Report journeys', () => {
   });
   it('does not label COP budgets with a selected foreign currency', async () => {
     const tree = await render();
-    await settle(() => expect(content(tree)).toContain('TU MES EN COP'));
+    await settle(() => expect(content(tree)).toContain('FLUJO NETO · COP'));
     await press(tree, 'Moneda del reporte: USD');
     await press(tree, 'Reporte: Presupuestos');
     await settle(() => expect(content(tree)).toContain('están definidos en COP'));
@@ -605,7 +610,7 @@ describe('Report journeys', () => {
   });
   it('opens the month grid and picks a past month without affecting the current-state reports', async () => {
     const tree = await render();
-    await settle(() => expect(content(tree)).toContain('TU MES EN COP'));
+    await settle(() => expect(content(tree)).toContain('FLUJO NETO · COP'));
     await press(tree, 'Elegir mes del reporte');
     await press(tree, 'Año anterior');
     await press(tree, 'Febrero de 2025');
@@ -659,6 +664,8 @@ describe('Report journeys', () => {
   it('hides chart geometry and financial accessibility labels in privacy mode', async () => {
     mocks.hidden = true;
     const tree = await render();
+    await settle(() => expect(content(tree)).toContain('FLUJO NETO'));
+    await press(tree, 'Explorar mi mes: Evolución');
     await settle(() => expect(content(tree)).toContain('Gráfica oculta'));
     expect(tree.root.findAll((node) => (node.type as unknown) === 'Svg')).toHaveLength(0);
     expect(content(tree)).not.toContain('1.000');
@@ -856,5 +863,22 @@ describe('Report journeys', () => {
     expect(new Set(bars.map((item: { color: string }) => item.color)).size).toBe(7);
     await act(async () => bars[3].onPress());
     expect(mocks.push).toHaveBeenLastCalledWith({ pathname: '/(app)/account-detail', params: { id: 4 } });
+  });
+  it('renders the Atlas chromatic mosaic in Mi mes and navigates to category transactions', async () => {
+    const tree = await render();
+    await settle(() => expect(content(tree)).toContain('Mosaico de gastos'));
+    expect(content(tree)).toContain('Mercado');
+    expect(content(tree)).toContain('Transporte');
+    const mosaicButton = tree.root
+      .findAll((node) => (node.type as unknown) === 'Pressable')
+      .find((node) => node.props.accessibilityLabel?.startsWith('Mercado,'));
+    expect(mosaicButton).toBeDefined();
+    await act(async () => {
+      mosaicButton!.props.onPress({ stopPropagation() {} });
+    });
+    expect(mocks.push).toHaveBeenCalledWith({
+      pathname: '/(app)/report-transactions',
+      params: { year: 2026, month: 10, currency: 'COP', category: 'Mercado' },
+    });
   });
 });

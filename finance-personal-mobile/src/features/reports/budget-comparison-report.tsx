@@ -107,7 +107,7 @@ export function BudgetComparisonReport({
     name: group.categoryName,
     value: group.hasBudget ? group.budgetedSpentAmount : group.spentAmount,
     reference: group.hasBudget ? group.limitAmount : undefined,
-    color: group.excessAmount > 0 ? colors.warning : colors.expense,
+    color: group.excessAmount > 0 ? colors.warning : look(group.categoryId, group.categoryName).ink,
     icon: icon(group.categoryId, group.categoryName),
     caption: `${groupDescription(group)} · Ver subcategorías →`,
     footer: groupFooter(group),
@@ -121,7 +121,7 @@ export function BudgetComparisonReport({
       value: item.spentAmount,
       reference: item.hasBudget ? item.limitAmount : undefined,
       percentageUsed: item.percentageUsed,
-      color: item.excessAmount > 0 ? colors.warning : colors.expense,
+      color: item.excessAmount > 0 ? colors.warning : look(item.categoryId, item.categoryName).ink,
       icon: icon(item.categoryId, item.categoryName),
       caption: item.hasBudget
         ? 'Límite de la subcategoría · Ver movimientos →'

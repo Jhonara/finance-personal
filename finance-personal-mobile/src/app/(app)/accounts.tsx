@@ -82,10 +82,6 @@ function AccountTile({
   const defaultLook = looks[account.type ?? 'OTHER'] ?? looks.OTHER!;
   const key = categoryColors.find((color) => color.key === account.colorKey)?.key;
   const identity = key ? categoryColorAppearance(key) : undefined;
-  const look = identity
-    ? { ...defaultLook, background: identity.soft, ink: identity.ink, accent: identity.ink }
-    : defaultLook;
-  const dark = !identity && account.type === 'BANK';
   const currency = account.currency ?? 'COP';
   const name = account.name ?? 'Cuenta';
   return (
@@ -93,32 +89,30 @@ function AccountTile({
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${accountTypeLabel(account.type)}, ${accountBalanceLabel(balance, currency, hidden)}`}
       onPress={() => openForm('/(app)/account-detail', { id: String(account.id) })}
-      style={[styles.accountCard, { backgroundColor: look.background }]}
+      style={[styles.accountCard, { borderLeftColor: identity?.ink ?? colors.primary }]}
     >
       <View style={styles.accountTop}>
-        <View style={[styles.accountIcon, { backgroundColor: dark ? '#FFFFFF20' : colors.surface }]}>
-          <Ionicons name={look.icon} size={23} color={look.accent} />
+        <View style={[styles.accountIcon, { backgroundColor: identity?.soft ?? colors.surfaceSecondary }]}>
+          <Ionicons name={defaultLook.icon} size={23} color={identity?.ink ?? colors.primary} />
         </View>
         <View style={styles.accountCopy}>
-          <Text numberOfLines={2} style={[styles.accountName, { color: look.ink }]}>
+          <Text numberOfLines={2} style={[styles.accountName, { color: colors.textPrimary }]}>
             {name}
           </Text>
-          <Text style={[styles.accountType, { color: dark ? '#C3E5E4' : colors.textSecondary }]}>
+          <Text style={[styles.accountType, { color: colors.textSecondary }]}>
             {accountTypeLabel(account.type)} · {currency}
             {!account.active ? ' · Inactiva' : ''}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={21} color={look.accent} />
+        <Ionicons name="chevron-forward" size={21} color={identity?.ink ?? colors.primary} />
       </View>
       <View style={styles.accountBottom}>
-        <Text style={[styles.balanceLabel, { color: dark ? '#C3E5E4' : colors.textSecondary }]}>
-          SALDO REGISTRADO
-        </Text>
+        <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>SALDO REGISTRADO</Text>
         <Text
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.7}
-          style={[styles.balanceValue, { color: look.ink }]}
+          style={[styles.balanceValue, { color: colors.textPrimary }]}
         >
           {accountBalanceLabel(balance, currency, hidden)}
         </Text>
@@ -384,7 +378,13 @@ const styles = themedStyleSheet(() => ({
   filterTextActive: { color: '#FFFFFF' },
   sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   list: { gap: spacing.md },
-  accountCard: { gap: spacing.lg, borderRadius: 24, padding: spacing.lg, ...shadows.card },
+  accountCard: {
+    gap: spacing.sm,
+    borderLeftWidth: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+    padding: spacing.md,
+  },
   accountTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   accountIcon: {
     width: 44,

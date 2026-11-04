@@ -64,16 +64,29 @@ export function AccountBalanceHistory({ accountId, hidden }: { accountId: number
             <Text style={s.caption}>No hay días con movimientos registrados en este período.</Text>
           ) : (
             <>
-              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <Svg width="100%" height={120} viewBox="0 0 320 120">
-                  <Line x1={x(point)} x2={x(point)} y1={8} y2={112} stroke={colors.divider} />
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={{ backgroundColor: colors.heroStart, borderRadius: 18, padding: 12 }}
+              >
+                <Svg width="100%" height={156} viewBox="0 0 320 120">
+                  <Line x1={x(point)} x2={x(point)} y1={8} y2={112} stroke="#91B7AC" />
                   <Polyline
-                    points={points.map((entry) => `${x(entry)},${y(entry)}`).join(' ')}
+                    points={points
+                      .flatMap((entry, index) =>
+                        index === 0
+                          ? [[x(entry), y(entry)]]
+                          : [
+                              [x(entry), y(points[index - 1]!)],
+                              [x(entry), y(entry)],
+                            ],
+                      )
+                      .join(' ')}
                     fill="none"
-                    stroke={colors.primary}
+                    stroke="#94E2C6"
                     strokeWidth={3}
                   />
-                  <Circle cx={x(point)} cy={y(point)} r={5} fill={colors.primary} />
+                  <Circle cx={x(point)} cy={y(point)} r={5} fill="#D9F3BB" />
                   {points.map((entry) => (
                     <Circle
                       key={entry.date}
