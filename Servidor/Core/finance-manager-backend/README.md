@@ -36,6 +36,8 @@ La aplicación usa el perfil `local` por defecto. La configuración sensible se 
 
 Para producción activa el perfil `prod` mediante `SPRING_PROFILES_ACTIVE=prod`. No guardes valores reales en archivos versionados ni en `.env` dentro del repositorio.
 
+Para desplegar la imagen Docker en Render Free con PostgreSQL de Neon, sigue [la guía de Render y Neon](docs/render-neon.md). El Dockerfile está en la raíz de este backend.
+
 La API oficial usa el prefijo `/api/v1`. La autenticación devuelve un access token JWT y un refresh token rotativo; el refresh token debe almacenarse por el cliente móvil en almacenamiento seguro y puede revocarse mediante `POST /api/v1/auth/logout`.
 
 ## OpenAPI y Swagger
